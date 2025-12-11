@@ -24,36 +24,38 @@ function RouteComponent() {
         return;
       }
 
-			if (!session?.access_token || !isAuthenticated) {
-				setError("Not authenticated");
-				setLoading(false);
-				return;
-			}
+      if (!session?.access_token || !isAuthenticated) {
+        setError("Not authenticated");
+        setLoading(false);
+        return;
+      }
 
-			try {
-				const response = await axios.get(
-					`${import.meta.env.VITE_API_URL}/api/auth/profile`,
-					{
-						headers: {
-							Authorization: `Bearer ${session.access_token}`,
-						},
-					}
-				);
+      try {
+        const response = await axios.get(
+          `${import.meta.env.VITE_API_URL}/api/auth/profile`,
+          {
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          }
+        );
 
-				setProfile(response.data.data);
-			} catch (err) {
-				if (axios.isAxiosError(err)) {
-					setError(err.response?.data?.error?.message || err.message);
-				} else {
-					setError(err instanceof Error ? err.message : "Failed to load profile");
-				}
-			} finally {
-				setLoading(false);
-			}
-		};
+        setProfile(response.data.data);
+      } catch (err) {
+        if (axios.isAxiosError(err)) {
+          setError(err.response?.data?.error?.message || err.message);
+        } else {
+          setError(
+            err instanceof Error ? err.message : "Failed to load profile"
+          );
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
 
-		fetchProfile();
-	}, [session, isAuthenticated, isLoadingAuth]);
+    fetchProfile();
+  }, [session, isAuthenticated, isLoadingAuth]);
 
   if (loading || isLoadingAuth) {
     return (
