@@ -1,18 +1,18 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { verifySupabaseJwt } = require('../middleware/auth');
-const { supabaseAdmin } = require('../lib/supabase');
+const { verifySupabaseJwt } = require("../middleware/auth");
+const { supabaseAdmin } = require("../lib/supabase");
 
 /**
  * GET /api/users/me
  * Get current user profile
  */
-router.get('/me', verifySupabaseJwt, async (req, res, next) => {
+router.get("/me", verifySupabaseJwt, async (req, res, next) => {
   try {
     const { data, error } = await supabaseAdmin
-      .from('profiles')
-      .select('*')
-      .eq('id', req.user.id)
+      .from("profiles")
+      .select("*")
+      .eq("id", req.user.id)
       .single();
 
     if (error) throw error;
@@ -27,7 +27,7 @@ router.get('/me', verifySupabaseJwt, async (req, res, next) => {
  * PATCH /api/users/me
  * Update current user profile
  */
-router.patch('/me', verifySupabaseJwt, async (req, res, next) => {
+router.patch("/me", verifySupabaseJwt, async (req, res, next) => {
   try {
     const { display_name, bio, avatar_url } = req.body;
 
@@ -37,9 +37,9 @@ router.patch('/me', verifySupabaseJwt, async (req, res, next) => {
     if (avatar_url !== undefined) updates.avatar_url = avatar_url;
 
     const { data, error } = await supabaseAdmin
-      .from('profiles')
+      .from("profiles")
       .update(updates)
-      .eq('id', req.user.id)
+      .eq("id", req.user.id)
       .select()
       .single();
 
@@ -55,17 +55,17 @@ router.patch('/me', verifySupabaseJwt, async (req, res, next) => {
  * GET /api/users/:id
  * Get user profile by ID
  */
-router.get('/:id', verifySupabaseJwt, async (req, res, next) => {
+router.get("/:id", verifySupabaseJwt, async (req, res, next) => {
   try {
     const { data, error } = await supabaseAdmin
-      .from('profiles')
-      .select('id, display_name, avatar_url, bio, is_consultant_verified')
-      .eq('id', req.params.id)
+      .from("profiles")
+      .select("id, display_name, avatar_url, bio, is_consultant_verified")
+      .eq("id", req.params.id)
       .single();
 
     if (error) throw error;
     if (!data) {
-      return res.status(404).json({ error: { message: 'User not found' } });
+      return res.status(404).json({ error: { message: "User not found" } });
     }
 
     res.json({ data });
