@@ -1,9 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import { Home, Menu, X } from "lucide-react";
+import { Home, Menu, X, User } from "lucide-react";
 import { useState } from "react";
+import { useAuthStore } from "../stores/authStore";
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const signOut = useAuthStore((state) => state.signOut);
 
   return (
     <>
@@ -57,7 +60,55 @@ export default function Header() {
             <Home size={20} />
             <span className="font-medium">Home</span>
           </Link>
+
+          {isAuthenticated && (
+            <Link
+              to="/profile"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 transition-colors mb-2"
+              activeProps={{
+                className:
+                  "flex items-center gap-3 p-3 rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-colors mb-2",
+              }}
+            >
+              <User size={20} />
+              <span className="font-medium">Profile</span>
+            </Link>
+          )}
         </nav>
+
+        {/* Footer with Auth Actions */}
+        <div className="p-4 border-t border-gray-700">
+          {isAuthenticated ? (
+            <button
+              type="button"
+              onClick={() => {
+                signOut();
+                setIsOpen(false);
+              }}
+              className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+            >
+              Sign Out
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <Link
+                to="/auth/login"
+                onClick={() => setIsOpen(false)}
+                className="block w-full bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors text-center"
+              >
+                Log In
+              </Link>
+              <Link
+                to="/auth/signup"
+                onClick={() => setIsOpen(false)}
+                className="block w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors text-center"
+              >
+                Sign Up
+              </Link>
+            </div>
+          )}
+        </div>
       </aside>
     </>
   );
