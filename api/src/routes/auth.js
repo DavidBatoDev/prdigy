@@ -86,4 +86,59 @@ router.patch("/persona", verifySupabaseJwt, async (req, res, next) => {
   }
 });
 
+/**
+ * GET /api/auth/profile
+ * Get current user's profile
+ */
+router.get("/profile", verifySupabaseJwt, async (req, res, next) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("profiles")
+      .select("*")
+      .eq("id", req.user.id)
+      .single();
+
+    if (error) throw error;
+
+    res.json({ data });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PATCH /api/auth/profile
+ * Update user profile
+ */
+router.patch("/profile", verifySupabaseJwt, async (req, res, next) => {
+  try {
+    const { display_name, avatar_url, bio } = req.body;
+
+    // Only allow updating specific fields
+    const updateData = {};
+    if (display_name !== undefined) updateData.display_name = display_name;
+    if (avatar_url !== undefined) updateData.avatar_url = avatar_url;
+    if (bio !== undefined) updateData.bio = bio;
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        error: { message: "No valid fields to update" },
+      });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from("profiles")
+      .update(updateData)
+      .eq("id", req.user.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ data });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;
