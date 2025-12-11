@@ -55,6 +55,7 @@ npm run db:push
 ```
 
 This creates:
+
 - ✅ All database tables (profiles, projects, work_items, etc.)
 - ✅ All RLS policies
 - ✅ Indexes and triggers
@@ -143,6 +144,7 @@ terraform apply
 ```
 
 This creates:
+
 - ✅ `project-files` storage bucket (private)
 - ✅ `avatars` storage bucket (public)
 - ✅ Storage bucket policies
@@ -151,17 +153,17 @@ This creates:
 
 ### Core Tables
 
-| Table | Description |
-|-------|-------------|
-| `profiles` | User profiles with persona flags |
-| `projects` | Project containers |
-| `project_members` | Team membership + permissions |
-| `work_items` | Tasks, deliverables, bugs |
-| `milestones` | Project milestones |
-| `payment_checkpoints` | Payment ledger (pending/completed) |
-| `meetings` | Scheduled meetings |
-| `chat_messages` | Real-time chat (all-hands, dev-team, direct) |
-| `files` | File metadata + storage paths |
+| Table                 | Description                                  |
+| --------------------- | -------------------------------------------- |
+| `profiles`            | User profiles with persona flags             |
+| `projects`            | Project containers                           |
+| `project_members`     | Team membership + permissions                |
+| `work_items`          | Tasks, deliverables, bugs                    |
+| `milestones`          | Project milestones                           |
+| `payment_checkpoints` | Payment ledger (pending/completed)           |
+| `meetings`            | Scheduled meetings                           |
+| `chat_messages`       | Real-time chat (all-hands, dev-team, direct) |
+| `files`               | File metadata + storage paths                |
 
 ### RLS Policy Summary
 
@@ -178,42 +180,42 @@ This creates:
 ```typescript
 // Frontend
 const { data, error } = await supabase.auth.signUp({
-  email: 'user@example.com',
-  password: 'password'
-})
+  email: "user@example.com",
+  password: "password",
+});
 ```
 
 ### 2. Onboarding (Set Initial Persona)
 
 ```typescript
 // POST /api/auth/onboarding
-const response = await fetch('/api/auth/onboarding', {
-  method: 'POST',
+const response = await fetch("/api/auth/onboarding", {
+  method: "POST",
   headers: {
-    'Authorization': `Bearer ${session.access_token}`,
-    'Content-Type': 'application/json'
+    Authorization: `Bearer ${session.access_token}`,
+    "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    active_persona: 'client', // or 'freelancer'
-    display_name: 'John Doe'
-  })
-})
+    active_persona: "client", // or 'freelancer'
+    display_name: "John Doe",
+  }),
+});
 ```
 
 ### 3. Switch Persona
 
 ```typescript
 // PATCH /api/auth/persona
-const response = await fetch('/api/auth/persona', {
-  method: 'PATCH',
+const response = await fetch("/api/auth/persona", {
+  method: "PATCH",
   headers: {
-    'Authorization': `Bearer ${session.access_token}`,
-    'Content-Type': 'application/json'
+    Authorization: `Bearer ${session.access_token}`,
+    "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    active_persona: 'consultant' // requires verification
-  })
-})
+    active_persona: "consultant", // requires verification
+  }),
+});
 ```
 
 ## 🧪 Testing the Setup
@@ -279,6 +281,7 @@ vercel --prod
 ```
 
 Environment variables in Vercel dashboard:
+
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
@@ -287,16 +290,19 @@ Environment variables in Vercel dashboard:
 ### Cloud Run (Future)
 
 1. Build:
+
 ```bash
 docker build -t gcr.io/<project-id>/prodigi-api .
 ```
 
 2. Push:
+
 ```bash
 docker push gcr.io/<project-id>/prodigi-api
 ```
 
 3. Deploy:
+
 ```bash
 gcloud run deploy prodigi-api \
   --image gcr.io/<project-id>/prodigi-api \
