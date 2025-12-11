@@ -1,0 +1,7 @@
+# Supabase Infrastructure Module
+# Manages database migrations via Terraform
+# Note: Storage buckets must be created manually via Supabase Dashboard
+# The Supabase Terraform provider currently has limited resource support
+
+# All infrastructure is managed via migrations.tf (database schema)
+# Storage buckets should be created manually or via Supabase CLI
