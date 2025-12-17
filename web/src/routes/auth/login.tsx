@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useAuthStore } from "../../stores/authStore";
 import { Button } from "../../ui/button";
 import Logo from "/prodigylogos/light/logo1.svg";
+import { useToast } from "../../hooks/useToast";
 
 export const Route = createFileRoute("/auth/login")({
   component: RouteComponent,
@@ -11,9 +12,9 @@ export const Route = createFileRoute("/auth/login")({
 function RouteComponent() {
   const signIn = useAuthStore((state) => state.signIn);
   const navigate = useNavigate();
+  const toast = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const assets = useMemo(
@@ -34,7 +35,6 @@ function RouteComponent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
     setIsLoading(true);
 
     try {
@@ -42,7 +42,7 @@ function RouteComponent() {
       // Redirect to home page after successful login
       navigate({ to: "/" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      toast.error(err instanceof Error ? err.message : "Login failed");
     } finally {
       setIsLoading(false);
     }
@@ -152,12 +152,6 @@ function RouteComponent() {
               />
               <span>Keep me login</span>
             </label>
-
-            {error && (
-              <div className="rounded-md border border-red-500/70 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {error}
-              </div>
-            )}
 
             <div className="flex flex-col items-center gap-3">
               <Button
