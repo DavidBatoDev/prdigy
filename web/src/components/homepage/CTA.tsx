@@ -2,7 +2,10 @@ import { Button } from "../../ui/button";
 
 const CTA = () => {
   return (
-    <section className="relative w-full overflow-hidden py-16 md:py-20 flex justify-center bg-white">
+    <section
+      id="cta"
+      className="relative w-full overflow-hidden py-16 md:py-20 flex justify-center bg-white scroll-mt-32"
+    >
       <div
         className="relative w-full max-w-[1313px] overflow-hidden min-h-[520px] rounded-[7.5px] px-8 md:px-14 lg:px-20 py-12 md:py-16"
         style={{

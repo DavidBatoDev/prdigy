@@ -1,7 +1,10 @@
 const Stats = () => {
   return (
-    <section className="bg-white">
-      <div className="h-[180px] flex items-center container border-gray-500 border-t-2 border-b-2  mx-auto px-6 md:px-12 lg:px-24">
+    <section
+      id="stats"
+      className="w-full bg-white py-12 border-t border-b border-gray-200 scroll-mt-32"
+    >
+      <div className="h-[180px] flex items-center container border-gray-500 border-t-2 border-b-2 mx-auto px-6 md:px-12 lg:px-24">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12">
           {/* Stat 1 - Project Value */}
           <div className="flex items-center justify-center text-center gap-3">

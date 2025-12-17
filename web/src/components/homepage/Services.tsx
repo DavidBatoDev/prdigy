@@ -1,6 +1,9 @@
 const Services = () => {
   return (
-    <section className="relative w-full lg:min-h-[1333px] bg-white py-20 overflow-hidden">
+    <section
+      id="services"
+      className="relative w-full lg:min-h-[1333px] bg-white py-20 overflow-hidden scroll-mt-32"
+    >
       {/* Figma background line art */}
       <div
         aria-hidden

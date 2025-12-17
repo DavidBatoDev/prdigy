@@ -1,6 +1,9 @@
 const About = () => {
   return (
-    <section className="relative w-full min-h-[620px] flex items-center overflow-hidden bg-linear-to-br from-orange-50 via-white to-orange-50 py-20">
+    <section
+      id="about"
+      className="relative w-full min-h-[620px] flex items-center overflow-hidden bg-gradient-to-br from-orange-50 via-white to-orange-50 py-20 scroll-mt-32"
+    >
       {/* Wave background from Figma */}
       <div
         aria-hidden

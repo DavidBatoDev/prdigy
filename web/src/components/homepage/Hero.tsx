@@ -3,7 +3,10 @@ import Logo from "/prodigylogos/light/logovector.svg";
 
 const Hero = () => {
   return (
-    <section className="w-full min-h-[817px] flex items-center relative overflow-hidden bg-white">
+    <section
+      id="hero"
+      className="w-full min-h-[817px] flex items-center relative overflow-hidden bg-white scroll-mt-32"
+    >
       {/* Gradient overlay */}
       <div
         className="absolute inset-0 pointer-events-none"

@@ -4,7 +4,19 @@ import { Button } from "../../ui/button";
 import Logo from "/prodigylogos/light/logo1.svg";
 
 const Header = () => {
-  const navItems = ["Home", "About Us", "Our Services", "Stories"];
+  const navItems = [
+    { label: "Home", target: "hero" },
+    { label: "About Us", target: "about" },
+    { label: "Our Services", target: "services" },
+    { label: "Stories", target: "stats" },
+  ];
+
+  const handleScroll = (target: string) => {
+    const el = document.getElementById(target);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
 
   return (
     <AppBar
@@ -53,19 +65,24 @@ const Header = () => {
           >
             {navItems.map((item) => (
               <Typography
-                key={item}
-                component="span"
+                key={item.target}
+                component="button"
                 sx={{
                   color: "#2F302F",
                   cursor: "pointer",
                   whiteSpace: "nowrap",
                   fontSize: { xs: "0.9rem", md: "1rem" },
+                  fontWeight: 600,
                   "&:hover": {
                     color: "primary.main",
                   },
+                  background: "none",
+                  border: "none",
+                  padding: 0,
                 }}
+                onClick={() => handleScroll(item.target)}
               >
-                {item}
+                {item.label}
               </Typography>
             ))}
           </Stack>
