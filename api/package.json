@@ -9,6 +9,7 @@
     "db:push": "npx supabase db push",
     "db:reset": "npx supabase db reset",
     "db:migration": "npx supabase migration new",
+    "gmail:auth": "node scripts/gmail-auth.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -23,6 +24,7 @@
     "@supabase/supabase-js": "^2.87.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "googleapis": "^131.0.0"
   }
 }
