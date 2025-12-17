@@ -25,9 +25,14 @@ code {
   --card-foreground: oklch(0.141 0.005 285.823);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.141 0.005 285.823);
-  --primary: oklch(0.21 0.006 285.885);
+  /* Convert the hex codes to oklch if theres a hex code */
+  --primary: oklch(77.37% 0.163 60.28) ; 
+  --primary-dark: oklch(65.96% 0.138 60.19);
+  --primary-light: oklch(81.21% 0.136 63.40);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.967 0.001 286.375);
+  --secondary:oklch(65.65% 0.235 13.34);
+  --secondary-dark: oklch(54.12% 0.202 14.12);
+  --secondary-light: oklch(73.85% 0.21 12);
   --secondary-foreground: oklch(0.21 0.006 285.885);
   --muted: oklch(0.967 0.001 286.375);
   --muted-foreground: oklch(0.552 0.016 285.938);

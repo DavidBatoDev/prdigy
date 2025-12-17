@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useAuthStore } from "../../stores/authStore";
+import { Button } from "../../ui/button";
 
 export const Route = createFileRoute("/auth/login")({
   component: RouteComponent,
@@ -62,13 +63,15 @@ function RouteComponent() {
               {error}
             </div>
           )}
-          <button
+          <Button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            variant="contained"
+            colorScheme="primary"
+            className="w-full"
           >
             {isLoading ? "Logging in..." : "Log In"}
-          </button>
+          </Button>
         </form>
         <div className="mt-4 text-center">
           <p className="text-gray-400">

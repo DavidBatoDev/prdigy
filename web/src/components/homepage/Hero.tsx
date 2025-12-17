@@ -1,0 +1,66 @@
+import { Button } from "../../ui/button";
+import Logo from "/prodigylogos/light/logovector.svg";
+
+const Hero = () => {
+  return (
+    <section className="w-full min-h-[817px] flex items-center relative overflow-hidden bg-white">
+      {/* Gradient overlay */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(1200px 600px at -10% -20%, rgba(255, 160, 85, 0.15), rgba(255,255,255,0) 60%)",
+        }}
+      />
+
+      {/* Background line art */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 h-full opacity-20"
+        style={{
+          backgroundImage:
+            "url('https://www.figma.com/api/mcp/asset/401294d3-a0ee-4f4c-8db8-a104e5af9bfc'), url('https://www.figma.com/api/mcp/asset/8487b178-52f2-4e6e-b3be-b20653ae46fb')",
+          backgroundRepeat: "no-repeat, no-repeat",
+          backgroundPosition: "50% 0%, 50% -120px",
+          backgroundSize: "1800px auto, 2200px auto",
+        }}
+      />
+
+      <div className="container mx-auto px-6 md:px-12 lg:px-14 relative">
+        <div className="grid grid-cols-1 sm:grid-cols-12 gap-8 sm:gap-12 items-center">
+          {/* Left content */}
+          <div className="sm:col-span-7">
+            <h1 className="text-start text-4xl md:text-6xl lg:text-7xl font-extrabold leading-tight tracking-tight text-gray-900">
+              The Future of Managed
+              <br /> Freelancing
+            </h1>
+            <p className="text-start mt-4 text-lg md:text-xl text-gray-600 max-w-2xl">
+              A project workspace that organizes work automatically using AI —
+              with dynamic roadmaps instead of tasks
+            </p>
+            <div className="flex gap-4 mt-6">
+              <Button variant="contained" colorScheme="primary" size="lg">
+                HIRE A VETTED TEAM
+              </Button>
+              <Button variant="outlined" colorScheme="primary" size="lg">
+                APPLY AS A TALENT
+              </Button>
+            </div>
+          </div>
+
+          {/* Right illustration */}
+          <div className="sm:col-span-5 flex justify-center sm:justify-end">
+            <img
+              src={Logo}
+              alt="Prodigy Mark"
+              className="w-72 sm:w-80 md:w-96 lg:w-[520px]"
+              style={{ filter: "drop-shadow(0px 10px 30px rgba(0,0,0,0.08))" }}
+            />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+export default Hero;

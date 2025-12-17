@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useAuthStore } from "../../stores/authStore";
+import { Button } from "../../ui/button";
 
 export const Route = createFileRoute("/auth/signup")({
   component: RouteComponent,
@@ -75,12 +76,14 @@ function RouteComponent() {
               {error}
             </div>
           )}
-          <button
+          <Button
             type="submit"
-            className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-3 rounded-lg transition-colors"
+            variant="contained"
+            colorScheme="primary"
+            className="w-full"
           >
             Sign Up
-          </button>
+          </Button>
         </form>
         <div className="mt-4 text-center">
           <p className="text-gray-400">
