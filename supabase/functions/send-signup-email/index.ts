@@ -13,6 +13,7 @@ interface EmailRequest {
   to: string;
   firstName: string;
   lastName: string;
+  verificationCode: string;
 }
 
 // Gmail API token refresh helper
@@ -88,29 +89,16 @@ async function sendEmail(
   return await response.json();
 }
 
-// Generate verification token
-function generateVerificationToken(email: string): string {
-  const timestamp = Date.now().toString();
-  const data = email + timestamp;
-  let hash = 0;
-  for (let i = 0; i < data.length; i++) {
-    const char = data.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash & hash; // Convert to 32bit integer
-  }
-  return Math.abs(hash).toString(16);
+// Generate 6-digit verification code
+function generateVerificationCode(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
 // Email template
 function getVerificationEmailHtml(
   firstName: string,
-  email: string,
   verificationCode: string
 ): string {
-  const verificationUrl = `http://localhost:3000/auth/verify?email=${encodeURIComponent(
-    email
-  )}&code=${verificationCode}`;
-
   return `
     <!DOCTYPE html>
     <html>
@@ -139,26 +127,25 @@ function getVerificationEmailHtml(
                     </p>
                     
                     <p style="margin: 0 0 24px; color: #374151; font-size: 16px; line-height: 1.6;">
-                      Thank you for signing up for Prodigitality. To complete your registration and gain access to your account, please verify your email address by clicking the button below.
+                      Thank you for signing up for Prodigitality. To complete your registration, please enter the verification code below:
                     </p>
                     
-                    <!-- CTA Button -->
-                    <table cellpadding="0" cellspacing="0" style="margin: 32px auto; display: table;">
-                      <tr>
-                        <td align="center" style="background-color: #ff9900; border-radius: 6px; padding: 12px 32px;">
-                          <a href="${verificationUrl}" style="color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; display: inline-block;">
-                            Verify Email Address
-                          </a>
-                        </td>
-                      </tr>
-                    </table>
+                    <!-- Verification Code -->
+                    <div style="margin: 32px 0; text-align: center; padding: 24px; background-color: #f3f4f6; border-radius: 8px;">
+                      <p style="margin: 0 0 12px; color: #6b7280; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">
+                        Your Verification Code
+                      </p>
+                      <p style="margin: 0; color: #1f2937; font-size: 32px; font-weight: 700; letter-spacing: 4px;">
+                        ${verificationCode}
+                      </p>
+                    </div>
                     
-                    <p style="margin: 32px 0 24px; color: #6b7280; font-size: 14px; line-height: 1.6;">
+                    <p style="margin: 24px 0; color: #6b7280; font-size: 14px; line-height: 1.6;">
+                      This code will expire in 10 minutes.
+                    </p>
+                    
+                    <p style="margin: 24px 0 0; color: #6b7280; font-size: 14px; line-height: 1.6;">
                       If you didn't create this account, please disregard this email.
-                    </p>
-                    
-                    <p style="margin: 0; color: #9ca3af; font-size: 13px; line-height: 1.6;">
-                      This verification link will expire in 24 hours.
                     </p>
                   </td>
                 </tr>
@@ -192,10 +179,13 @@ serve(async (req) => {
   }
 
   try {
-    const { to, firstName, lastName }: EmailRequest = await req.json();
+    const { to, firstName, lastName, verificationCode }: EmailRequest =
+      await req.json();
 
-    if (!to || !firstName || !lastName) {
-      throw new Error("Missing required fields: to, firstName, lastName");
+    if (!to || !firstName || !lastName || !verificationCode) {
+      throw new Error(
+        "Missing required fields: to, firstName, lastName, verificationCode"
+      );
     }
 
     // Get Google OAuth credentials from environment
@@ -218,14 +208,19 @@ serve(async (req) => {
     );
 
     // Send verification email
-    const verificationCode = generateVerificationToken(to);
-    const htmlBody = getVerificationEmailHtml(firstName, to, verificationCode);
-    await sendEmail(accessToken, to, "Verify Your Email Address", htmlBody);
+    const htmlBody = getVerificationEmailHtml(firstName, verificationCode);
+    await sendEmail(
+      accessToken,
+      to,
+      "Verify Your Email Address - Code: " + verificationCode,
+      htmlBody
+    );
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: "Welcome email sent successfully",
+        message: "Verification email sent successfully",
+        verificationCode: verificationCode,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
