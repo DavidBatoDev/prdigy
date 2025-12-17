@@ -140,5 +140,3 @@ The roadmap is the core view where phases, milestones, and payment checkpoints l
 - High-level source of truth: summary, scope, requirements, constraints, risks, notes; sections can be client-visible or consultant-only
 
 ---
-
-_If you'd like, I can add a table of contents (TOC) or convert this to a README-ready format (with badges and links)._
