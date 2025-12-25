@@ -4,6 +4,8 @@ import { useAuthStore } from "../../stores/authStore";
 import { Button } from "../../ui/button";
 import Logo from "/prodigylogos/light/logo1.svg";
 import { useToast } from "../../hooks/useToast";
+import DecorativeRightSide from "/svgs/patterns/decorative-right-side.svg";
+import EllipseBottomRight from "/svgs/ellipse/ellipse-bottom-right.svg";
 
 export const Route = createFileRoute("/auth/login")({
   component: RouteComponent,
@@ -26,9 +28,11 @@ function RouteComponent() {
       divider:
         "https://www.figma.com/api/mcp/asset/46d22730-9df8-461e-9241-1e295b2063e6",
       ellipse:
-        "https://www.figma.com/api/mcp/asset/bcefac66-a675-410b-8057-af4e590bc3b3",
+        // "https://www.figma.com/api/mcp/asset/bcefac66-a675-410b-8057-af4e590bc3b3",
+         EllipseBottomRight,
       accent:
-        "https://www.figma.com/api/mcp/asset/12c2df9b-9fda-4258-8e71-e26de5a4c86d",
+        // "https://www.figma.com/api/mcp/asset/12c2df9b-9fda-4258-8e71-e26de5a4c86d",
+        DecorativeRightSide,
     }),
     []
   );

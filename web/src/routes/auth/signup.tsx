@@ -15,6 +15,9 @@ import {
 } from "@mui/material";
 import { MuiTelInput } from "mui-tel-input";
 import { useToast } from "../../hooks/useToast";
+import DecorativeRightSide from "/svgs/patterns/decorative-right-side.svg";
+import EllipseBottomRight from "/svgs/ellipse/ellipse-bottom-right.svg";
+import EllipseCenterLeft from "/svgs/ellipse/ellipse-center-left.svg";
 
 export const Route = createFileRoute("/auth/signup")({
   component: RouteComponent,
@@ -45,14 +48,120 @@ function RouteComponent() {
   const assets = useMemo(
     () => ({
       ellipse28:
-        "https://www.figma.com/api/mcp/asset/40e62b5c-fc97-410f-b33c-d2e8283b208d",
+        // "https://www.figma.com/api/mcp/asset/40e62b5c-fc97-410f-b33c-d2e8283b208d",
+        EllipseCenterLeft,
       ellipse29:
-        "https://www.figma.com/api/mcp/asset/01ff7abc-8e87-4c32-9f9b-5a384b30af5d",
+        // "https://www.figma.com/api/mcp/asset/01ff7abc-8e87-4c32-9f9b-5a384b30af5d",
+        EllipseBottomRight,
       accent:
-        "https://www.figma.com/api/mcp/asset/1a713252-c509-4cef-8a26-4ab7db43b0cb",
+        // "https://www.figma.com/api/mcp/asset/1a713252-c509-4cef-8a26-4ab7db43b0cb",
+        DecorativeRightSide,
     }),
     []
   );
+
+  // Timeout for email requests (prevents a slow edge function from hanging the signup flow)
+  const EMAIL_FETCH_TIMEOUT_MS = 8000;
+
+  async function waitForProfile(maxWaitMs: number) {
+    const start = Date.now();
+    while (Date.now() - start < maxWaitMs) {
+      const { data: authData } = await supabase.auth.getUser();
+      if (authData.user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", authData.user.id)
+          .maybeSingle();
+
+        if (profile) return profile;
+      }
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    throw new Error("Profile creation timeout");
+  }
+
+  async function fetchWithTimeout(
+    resource: string,
+    options: RequestInit = {},
+    timeout = EMAIL_FETCH_TIMEOUT_MS
+  ) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+      const res = await fetch(resource, {
+        ...options,
+        signal: controller.signal,
+      });
+      return res;
+    } finally {
+      clearTimeout(id);
+    }
+  }
+
+  async function sendVerificationEmail(code: string) {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    try {
+      const response = await fetchWithTimeout(
+        `${supabaseUrl}/functions/v1/send-signup-email`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${supabaseAnonKey}`,
+            apikey: supabaseAnonKey,
+          },
+          body: JSON.stringify({
+            to: email,
+            firstName,
+            lastName,
+            verificationCode: code,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => null);
+        console.warn("send-signup-email returned non-OK:", text);
+        toast.error(
+          "Verification email could not be sent. You can resend the code."
+        );
+        return;
+      }
+
+      toast.success("Check your email for the verification code");
+    } catch (emailError: any) {
+      if (emailError?.name === "AbortError") {
+        toast.error("Email sending timed out. You can resend the code.");
+      } else {
+        console.error("Error sending verification email:", emailError);
+        toast.error(
+          "Failed to send verification email. You can resend the code."
+        );
+      }
+    }
+  }
+
+  async function updateProfileDetails() {
+    const { data: authData } = await supabase.auth.getUser();
+    if (!authData.user) return;
+
+    await supabase
+      .from("profiles")
+      .update({
+        first_name: firstName,
+        last_name: lastName,
+        display_name: `${firstName} ${lastName}`,
+        gender: gender || null,
+        phone_number: phoneNumber?.trim() || null,
+        country: country || null,
+        date_of_birth: dateOfBirth || null,
+        city: city || null,
+        zip_code: zipCode || null,
+      })
+      .eq("id", authData.user.id);
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,92 +181,29 @@ function RouteComponent() {
       setIsLoading(true);
 
       try {
+        // Clear auth token from localStorage to ensure session is completely removed
+        localStorage.removeItem("sb-ftuiloyegcipkupbtias-auth-token");
+
+        // Create user account
         await signUp(email, password);
 
-        // Wait a moment for auth state to update
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        // Wait for profile to be created by database trigger
+        await waitForProfile(15000);
 
-        // Try to get the session directly
-        const { data } = await supabase.auth.getSession();
+        // Update profile with additional details
+        await updateProfileDetails();
 
-        if (!data?.session?.user?.id) {
-          // If session not ready, try getUser
-          const { data: authData, error: authError } =
-            await supabase.auth.getUser();
+        // Sign out immediately - user should only be logged in after verification
+        await supabase.auth.signOut();
 
-          if (authError || !authData?.user?.id) {
-            throw new Error(
-              "Failed to get user data: " + (authError?.message || "No user")
-            );
-          }
-        }
-
-        const userId =
-          data?.session?.user?.id ||
-          (await supabase.auth.getUser()).data.user?.id;
-
-        if (!userId) {
-          throw new Error("No user ID found");
-        }
-
-        // Update profile with additional fields
-        try {
-          await supabase
-            .from("profiles")
-            .update({
-              first_name: firstName,
-              last_name: lastName,
-              display_name: `${firstName} ${lastName}`,
-              gender: gender || null,
-              phone_number: phoneNumber || null,
-              country: country || null,
-              date_of_birth: dateOfBirth || null,
-              city: city || null,
-              zip_code: zipCode || null,
-            })
-            .eq("id", userId);
-        } catch (profileError) {
-          console.error("Error updating profile:", profileError);
-        }
-
-        // Generate verification code and send email
+        // Generate and send verification code
         const generatedCode = Math.floor(
           100000 + Math.random() * 900000
         ).toString();
         setSentVerificationCode(generatedCode);
 
-        try {
-          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-          const response = await fetch(
-            `${supabaseUrl}/functions/v1/send-signup-email`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                to: email,
-                firstName,
-                lastName,
-                verificationCode: generatedCode,
-              }),
-            }
-          );
-
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error("Failed to send verification email");
-          }
-        } catch (emailError) {
-          console.error("Error sending verification email:", emailError);
-          toast.error("Failed to send verification email");
-          setIsLoading(false);
-          return;
-        }
-
-        // Move to step 2
         setStep(2);
-        toast.success("Check your email for the verification code");
+        await sendVerificationEmail(generatedCode);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Signup failed");
       } finally {
@@ -178,6 +224,14 @@ function RouteComponent() {
       setIsLoading(true);
 
       try {
+        // Sign in the user after successful verification
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (signInError) throw signInError;
+
         // Update is_email_verified in profiles
         const { data: authData } = await supabase.auth.getUser();
         if (authData.user) {
@@ -191,6 +245,8 @@ function RouteComponent() {
         toast.success("Email verified successfully!");
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Verification failed");
+      } finally {
+        // Always clear loading state so the UI cannot get stuck
         setIsLoading(false);
       }
     }
@@ -206,24 +262,36 @@ function RouteComponent() {
       setVerificationCode("");
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const response = await fetch(
-        `${supabaseUrl}/functions/v1/send-signup-email`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            to: email,
-            firstName,
-            lastName,
-            verificationCode: generatedCode,
-          }),
-        }
-      );
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      try {
+        const response = await fetchWithTimeout(
+          `${supabaseUrl}/functions/v1/send-signup-email`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${supabaseAnonKey}`,
+              apikey: supabaseAnonKey,
+            },
+            body: JSON.stringify({
+              to: email,
+              firstName,
+              lastName,
+              verificationCode: generatedCode,
+            }),
+          }
+        );
 
-      if (!response.ok) {
-        throw new Error("Failed to resend verification email");
+        if (!response.ok) {
+          const text = await response.text().catch(() => null);
+          console.warn("resend send-signup-email returned non-OK:", text);
+          throw new Error("Failed to resend verification email");
+        }
+      } catch (err: any) {
+        if (err?.name === "AbortError") {
+          throw new Error("Resend timed out");
+        }
+        throw err;
       }
 
       toast.success("Verification code resent to your email");
@@ -379,6 +447,7 @@ function RouteComponent() {
                     required
                     fullWidth
                     variant="outlined"
+                    inputProps={{ autoComplete: "email" }}
                     sx={{
                       "& .MuiOutlinedInput-root": {
                         "& fieldset": { borderColor: "#b1b1b1" },
@@ -405,6 +474,7 @@ function RouteComponent() {
                       className="flex-1"
                       style={{ minWidth: "300px" }}
                       variant="outlined"
+                      inputProps={{ autoComplete: "new-password" }}
                       sx={{
                         "& .MuiOutlinedInput-root": {
                           "& fieldset": { borderColor: "#d4d4d4" },
@@ -430,6 +500,7 @@ function RouteComponent() {
                       className="flex-1"
                       style={{ minWidth: "300px" }}
                       variant="outlined"
+                      inputProps={{ autoComplete: "new-password" }}
                       sx={{
                         "& .MuiOutlinedInput-root": {
                           "& fieldset": { borderColor: "#d4d4d4" },
@@ -523,7 +594,8 @@ function RouteComponent() {
 
                   <div className="flex flex-wrap gap-8">
                     <MuiTelInput
-                      label="Phone no"
+                      label="Phone (optional)"
+                      placeholder="Optional"
                       value={phoneNumber}
                       onChange={(value) => setPhoneNumber(value)}
                       defaultCountry="PH"
