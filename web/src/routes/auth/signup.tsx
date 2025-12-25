@@ -205,7 +205,17 @@ function RouteComponent() {
         setStep(2);
         await sendVerificationEmail(generatedCode);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Signup failed");
+        const message = err instanceof Error ? err.message : "";
+
+        if (
+          message.toLowerCase().includes("already registered") ||
+          message.toLowerCase().includes("already exists") ||
+          message.toLowerCase().includes("duplicate")
+        ) {
+          toast.error("Email already exists. Try logging in instead.");
+        } else {
+          toast.error(message || "Signup failed");
+        }
       } finally {
         setIsLoading(false);
       }
