@@ -2,6 +2,7 @@ import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { useToast } from "@/hooks/useToast";
+import { useProfileQuery } from "@/hooks/useProfileQuery";
 import { completeOnboarding } from "@/lib/auth-api";
 import { Button } from "@/ui/button";
 import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
@@ -31,7 +32,7 @@ export const Route = createFileRoute("/onboarding")({
 function OnboardingPage() {
   const navigate = useNavigate();
   const toast = useToast();
-  const refreshProfile = useAuthStore((state) => state.refreshProfile);
+  const { refetch: refetchProfile } = useProfileQuery();
   const assets = useMemo(
     () => ({
       ellipseLeft:
@@ -63,7 +64,7 @@ function OnboardingPage() {
         },
       });
 
-      await refreshProfile();
+      await refetchProfile();
       toast.success("Onboarding completed!");
       navigate({ to: "/dashboard" });
     } catch (error) {

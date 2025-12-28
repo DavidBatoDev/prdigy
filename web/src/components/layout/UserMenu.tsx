@@ -4,14 +4,16 @@ import { useAuthStore } from "@/stores/authStore";
 import { User, LogOut, ChevronDown, Loader2 } from "lucide-react";
 import { switchPersona } from "@/lib/auth-api";
 import { useToast } from "@/hooks/useToast";
+import { useProfileQuery } from "@/hooks/useProfileQuery";
 
 export default function UserMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const [isChangingPersona, setIsChangingPersona] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { profile, signOut, refreshProfile } = useAuthStore();
+  const { profile, signOut } = useAuthStore();
   const navigate = useNavigate();
   const toast = useToast();
+  const { refetch: refetchProfile } = useProfileQuery();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -64,7 +66,7 @@ export default function UserMenu() {
       await switchPersona(newPersona as any);
 
       // Refresh the profile to get updated data
-      await refreshProfile();
+      await refetchProfile();
 
       toast.success(`Switched to ${getPersonaLabel(newPersona)} persona`);
 

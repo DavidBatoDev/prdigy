@@ -17,16 +17,15 @@ interface AuthState {
 
 interface AuthActions {
   initialize: () => Promise<void>;
-  loadProfile: (userId: string) => Promise<void>;
+  setProfile: (profile: Profile | null) => void;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-  refreshProfile: () => Promise<void>;
 }
 
 type AuthStore = AuthState & AuthActions;
 
-export const useAuthStore = create<AuthStore>((set, get) => ({
+export const useAuthStore = create<AuthStore>((set) => ({
   // Initial state
   user: null,
   session: null,
@@ -44,28 +43,22 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       set({
         session,
         user: session?.user ?? null,
+        isAuthenticated: !!session?.user,
+        isLoading: false,
       });
-
-      if (session?.user) {
-        await get().loadProfile(session.user.id);
-      } else {
-        set({ isLoading: false });
-      }
 
       // Listen for auth changes
       supabase.auth.onAuthStateChange(async (_event, session) => {
         set({
           session,
           user: session?.user ?? null,
+          isAuthenticated: !!session?.user,
         });
 
-        if (session?.user) {
-          await get().loadProfile(session.user.id);
-        } else {
+        if (!session?.user) {
           set({
             profile: null,
             isLoading: false,
-            isAuthenticated: false,
           });
         }
       });
@@ -75,42 +68,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
   },
 
-  // Load user profile from database
-  loadProfile: async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .maybeSingle();
-
-      if (error) throw error;
-
-      // If profile doesn't exist yet, set authenticated but no profile
-      // The database trigger should create it, but there might be a delay
-      if (!data) {
-        set({
-          profile: null,
-          isAuthenticated: true,
-          isLoading: false,
-        });
-        return;
-      }
-
-      set({
-        profile: data,
-        isAuthenticated: true,
-        isLoading: false,
-      });
-    } catch (error) {
-      console.error("Load profile error:", error);
-      set({
-        profile: null,
-        isAuthenticated: false,
-        isLoading: false,
-      });
-    }
+  // Set profile (called by useProfileQuery)
+  setProfile: (profile) => {
+    set({ profile, isAuthenticated: !!profile });
   },
+
+
 
   // Sign in with email and password
   signIn: async (email: string, password: string) => {
@@ -154,14 +117,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     } catch (error) {
       set({ isLoading: false });
       throw error;
-    }
-  },
-
-  // Refresh current user's profile
-  refreshProfile: async () => {
-    const { user } = get();
-    if (user) {
-      await get().loadProfile(user.id);
     }
   },
 }));
