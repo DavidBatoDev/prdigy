@@ -1,26 +1,18 @@
 import { Link } from "@tanstack/react-router";
-import { AppBar, Toolbar, Box, Typography, Stack } from "@mui/material";
-import clsx from "clsx";
+import { AppBar, Toolbar, Box, Typography, Stack, IconButton } from "@mui/material";
 import { Button } from "../../ui/button";
 import Logo from "/prodigylogos/light/logo1.svg";
 import { useAuthStore } from "@/stores/authStore";
-import UserMenu from "../auth/UserMenu";
+import UserMenu from "./UserMenu";
+import { MessageCircle, Bell } from "lucide-react";
 
 const Header = () => {
   const { isAuthenticated } = useAuthStore();
   const navItems = [
     { label: "Home", target: "hero" },
-    { label: "About Us", target: "about" },
-    { label: "Our Services", target: "services" },
-    { label: "Stories", target: "stats" },
+    { label: "Projects", target: "projects" },
+    { label: "Market place", target: "marketplace" },
   ];
-
-  const handleScroll = (target: string) => {
-    const el = document.getElementById(target);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  };
 
   return (
     <AppBar
@@ -54,7 +46,9 @@ const Header = () => {
         >
           {/* Logo */}
           <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
-            <img src={Logo} alt="Prodigy Logo" />
+            <Link to="/" className="cursor-pointer">
+              <img src={Logo} alt="Prodigy Logo" />
+            </Link>
           </Box>
 
           {/* Navigation Items */}
@@ -84,7 +78,6 @@ const Header = () => {
                   border: "none",
                   padding: 0,
                 }}
-                onClick={() => handleScroll(item.target)}
               >
                 {item.label}
               </Typography>
@@ -95,18 +88,34 @@ const Header = () => {
           <Stack direction="row" spacing={2} sx={{ flexShrink: 0, alignItems: "center" }}>
             {isAuthenticated ? (
               <>
+                {/* Message Icon */}
+                <IconButton
+                  sx={{
+                    color: "#2F302F",
+                    "&:hover": {
+                      backgroundColor: "rgba(0, 0, 0, 0.04)",
+                    },
+                  }}
+                  aria-label="Messages"
+                >
+                  <MessageCircle size={24} />
+                </IconButton>
+
+                {/* Notification Icon */}
+                <IconButton
+                  sx={{
+                    color: "#2F302F",
+                    "&:hover": {
+                      backgroundColor: "rgba(0, 0, 0, 0.04)",
+                    },
+                  }}
+                  aria-label="Notifications"
+                >
+                  <Bell size={24} />
+                </IconButton>
+
+                {/* User Menu */}
                 <UserMenu />
-                <Link to="/dashboard">
-                  <Button
-                    variant="contained"
-                    colorScheme="primary"
-                    className={clsx(
-                      "h-12 cursor-pointer transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-primary"
-                    )}
-                  >
-                    Dashboard
-                  </Button>
-                </Link>
               </>
             ) : (
               <>

@@ -110,7 +110,7 @@ router.patch("/persona", verifySupabaseJwt, async (req, res, next) => {
   try {
     const { active_persona } = req.body;
 
-    const validPersonas = ["client", "freelancer", "consultant", "admin"];
+    const validPersonas = ["client", "freelancer", "consultant"];
     if (!validPersonas.includes(active_persona)) {
       return res.status(400).json({
         error: {
