@@ -1,5 +1,10 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import {
+  createFileRoute,
+  Link,
+  useNavigate,
+  redirect,
+} from "@tanstack/react-router";
+import { useMemo, useState, useEffect } from "react";
 import { useAuthStore } from "../../stores/authStore";
 import { supabase } from "../../lib/supabase";
 import { Button } from "../../ui/button";
@@ -9,15 +14,34 @@ import DecorativeRightSide from "/svgs/patterns/decorative-right-side.svg";
 import EllipseCenterLeft from "/svgs/ellipse/ellipse-center-left.svg";
 
 export const Route = createFileRoute("/auth/login")({
+  beforeLoad: () => {
+    const { isAuthenticated, isLoading } = useAuthStore.getState();
+
+    // Only redirect if auth is loaded and user is authenticated
+    if (!isLoading && isAuthenticated) {
+      throw redirect({
+        to: "/dashboard",
+      });
+    }
+  },
   component: RouteComponent,
 });
 
 function RouteComponent() {
   const signIn = useAuthStore((state) => state.signIn);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isAuthLoading = useAuthStore((state) => state.isLoading);
   const navigate = useNavigate();
   const toast = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!isAuthLoading && isAuthenticated) {
+      navigate({ to: "/dashboard" });
+    }
+  }, [isAuthenticated, isAuthLoading, navigate]);
   const [isLoading, setIsLoading] = useState(false);
   const [isVerifyStep, setIsVerifyStep] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
@@ -126,14 +150,16 @@ function RouteComponent() {
 
       await signIn(email, password);
 
-      // Check profile verification status
+      // Check profile verification status and onboarding
       const { data: authData } = await supabase.auth.getUser();
       const userId = authData.user?.id;
 
       if (userId) {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("is_email_verified, first_name, last_name")
+          .select(
+            "is_email_verified, first_name, last_name, has_completed_onboarding"
+          )
           .eq("id", userId)
           .maybeSingle();
 
@@ -162,10 +188,16 @@ function RouteComponent() {
           setIsLoading(false);
           return;
         }
-      }
 
-      // Redirect to home page after successful login
-      navigate({ to: "/" });
+        // Check onboarding status and redirect accordingly
+        if (!profile?.has_completed_onboarding) {
+          navigate({ to: "/onboarding" });
+        } else {
+          navigate({ to: "/dashboard" });
+        }
+      } else {
+        navigate({ to: "/dashboard" });
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -235,7 +267,7 @@ function RouteComponent() {
                   }
 
                   toast.success("Email verified successfully!");
-                  navigate({ to: "/" });
+                  navigate({ to: "/onboarding" });
                 } catch (error) {
                   toast.error(
                     error instanceof Error

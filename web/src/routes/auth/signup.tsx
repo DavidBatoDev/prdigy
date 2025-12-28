@@ -1,5 +1,10 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import {
+  createFileRoute,
+  Link,
+  useNavigate,
+  redirect,
+} from "@tanstack/react-router";
+import { useMemo, useState, useEffect } from "react";
 import { useAuthStore } from "../../stores/authStore";
 import { supabase } from "../../lib/supabase";
 import { Button } from "../../ui/button";
@@ -20,13 +25,33 @@ import EllipseBottomRight from "/svgs/ellipse/ellipse-bottom-right.svg";
 import EllipseCenterLeft from "/svgs/ellipse/ellipse-center-left.svg";
 
 export const Route = createFileRoute("/auth/signup")({
+  beforeLoad: () => {
+    const { isAuthenticated, isLoading } = useAuthStore.getState();
+
+    // Only redirect if auth is loaded and user is authenticated
+    if (!isLoading && isAuthenticated) {
+      throw redirect({
+        to: "/dashboard",
+      });
+    }
+  },
   component: RouteComponent,
 });
 
 function RouteComponent() {
   const signUp = useAuthStore((state) => state.signUp);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isAuthLoading = useAuthStore((state) => state.isLoading);
+  const navigate = useNavigate();
   const toast = useToast();
   const [step, setStep] = useState(1); // Step 1: Form, Step 2: Verify Code
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!isAuthLoading && isAuthenticated) {
+      navigate({ to: "/dashboard" });
+    }
+  }, [isAuthenticated, isAuthLoading, navigate]);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [gender, setGender] = useState("");
@@ -251,8 +276,8 @@ function RouteComponent() {
             .eq("id", authData.user.id);
         }
 
-        setSuccess(true);
         toast.success("Email verified successfully!");
+        navigate({ to: "/onboarding" });
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Verification failed");
       } finally {

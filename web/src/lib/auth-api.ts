@@ -37,14 +37,16 @@ async function authenticatedFetch(endpoint: string, options: RequestInit = {}) {
 }
 
 /**
- * Complete onboarding by setting initial persona
+ * Complete onboarding by setting user intent (freelancer/client/both)
  */
 export async function completeOnboarding(data: {
-  active_persona: PersonaType;
-  display_name?: string;
+  intent: {
+    freelancer: boolean;
+    client: boolean;
+  };
 }): Promise<{ data: Profile }> {
-  return authenticatedFetch("/api/auth/onboarding", {
-    method: "POST",
+  return authenticatedFetch("/api/auth/onboarding/complete", {
+    method: "PATCH",
     body: JSON.stringify(data),
   });
 }

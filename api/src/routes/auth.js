@@ -36,6 +36,73 @@ router.post("/onboarding", verifySupabaseJwt, async (req, res, next) => {
 });
 
 /**
+ * PATCH /api/auth/onboarding/complete
+ * Complete onboarding flow and set user's intent (freelancer/client/both)
+ */
+router.patch(
+  "/onboarding/complete",
+  verifySupabaseJwt,
+  async (req, res, next) => {
+    try {
+      const { intent } = req.body;
+
+      // Validate intent object
+      if (!intent || typeof intent !== "object") {
+        return res.status(400).json({
+          error: { message: "Intent object is required" },
+        });
+      }
+
+      if (
+        typeof intent.freelancer !== "boolean" ||
+        typeof intent.client !== "boolean"
+      ) {
+        return res.status(400).json({
+          error: {
+            message: "Intent must contain freelancer and client as booleans",
+          },
+        });
+      }
+
+      if (!intent.freelancer && !intent.client) {
+        return res.status(400).json({
+          error: {
+            message: "At least one intent (freelancer or client) must be true",
+          },
+        });
+      }
+
+      // Build settings object with onboarding data
+      const settings = {
+        onboarding: {
+          intent: {
+            freelancer: intent.freelancer,
+            client: intent.client,
+          },
+          completed_at: new Date().toISOString(),
+        },
+      };
+
+      const { data, error } = await supabaseAdmin
+        .from("profiles")
+        .update({
+          settings,
+          has_completed_onboarding: true,
+        })
+        .eq("id", req.user.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      res.json({ data });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
  * PATCH /api/auth/persona
  * Switch active persona
  */

@@ -2,11 +2,11 @@ import { Link } from "@tanstack/react-router";
 import { Home, Menu, X, User } from "lucide-react";
 import { useState } from "react";
 import { useAuthStore } from "../stores/authStore";
+import UserMenu from "./UserMenu";
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const signOut = useAuthStore((state) => state.signOut);
 
   return (
     <>
@@ -80,16 +80,7 @@ export default function Header() {
         {/* Footer with Auth Actions */}
         <div className="p-4 border-t border-gray-700">
           {isAuthenticated ? (
-            <button
-              type="button"
-              onClick={() => {
-                signOut();
-                setIsOpen(false);
-              }}
-              className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
-            >
-              Sign Out
-            </button>
+            <UserMenu />
           ) : (
             <div className="space-y-2">
               <Link

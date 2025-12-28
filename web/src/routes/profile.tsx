@@ -1,10 +1,19 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { useAuthStore } from "../stores/authStore";
 import type { Profile } from "../types/profile.types";
 
 export const Route = createFileRoute("/profile")({
+  beforeLoad: () => {
+    const { isAuthenticated } = useAuthStore.getState();
+
+    if (!isAuthenticated) {
+      throw redirect({
+        to: "/auth/login",
+      });
+    }
+  },
   component: RouteComponent,
 });
 

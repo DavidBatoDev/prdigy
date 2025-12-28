@@ -3,7 +3,7 @@
  */
 
 import type { Session, User } from "@supabase/supabase-js";
-import type { PersonaType, Profile } from "./profile.types";
+import type { PersonaType, Profile, OnboardingIntent } from "./profile.types";
 
 // Re-export Supabase types
 export type { Session, User };
@@ -46,6 +46,11 @@ export interface SignupCredentials {
 export interface OnboardingData {
   active_persona: PersonaType;
   display_name?: string;
+}
+
+// Onboarding complete request
+export interface OnboardingCompleteRequest {
+  intent: OnboardingIntent;
 }
 
 // Persona switch data

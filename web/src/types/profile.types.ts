@@ -6,6 +6,24 @@
 // Persona enum
 export type PersonaType = "client" | "freelancer" | "consultant" | "admin";
 
+// Onboarding intent type
+export interface OnboardingIntent {
+  freelancer: boolean;
+  client: boolean;
+}
+
+// Onboarding settings type
+export interface OnboardingSettings {
+  intent: OnboardingIntent;
+  completed_at: string; // ISO timestamp
+}
+
+// Profile settings JSONB type
+export interface ProfileSettings {
+  onboarding?: OnboardingSettings;
+  [key: string]: any; // Allow for future settings
+}
+
 // Profile interface
 export interface Profile {
   id: string;
@@ -15,6 +33,17 @@ export interface Profile {
   is_consultant_verified: boolean;
   active_persona: PersonaType;
   bio: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  is_email_verified: boolean;
+  gender: string | null;
+  phone_number: string | null;
+  country: string | null;
+  date_of_birth: string | null;
+  city: string | null;
+  zip_code: string | null;
+  settings: ProfileSettings;
+  has_completed_onboarding: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -28,6 +57,17 @@ export interface ProfileInsert {
   is_consultant_verified?: boolean;
   active_persona?: PersonaType;
   bio?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  is_email_verified?: boolean;
+  gender?: string | null;
+  phone_number?: string | null;
+  country?: string | null;
+  date_of_birth?: string | null;
+  city?: string | null;
+  zip_code?: string | null;
+  settings?: ProfileSettings;
+  has_completed_onboarding?: boolean;
 }
 
 // Profile update type (for updating existing profiles)
@@ -38,4 +78,15 @@ export interface ProfileUpdate {
   is_consultant_verified?: boolean;
   active_persona?: PersonaType;
   bio?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  is_email_verified?: boolean;
+  gender?: string | null;
+  phone_number?: string | null;
+  country?: string | null;
+  date_of_birth?: string | null;
+  city?: string | null;
+  zip_code?: string | null;
+  settings?: ProfileSettings;
+  has_completed_onboarding?: boolean;
 }

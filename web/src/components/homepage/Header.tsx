@@ -2,8 +2,11 @@ import { Link } from "@tanstack/react-router";
 import { AppBar, Toolbar, Box, Typography, Stack } from "@mui/material";
 import { Button } from "../../ui/button";
 import Logo from "/prodigylogos/light/logo1.svg";
+import { useAuthStore } from "@/stores/authStore";
+import UserMenu from "../UserMenu";
 
 const Header = () => {
+  const { isAuthenticated } = useAuthStore();
   const navItems = [
     { label: "Home", target: "hero" },
     { label: "About Us", target: "about" },
@@ -89,16 +92,22 @@ const Header = () => {
 
           {/* Auth Buttons */}
           <Stack direction="row" spacing={2} sx={{ flexShrink: 0 }}>
-            <Link to="/auth/login">
-              <Button variant="outlined" colorScheme="primary">
-                Login
-              </Button>
-            </Link>
-            <Link to="/auth/signup">
-              <Button variant="contained" colorScheme="primary">
-                Sign Up
-              </Button>
-            </Link>
+            {isAuthenticated ? (
+              <UserMenu />
+            ) : (
+              <>
+                <Link to="/auth/login">
+                  <Button variant="outlined" colorScheme="primary">
+                    Login
+                  </Button>
+                </Link>
+                <Link to="/auth/signup">
+                  <Button variant="contained" colorScheme="primary">
+                    Sign Up
+                  </Button>
+                </Link>
+              </>
+            )}
           </Stack>
         </Box>
       </Toolbar>
