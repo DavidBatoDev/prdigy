@@ -1,22 +1,24 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { useToast } from "@/hooks/useToast";
 import { completeOnboarding } from "@/lib/auth-api";
 import { Button } from "@/ui/button";
+import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
+import CodeIcon from "@mui/icons-material/Code";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import decorativePatternBottom from "/svgs/patterns/decorative-bottom-side.svg";
 
 export const Route = createFileRoute("/onboarding")({
   beforeLoad: () => {
     const { isAuthenticated, profile } = useAuthStore.getState();
 
-    // Redirect to login if not authenticated
     if (!isAuthenticated) {
       throw redirect({
         to: "/auth/login",
       });
     }
 
-    // Redirect to dashboard if onboarding already completed
     if (profile?.has_completed_onboarding) {
       throw redirect({
         to: "/dashboard",
@@ -30,13 +32,22 @@ function OnboardingPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const refreshProfile = useAuthStore((state) => state.refreshProfile);
+  const assets = useMemo(
+    () => ({
+      ellipseLeft:
+        "https://www.figma.com/api/mcp/asset/ebe4b2ef-391d-4d0c-b657-d8261121afd3",
+      gradientHills: decorativePatternBottom,
+      ellipseCenter:
+        "https://www.figma.com/api/mcp/asset/4aac7a25-1ae2-4fd7-ac3e-d6a8287b18c5",
+    }),
+    []
+  );
 
   const [isFreelancer, setIsFreelancer] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleContinue = async () => {
-    // Validate that at least one option is selected
     if (!isFreelancer && !isClient) {
       toast.error("Please select at least one option to continue");
       return;
@@ -45,24 +56,22 @@ function OnboardingPage() {
     setIsLoading(true);
 
     try {
-      await completeOnboarding({
+      const result = await completeOnboarding({
         intent: {
           freelancer: isFreelancer,
           client: isClient,
         },
       });
 
-      // Refresh the profile to get updated onboarding status
       await refreshProfile();
-
       toast.success("Onboarding completed!");
-
-      // Redirect to dashboard
       navigate({ to: "/dashboard" });
     } catch (error) {
       console.error("Onboarding error:", error);
       toast.error(
-        error instanceof Error ? error.message : "Failed to complete onboarding"
+        error instanceof Error
+          ? error.message
+          : "Failed to complete onboarding."
       );
     } finally {
       setIsLoading(false);
@@ -70,115 +79,132 @@ function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-background to-muted flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
+    <div className="relative min-h-screen overflow-hidden bg-white">
+      {/* Decorative accents */}
+      <img
+        src={assets.ellipseLeft}
+        alt=""
+        className="pointer-events-none absolute -left-36 top-1/2 h-[250px] w-[250px] -translate-y-1/2 opacity-60"
+      />
+      <img
+        src={assets.gradientHills}
+        alt=""
+        className="absolute left-0 bottom-[-300px] w-full object-cover pointer-events-none"
+      />
+      <img
+        src={assets.ellipseCenter}
+        alt=""
+        className="pointer-events-none absolute left-1/2 top-8 h-[190px] w-[190px] -translate-x-1/2"
+      />
+
+      <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-start px-6 py-16 lg:px-12">
         {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold mb-3">Welcome to Prodigy</h1>
-          <p className="text-lg text-muted-foreground">
-            What would you like to do?
+        <div className="flex flex-col items-center gap-4 text-center mb-10">
+          <h1 className="text-5xl font-semibold text-black">
+            How will you use Prodigy?
+          </h1>
+          <p className="text-xl text-[#020202]/80 max-w-2xl">
+            Choose your primary goal to customize your dashboard. You can switch
+            roles at any time.
           </p>
         </div>
 
-        {/* Intent Selection Cards */}
-        <div className="space-y-4 mb-8">
-          {/* Freelancer Option */}
-          <button
-            onClick={() => setIsFreelancer(!isFreelancer)}
-            className={`w-full p-6 rounded-lg border-2 transition-all ${
-              isFreelancer
-                ? "border-primary bg-primary/5"
-                : "border-border bg-card hover:border-primary/50"
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div className="text-left">
-                <h3 className="text-xl font-semibold mb-1">
-                  Work as a Freelancer
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Find and complete projects from clients
-                </p>
+        {/* Cards */}
+        <div className="flex w-full max-w-4xl flex-col items-center gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 w-full">
+            {/* Hire card */}
+            <div
+              className={`rounded-[10px] bg-white p-10 shadow-[0_1px_8px_rgba(0,0,0,0.12),0_3px_4px_rgba(0,0,0,0.14),0_3px_3px_-2px_rgba(0,0,0,0.2)] border-4 transition-all relative flex flex-col items-center justify-between h-full ${
+                isClient ? "border-green-500" : "border-transparent"
+              }`}
+            >
+              {isClient && (
+                <div className="absolute top-4 right-4">
+                  <CheckCircleIcon sx={{ fontSize: 32, color: "#22c55e" }} />
+                </div>
+              )}
+              <div className="flex flex-col items-center gap-5 text-center">
+                <div className="flex h-[100px] w-[100px] items-center justify-center rounded-full bg-[#ff9933]">
+                  <BusinessCenterIcon sx={{ fontSize: 56, color: "white" }} />
+                </div>
+                <div className="flex flex-col gap-3">
+                  <h3 className="text-2xl font-semibold text-black">
+                    I want to Hire
+                  </h3>
+                  <p className="text-base text-[#020202]">
+                    I have a vision and need a managed team to build it. Match
+                    me with an expert Consultant.
+                  </p>
+                </div>
+                <ul className="mt-2 w-60 text-left text-black text-base list-disc list-outside">
+                  <li className="ms-6">Zero Management Overhead</li>
+                  <li className="ms-6">AI-Driven Linear Roadmaps</li>
+                  <li className="ms-6">Secured Milestone Escrow</li>
+                </ul>
               </div>
-              <div
-                className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${
-                  isFreelancer
-                    ? "border-primary bg-primary"
-                    : "border-border bg-background"
-                }`}
+              <Button
+                onClick={() => setIsClient(!isClient)}
+                className="cursor-pointer w-[255px] bg-[#ff9933] px-10 py-2 text-lg font-semibold text-white shadow-[0_1px_5px_rgba(0,0,0,0.12),0_2px_2px_rgba(0,0,0,0.14),0_3px_1px_-2px_rgba(0,0,0,0.2)] transition-transform hover:-translate-y-0.5 mt-4"
               >
-                {isFreelancer && (
-                  <svg
-                    className="w-4 h-4 text-primary-foreground"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                )}
-              </div>
+                Hire a Vetted Team
+              </Button>
             </div>
-          </button>
 
-          {/* Client Option */}
-          <button
-            onClick={() => setIsClient(!isClient)}
-            className={`w-full p-6 rounded-lg border-2 transition-all ${
-              isClient
-                ? "border-primary bg-primary/5"
-                : "border-border bg-card hover:border-primary/50"
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div className="text-left">
-                <h3 className="text-xl font-semibold mb-1">Post Projects</h3>
-                <p className="text-sm text-muted-foreground">
-                  Post projects and hire talented freelancers
-                </p>
+            {/* Work card */}
+            <div
+              className={`rounded-[10px] bg-white p-10 shadow-[0_1px_8px_rgba(0,0,0,0.12),0_3px_4px_rgba(0,0,0,0.14),0_3px_3px_-2px_rgba(0,0,0,0.2)] border-4 transition-all relative flex flex-col items-center justify-between h-full ${
+                isFreelancer ? "border-green-500" : "border-transparent"
+              }`}
+            >
+              {isFreelancer && (
+                <div className="absolute top-4 right-4">
+                  <CheckCircleIcon sx={{ fontSize: 32, color: "#22c55e" }} />
+                </div>
+              )}
+              <div className="flex flex-col items-center gap-5 text-center">
+                <div className="flex h-[100px] w-[100px] items-center justify-center rounded-full bg-[#ff3366]">
+                  <CodeIcon sx={{ fontSize: 56, color: "white" }} />
+                </div>
+                <div className="flex flex-col gap-3">
+                  <h3 className="text-2xl font-semibold text-black">
+                    I want to Work
+                  </h3>
+                  <p className="text-base text-[#020202]">
+                    Join the top 3% talent pool. Focus on coding while our
+                    Architects handle the clients and requirements.
+                  </p>
+                </div>
+                <ul className="mt-2 w-60 text-left text-black text-base list-disc list-outside">
+                  <li className="ms-6">Guaranteed Payouts</li>
+                  <li className="ms-6">Clear, Architected Tasks</li>
+                  <li className="ms-6">No Unpaid Scope Creep</li>
+                </ul>
               </div>
-              <div
-                className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${
-                  isClient
-                    ? "border-primary bg-primary"
-                    : "border-border bg-background"
-                }`}
+              <Button
+                onClick={() => setIsFreelancer(!isFreelancer)}
+                className="w-full cursor-pointer w-[255px] bg-[#ff3366] px-10 py-2 text-lg font-semibold text-white shadow-[0_1px_5px_rgba(0,0,0,0.12),0_2px_2px_rgba(0,0,0,0.14),0_3px_1px_-2px_rgba(0,0,0,0.2)] transition-transform hover:-translate-y-0.5 mt-4"
               >
-                {isClient && (
-                  <svg
-                    className="w-4 h-4 text-primary-foreground"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                )}
-              </div>
+                Apply as a Talent
+              </Button>
             </div>
-          </button>
-        </div>
+          </div>
 
         {/* Helper Text */}
-        <p className="text-xs text-muted-foreground text-center mb-8">
+        <p className="text-white text-center text-sm">
           You can choose both options and switch between them anytime
         </p>
 
-        {/* Continue Button */}
-        <Button
-          onClick={handleContinue}
-          disabled={isLoading || (!isFreelancer && !isClient)}
-          className="w-full py-6 text-base"
-          size="lg"
-        >
-          {isLoading ? "Setting up your account..." : "Continue"}
-        </Button>
+          {/* Continue Button */}
+          <Button
+            onClick={handleContinue}
+            disabled={isLoading || (!isFreelancer && !isClient)}
+            className="w-[280px] bg-[#ff9900] px-10 py-3 text-lg font-semibold text-white shadow-[0_1px_5px_rgba(0,0,0,0.12),0_2px_2px_rgba(0,0,0,0.14),0_3px_1px_-2px_rgba(0,0,0,0.2)] transition-transform hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
+          >
+            {isLoading ? "Setting up your account..." : "Continue"}
+          </Button>
+        </div>
+
+
       </div>
     </div>
   );
