@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import Header from "@/components/homepage/Header";
-import Hero from "@/components/homepage/Hero";
-import About from "@/components/homepage/About";
-import Stats from "@/components/homepage/Stats";
-import Services from "@/components/homepage/Services";
-import References from "@/components/homepage/References";
-import CTA from "@/components/homepage/CTA";
-import Footer from "@/components/homepage/Footer";
+import Header from "@/components/landing/Header";
+import Hero from "@/components/landing/Hero";
+import About from "@/components/landing/About";
+import Stats from "@/components/landing/Stats";
+import Services from "@/components/landing/Services";
+import References from "@/components/landing/References";
+import CTA from "@/components/landing/CTA";
+import Footer from "@/components/landing/Footer";
 
 export const Route = createFileRoute("/")({
   component: App,
