@@ -2,6 +2,7 @@
  * Auth API client for interacting with backend auth endpoints
  */
 
+import { useAuthStore } from "@/stores/authStore";
 import type { PersonaType, Profile, ProfileUpdateData } from "../types";
 import { getAccessToken } from "./supabase";
 
@@ -12,7 +13,23 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
  */
 async function authenticatedFetch(endpoint: string, options: RequestInit = {}) {
   console.log("Getting access token...");
-  const token = await getAccessToken();
+  
+  // Try to get token from Supabase with a timeout
+  const tokenPromise = getAccessToken();
+  const timeoutPromise = new Promise<null>((_, reject) => 
+    setTimeout(() => reject(new Error("Token retrieval timed out")), 5000)
+  );
+
+  let token: string | null = null;
+  try {
+    token = await (Promise.race([tokenPromise, timeoutPromise]) as Promise<string | null>);
+  } catch (error) {
+    console.error("Token retrieval error:", error);
+    // If it fails or times out, try checking the auth store as a fallback
+    const session = useAuthStore.getState().session;
+    token = session?.access_token ?? null;
+  }
+
   console.log("Token retrieved:", !!token);
 
   if (!token) {

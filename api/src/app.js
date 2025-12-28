@@ -8,8 +8,11 @@ require("dotenv").config();
 
 const app = express();
 
-// Security Middlewares
-app.use(helmet()); // Sets various security-related HTTP headers
+// 1. Request Logging (Top of stack to catch everything)
+app.use(morgan("dev"));
+
+// 2. Security Middlewares
+app.use(helmet()); 
 app.use(
   cors({
     origin: process.env.CLIENT_URL || "http://localhost:3000",
@@ -17,19 +20,18 @@ app.use(
   })
 );
 
-// Performance & Rate Limiting
-app.use(compression()); // Compress all responses
+// 3. Performance & Rate Limiting
+app.use(compression()); 
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  windowMs: 15 * 60 * 1000, 
+  max: 100, 
+  standardHeaders: true, 
+  legacyHeaders: false, 
   message: "Too many requests from this IP, please try again after 15 minutes",
 });
-app.use("/api/", limiter); // Apply the rate limiting to all API requests
+app.use("/api/", limiter); 
 
-// Request Logging & Parsing
-app.use(morgan("dev"));
+// 4. Request Parsing
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

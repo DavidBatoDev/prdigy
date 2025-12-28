@@ -3,6 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useAuthStore } from "@/stores/authStore";
 import { User, LogOut, ChevronDown, Loader2 } from "lucide-react";
 import { switchPersona } from "@/lib/auth-api";
+import { useToast } from "@/hooks/useToast";
 
 export default function UserMenu() {
   const [isOpen, setIsOpen] = useState(false);
@@ -10,6 +11,7 @@ export default function UserMenu() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { profile, signOut, refreshProfile } = useAuthStore();
   const navigate = useNavigate();
+  const toast = useToast();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -49,6 +51,14 @@ export default function UserMenu() {
     if (newPersona === profile?.active_persona) return;
 
     setIsChangingPersona(true);
+    
+    // Safety timeout: Reset loading state after 8 seconds no matter what
+    const safetyTimeout = setTimeout(() => {
+      setIsChangingPersona(false);
+      toast.error("Persona switch timed out. Please check your connection.");
+      console.warn("Persona switch timed out.");
+    }, 8000);
+
     try {
       // Use the authenticated helper which attaches the Supabase access token
       await switchPersona(newPersona as any);
@@ -56,12 +66,15 @@ export default function UserMenu() {
       // Refresh the profile to get updated data
       await refreshProfile();
 
+      toast.success(`Switched to ${getPersonaLabel(newPersona)} persona`);
+
       // Close dropdown
       setIsOpen(false);
     } catch (error: any) {
       console.error("Failed to change persona:", error);
-      alert(error.message || error.response?.data?.error?.message || "Failed to change persona");
+      toast.error(error.message || error.response?.data?.error?.message || "Failed to change persona");
     } finally {
+      clearTimeout(safetyTimeout);
       setIsChangingPersona(false);
     }
   };
