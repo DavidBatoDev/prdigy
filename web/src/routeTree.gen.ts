@@ -16,6 +16,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthVerifyRouteImport } from './routes/auth/verify'
 import { Route as AuthSignupRouteImport } from './routes/auth/signup'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
+import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
 import { Route as AuthAdminSigninRouteImport } from './routes/auth/admin/signin'
 import { Route as AuthAdminLoginRouteImport } from './routes/auth/admin/login'
 
@@ -54,6 +55,11 @@ const AuthLoginRoute = AuthLoginRouteImport.update({
   path: '/auth/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
+  id: '/auth/forgot-password',
+  path: '/auth/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthAdminSigninRoute = AuthAdminSigninRouteImport.update({
   id: '/auth/admin/signin',
   path: '/auth/admin/signin',
@@ -70,6 +76,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/onboarding': typeof OnboardingRoute
   '/profile': typeof ProfileRoute
+  '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/auth/verify': typeof AuthVerifyRoute
@@ -81,6 +88,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/onboarding': typeof OnboardingRoute
   '/profile': typeof ProfileRoute
+  '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/auth/verify': typeof AuthVerifyRoute
@@ -93,6 +101,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/onboarding': typeof OnboardingRoute
   '/profile': typeof ProfileRoute
+  '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/auth/verify': typeof AuthVerifyRoute
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/onboarding'
     | '/profile'
+    | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/signup'
     | '/auth/verify'
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/onboarding'
     | '/profile'
+    | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/signup'
     | '/auth/verify'
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/onboarding'
     | '/profile'
+    | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/signup'
     | '/auth/verify'
@@ -140,6 +152,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   OnboardingRoute: typeof OnboardingRoute
   ProfileRoute: typeof ProfileRoute
+  AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthSignupRoute: typeof AuthSignupRoute
   AuthVerifyRoute: typeof AuthVerifyRoute
@@ -198,6 +211,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/forgot-password': {
+      id: '/auth/forgot-password'
+      path: '/auth/forgot-password'
+      fullPath: '/auth/forgot-password'
+      preLoaderRoute: typeof AuthForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/admin/signin': {
       id: '/auth/admin/signin'
       path: '/auth/admin/signin'
@@ -220,6 +240,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   OnboardingRoute: OnboardingRoute,
   ProfileRoute: ProfileRoute,
+  AuthForgotPasswordRoute: AuthForgotPasswordRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthSignupRoute: AuthSignupRoute,
   AuthVerifyRoute: AuthVerifyRoute,

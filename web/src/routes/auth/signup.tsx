@@ -783,12 +783,6 @@ function RouteComponent() {
                     >
                       {isLoading ? "Signing up..." : "Sign Up"}
                     </Button>
-                    <button
-                      type="button"
-                      className="text-sm font-normal text-[#020202] transition-colors hover:text-[#ff9900]"
-                    >
-                      Forgot Password
-                    </button>
                   </div>
                 </>
               ) : (

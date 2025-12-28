@@ -478,7 +478,8 @@ function RouteComponent() {
               </Button>
               <button
                 type="button"
-                className="text-sm font-normal text-[#020202] transition-colors hover:text-[#ff9900]"
+                className="cursor-pointer text-sm font-normal text-[#020202] transition-colors hover:text-[#ff9900]"
+                onClick={() => navigate({ to: "/auth/forgot-password" })}
               >
                 Forgot Password
               </button>
