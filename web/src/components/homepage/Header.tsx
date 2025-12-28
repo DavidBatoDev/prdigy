@@ -3,7 +3,7 @@ import { AppBar, Toolbar, Box, Typography, Stack } from "@mui/material";
 import { Button } from "../../ui/button";
 import Logo from "/prodigylogos/light/logo1.svg";
 import { useAuthStore } from "@/stores/authStore";
-import UserMenu from "../UserMenu";
+import UserMenu from "../auth/UserMenu";
 
 const Header = () => {
   const { isAuthenticated } = useAuthStore();

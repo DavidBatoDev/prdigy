@@ -4,18 +4,18 @@
  */
 
 import { useEffect } from "react";
-import { useAuthStore } from "../stores/authStore";
+import { useAuthStore } from "../../stores/authStore";
 
 interface AuthInitializerProps {
-	children: React.ReactNode;
+  children: React.ReactNode;
 }
 
 export function AuthInitializer({ children }: AuthInitializerProps) {
-	const initialize = useAuthStore((state) => state.initialize);
+  const initialize = useAuthStore((state) => state.initialize);
 
-	useEffect(() => {
-		initialize();
-	}, [initialize]);
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
 
-	return <>{children}</>;
+  return <>{children}</>;
 }

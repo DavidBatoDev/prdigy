@@ -1,8 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { Home, Menu, X, User } from "lucide-react";
 import { useState } from "react";
-import { useAuthStore } from "../stores/authStore";
-import UserMenu from "./UserMenu";
+import { useAuthStore } from "../../stores/authStore";
+import UserMenu from "../auth/UserMenu";
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);

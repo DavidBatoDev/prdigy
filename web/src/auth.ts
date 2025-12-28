@@ -4,8 +4,8 @@
  */
 
 // Components
-export { AuthInitializer } from "./components/AuthInitializer";
-export { ProtectedRoute } from "./components/ProtectedRoute";
+export { AuthInitializer } from "./components/auth/AuthInitializer";
+export { ProtectedRoute } from "./components/auth/ProtectedRoute";
 
 // Auth API client
 export {
