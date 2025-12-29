@@ -78,7 +78,6 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
   // Sign in with email and password
   signIn: async (email: string, password: string) => {
-    set({ isLoading: true });
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -87,36 +86,30 @@ export const useAuthStore = create<AuthStore>((set) => ({
       if (error) throw error;
       // Auth state will be updated by onAuthStateChange listener
     } catch (error) {
-      set({ isLoading: false });
       throw error;
     }
   },
 
   // Sign up with email and password
   signUp: async (email: string, password: string) => {
-    set({ isLoading: true });
     try {
       const result = await supabase.auth.signUp({
         email,
         password,
       });
       if (result.error) throw result.error;
-      set({ isLoading: false });
     } catch (error) {
-      set({ isLoading: false });
       throw error;
     }
   },
 
   // Sign out
   signOut: async () => {
-    set({ isLoading: true });
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       // Auth state will be cleared by onAuthStateChange listener
     } catch (error) {
-      set({ isLoading: false });
       throw error;
     }
   },

@@ -146,7 +146,7 @@ function RouteComponent() {
       } catch (e) {
         // ignore sign out errors
       }
-      localStorage.removeItem("sb-ftuiloyegcipkupbtias-auth-token");
+      // localStorage.removeItem("sb-ftuiloyegcipkupbtias-auth-token");
 
       await signIn(email, password);
 
@@ -199,7 +199,29 @@ function RouteComponent() {
         navigate({ to: "/dashboard" });
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Login failed");
+      console.error("Login error:", err);
+      
+      // Provide user-friendly error messages
+      const error = err as any;
+      let errorMessage = "Login failed";
+      
+      if (error?.message) {
+        const msg = error.message.toLowerCase();
+        
+        if (msg.includes("invalid login credentials") || msg.includes("invalid email or password")) {
+          errorMessage = "Invalid email or password. Please try again.";
+        } else if (msg.includes("email not confirmed")) {
+          errorMessage = "Please verify your email before logging in.";
+        } else if (msg.includes("user not found")) {
+          errorMessage = "No account found with this email.";
+        } else if (msg.includes("too many requests")) {
+          errorMessage = "Too many login attempts. Please try again later.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
