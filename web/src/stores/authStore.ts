@@ -53,6 +53,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
           session,
           user: session?.user ?? null,
           isAuthenticated: !!session?.user,
+          isLoading: false,
         });
 
         if (!session?.user) {
@@ -100,7 +101,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
         password,
       });
       if (result.error) throw result.error;
-      // Don't set isLoading false here - let onAuthStateChange handle it
+      set({ isLoading: false });
     } catch (error) {
       set({ isLoading: false });
       throw error;

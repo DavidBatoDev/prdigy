@@ -4,7 +4,7 @@ import {
   useNavigate,
   redirect,
 } from "@tanstack/react-router";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { useAuthStore } from "../../stores/authStore";
 import { supabase } from "../../lib/supabase";
 import { Button } from "../../ui/button";
@@ -28,8 +28,11 @@ export const Route = createFileRoute("/auth/signup")({
   beforeLoad: () => {
     const { isAuthenticated, isLoading } = useAuthStore.getState();
 
-    // Only redirect if auth is loaded and user is authenticated
-    if (!isLoading && isAuthenticated) {
+    // Don't redirect if we're in the signup flow (between step 1 and step 2)
+    const isInSignupFlow = sessionStorage.getItem("isInSignupFlow") === "true";
+    
+    // Only redirect if auth is loaded, user is authenticated, and NOT in signup flow
+    if (!isLoading && isAuthenticated && !isInSignupFlow) {
       throw redirect({
         to: "/dashboard",
       });
@@ -40,32 +43,42 @@ export const Route = createFileRoute("/auth/signup")({
 
 function RouteComponent() {
   const signUp = useAuthStore((state) => state.signUp);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const isAuthLoading = useAuthStore((state) => state.isLoading);
   const navigate = useNavigate();
   const toast = useToast();
-  const [step, setStep] = useState(1); // Step 1: Form, Step 2: Verify Code
+  
+  // Persist step state to survive component remounts
+  const [step, setStepState] = useState(() => {
+    const savedStep = sessionStorage.getItem("signupStep");
+    return savedStep ? parseInt(savedStep) : 1;
+  });
+  
+  const setStep = (newStep: number) => {
+    sessionStorage.setItem("signupStep", newStep.toString());
+    setStepState(newStep);
+  };
 
-  // Redirect if already authenticated
-  useEffect(() => {
-    if (!isAuthLoading && isAuthenticated) {
-      navigate({ to: "/dashboard" });
-    }
-  }, [isAuthenticated, isAuthLoading, navigate]);
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [gender, setGender] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [email, setEmail] = useState("");
-  const [dateOfBirth, setDateOfBirth] = useState("");
-  const [country, setCountry] = useState("");
-  const [city, setCity] = useState("");
-  const [zipCode, setZipCode] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  // No automatic redirect during signup flow - redirect is handled explicitly in step 2
+  
+  // Persist form data to survive component remounts
+  const getStoredValue = (key: string, defaultValue: any = "") => {
+    const stored = sessionStorage.getItem(key);
+    return stored !== null ? stored : defaultValue;
+  };
+  
+  const [firstName, setFirstName] = useState(() => getStoredValue("signup_firstName"));
+  const [lastName, setLastName] = useState(() => getStoredValue("signup_lastName"));
+  const [gender, setGender] = useState(() => getStoredValue("signup_gender"));
+  const [phoneNumber, setPhoneNumber] = useState(() => getStoredValue("signup_phoneNumber"));
+  const [email, setEmail] = useState(() => getStoredValue("signup_email"));
+  const [dateOfBirth, setDateOfBirth] = useState(() => getStoredValue("signup_dateOfBirth"));
+  const [country, setCountry] = useState(() => getStoredValue("signup_country"));
+  const [city, setCity] = useState(() => getStoredValue("signup_city"));
+  const [zipCode, setZipCode] = useState(() => getStoredValue("signup_zipCode"));
+  const [password, setPassword] = useState(() => getStoredValue("signup_password"));
+  const [confirmPassword, setConfirmPassword] = useState(() => getStoredValue("signup_confirmPassword"));
+  const [acceptedTerms, setAcceptedTerms] = useState(() => getStoredValue("signup_acceptedTerms", "false") === "true");
   const [verificationCode, setVerificationCode] = useState("");
-  const [sentVerificationCode, setSentVerificationCode] = useState("");
+  const [sentVerificationCode, setSentVerificationCode] = useState(() => getStoredValue("signup_sentCode"));
   const [success, setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
@@ -84,6 +97,25 @@ function RouteComponent() {
     }),
     []
   );
+
+  // Cleanup function to clear all signup data
+  const clearSignupData = () => {
+    sessionStorage.removeItem("signupStep");
+    sessionStorage.removeItem("isInSignupFlow");
+    sessionStorage.removeItem("signup_firstName");
+    sessionStorage.removeItem("signup_lastName");
+    sessionStorage.removeItem("signup_gender");
+    sessionStorage.removeItem("signup_phoneNumber");
+    sessionStorage.removeItem("signup_email");
+    sessionStorage.removeItem("signup_dateOfBirth");
+    sessionStorage.removeItem("signup_country");
+    sessionStorage.removeItem("signup_city");
+    sessionStorage.removeItem("signup_zipCode");
+    sessionStorage.removeItem("signup_password");
+    sessionStorage.removeItem("signup_confirmPassword");
+    sessionStorage.removeItem("signup_acceptedTerms");
+    sessionStorage.removeItem("signup_sentCode");
+  };
 
   // Timeout for email requests (prevents a slow edge function from hanging the signup flow)
   const EMAIL_FETCH_TIMEOUT_MS = 8000;
@@ -203,13 +235,42 @@ function RouteComponent() {
         return;
       }
 
+
       setIsLoading(true);
 
       try {
+        // Save form data to sessionStorage in case of component remount
+        sessionStorage.setItem("signup_firstName", firstName);
+        sessionStorage.setItem("signup_lastName", lastName);
+        sessionStorage.setItem("signup_gender", gender);
+        sessionStorage.setItem("signup_phoneNumber", phoneNumber);
+        sessionStorage.setItem("signup_email", email);
+        sessionStorage.setItem("signup_dateOfBirth", dateOfBirth);
+        sessionStorage.setItem("signup_country", country);
+        sessionStorage.setItem("signup_city", city);
+        sessionStorage.setItem("signup_zipCode", zipCode);
+        sessionStorage.setItem("signup_password", password);
+        sessionStorage.setItem("signup_confirmPassword", confirmPassword);
+        sessionStorage.setItem("signup_acceptedTerms", acceptedTerms.toString());
+        
+        // Set a flag to prevent navigation during signup flow
+        sessionStorage.setItem("isInSignupFlow", "true");
+
+        // Generate verification code FIRST (synchronous operation)
+        const generatedCode = Math.floor(
+          100000 + Math.random() * 900000
+        ).toString();
+        setSentVerificationCode(generatedCode);
+        sessionStorage.setItem("signup_sentCode", generatedCode);
+        
+        // Move to step 2 IMMEDIATELY before async operations
+        // This ensures UI updates before any remounting can occur
+        setStep(2);
+
         // Clear auth token from localStorage to ensure session is completely removed
         localStorage.removeItem("sb-ftuiloyegcipkupbtias-auth-token");
 
-        // Create user account
+        // Create user account (async - might cause remounting)
         await signUp(email, password);
 
         // Wait for profile to be created by database trigger
@@ -221,16 +282,14 @@ function RouteComponent() {
         // Sign out immediately - user should only be logged in after verification
         await supabase.auth.signOut();
 
-        // Generate and send verification code
-        const generatedCode = Math.floor(
-          100000 + Math.random() * 900000
-        ).toString();
-        setSentVerificationCode(generatedCode);
-
-        setStep(2);
+        // Send the verification email (can happen last)
         await sendVerificationEmail(generatedCode);
       } catch (err) {
         const message = err instanceof Error ? err.message : "";
+        
+        // Clear the flag if signup fails (but keep form data for retry)
+        sessionStorage.removeItem("isInSignupFlow");
+        sessionStorage.removeItem("signupStep");
 
         if (
           message.toLowerCase().includes("already registered") ||
@@ -277,6 +336,10 @@ function RouteComponent() {
         }
 
         toast.success("Email verified successfully!");
+        
+        // Clear all signup data after successful verification
+        clearSignupData();
+        
         navigate({ to: "/onboarding" });
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Verification failed");
