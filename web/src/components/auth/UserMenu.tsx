@@ -29,18 +29,14 @@ export default function UserMenu() {
     };
   }, [isOpen]);
 
-  const getInitials = () => {
-    if (profile?.first_name) {
-      const firstInitial = profile.first_name.charAt(0).toUpperCase();
-      const lastInitial = profile.last_name
-        ? profile.last_name.charAt(0).toUpperCase()
-        : "";
-      return firstInitial + lastInitial;
-    }
+  const getDisplayName = () => {
     if (profile?.display_name) {
-      return profile.display_name.charAt(0).toUpperCase();
+      return profile.display_name;
     }
-    return profile?.email?.charAt(0).toUpperCase() || "U";
+    if (profile?.first_name) {
+      return `${profile.first_name} ${profile.last_name || ""}`.trim();
+    }
+    return profile?.email?.split("@")[0] || "User";
   };
 
   const handleLogout = async () => {
@@ -63,8 +59,8 @@ export default function UserMenu() {
             className="w-10 h-10 rounded-full object-cover"
           />
         ) : (
-          <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-semibold">
-            {getInitials()}
+          <div className="w-12 h-12 rounded-full bg-linear-to-br from-yellow-400 to-yellow-500 text-white flex items-center justify-center font-semibold text-lg border-2 border-yellow-400">
+            {getDisplayName().charAt(0).toUpperCase()}
           </div>
         )}
         <ChevronDown
