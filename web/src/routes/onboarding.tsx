@@ -4,6 +4,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useToast } from "@/hooks/useToast";
 import { useProfileQuery } from "@/hooks/useProfileQuery";
 import { completeOnboarding } from "@/lib/auth-api";
+import { fetchProfile } from "@/queries/profile";
 import { Button } from "@/ui/button";
 import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
 import CodeIcon from "@mui/icons-material/Code";
@@ -12,19 +13,42 @@ import decorativePatternBottom from "/svgs/patterns/decorative-bottom-side.svg";
 
 export const Route = createFileRoute("/onboarding")({
   beforeLoad: () => {
-    const { isAuthenticated, profile } = useAuthStore.getState();
+    const { isAuthenticated } = useAuthStore.getState();
 
+    console.log('[ONBOARDING BEFORELOAD] isAuthenticated:', isAuthenticated);
+
+    // Only check authentication here
     if (!isAuthenticated) {
       throw redirect({
         to: "/auth/login",
       });
     }
+  },
+  loader: async () => {
+    const { user, setProfile } = useAuthStore.getState();
+    
+    console.log('[ONBOARDING LOADER] User:', user);
+    
+    if (!user) {
+      console.log('[ONBOARDING LOADER] No user found, returning null');
+      return null;
+    }
 
+    // Fetch and sync profile to store
+    const profile = await fetchProfile(user.id);
+    console.log('[ONBOARDING LOADER] Fetched profile:', profile);
+    console.log('[ONBOARDING LOADER] has_completed_onboarding:', profile?.has_completed_onboarding);
+    setProfile(profile);
+    
+    // Check if onboarding is already completed AFTER fetching profile
     if (profile?.has_completed_onboarding) {
+      console.log('[ONBOARDING LOADER] Redirecting to dashboard - already completed');
       throw redirect({
         to: "/dashboard",
       });
     }
+    
+    return { profile };
   },
   component: OnboardingPage,
 });
@@ -57,7 +81,7 @@ function OnboardingPage() {
     setIsLoading(true);
 
     try {
-      const result = await completeOnboarding({
+      await completeOnboarding({
         intent: {
           freelancer: isFreelancer,
           client: isClient,
@@ -183,7 +207,7 @@ function OnboardingPage() {
               </div>
               <Button
                 onClick={() => setIsFreelancer(!isFreelancer)}
-                className="w-full cursor-pointer w-[255px] bg-[#ff3366] px-10 py-2 text-lg font-semibold text-white shadow-[0_1px_5px_rgba(0,0,0,0.12),0_2px_2px_rgba(0,0,0,0.14),0_3px_1px_-2px_rgba(0,0,0,0.2)] transition-transform hover:-translate-y-0.5 mt-4"
+                className="cursor-pointer w-[255px] bg-[#ff3366] px-10 py-2 text-lg font-semibold text-white shadow-[0_1px_5px_rgba(0,0,0,0.12),0_2px_2px_rgba(0,0,0,0.14),0_3px_1px_-2px_rgba(0,0,0,0.2)] transition-transform hover:-translate-y-0.5 mt-4"
               >
                 Apply as a Talent
               </Button>

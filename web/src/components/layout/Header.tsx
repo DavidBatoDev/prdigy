@@ -1,10 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import { AppBar, Toolbar, Box, Typography, Stack, IconButton } from "@mui/material";
+import { AppBar, Toolbar, Box, Typography, Stack, IconButton, InputBase } from "@mui/material";
 import { Button } from "../../ui/button";
 import Logo from "/prodigylogos/light/logo1.svg";
 import { useAuthStore } from "@/stores/authStore";
 import UserMenu from "./UserMenu";
-import { MessageCircle, Bell } from "lucide-react";
+import { MessageCircle, Bell, Search } from "lucide-react";
 
 const Header = () => {
   const { isAuthenticated } = useAuthStore();
@@ -20,7 +20,7 @@ const Header = () => {
       sx={{
         bgcolor: "white",
         boxShadow: 3,
-        height: "102px",
+        height: "80px",
         justifyContent: "center",
         top: 0,
         zIndex: 1000,
@@ -32,7 +32,7 @@ const Header = () => {
           maxWidth: "1400px",
           width: "100%",
           margin: "0 auto",
-          px: { xs: 2, sm: 4, md: 6 },
+          px: { xs: 2, sm: 3, md: 4 },
         }}
       >
         <Box
@@ -41,53 +41,89 @@ const Header = () => {
             alignItems: "center",
             justifyContent: "space-between",
             width: "100%",
-            gap: { xs: 2, md: 4, lg: 6 },
+            gap: { xs: 2, md: 3 },
           }}
         >
-          {/* Logo */}
-          <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
-            <Link to="/" className="cursor-pointer">
-              <img src={Logo} alt="Prodigy Logo" />
-            </Link>
+          {/* Left Side: Logo + Navigation */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 2, md: 3, lg: 4 } }}>
+            {/* Logo */}
+            <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+              <Link to="/" className="cursor-pointer">
+                <img src={Logo} alt="Prodigy Logo" style={{ height: "60px" }} />
+              </Link>
+            </Box>
+
+            {/* Navigation Items */}
+            <Stack
+              direction="row"
+              spacing={{ xs: 1.5, md: 2, lg: 3 }}
+              sx={{
+                alignItems: "center",
+              }}
+            >
+              {navItems.map((item) => (
+                <Typography
+                  key={item.target}
+                  component="button"
+                  sx={{
+                    color: "#2F302F",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    fontSize: { xs: "0.9rem", md: "1rem" },
+                    fontWeight: 600,
+                    "&:hover": {
+                      color: "var(--primary)",
+                    },
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                  }}
+                >
+                  {item.label}
+                </Typography>
+              ))}
+            </Stack>
           </Box>
 
-          {/* Navigation Items */}
-          <Stack
-            direction="row"
-            spacing={{ xs: 2, md: 3, lg: 4 }}
-            sx={{
-              alignItems: "center",
-              flex: "1",
-              justifyContent: "center",
-            }}
-          >
-            {navItems.map((item) => (
-              <Typography
-                key={item.target}
-                component="button"
-                sx={{
-                  color: "#2F302F",
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
-                  fontSize: { xs: "0.9rem", md: "1rem" },
-                  fontWeight: 600,
-                  "&:hover": {
-                    color: "var(--primary)",
-                  },
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                }}
-              >
-                {item.label}
-              </Typography>
-            ))}
-          </Stack>
-
-          {/* Auth Buttons */}
+          {/* Right Side: Search + Icons + Auth */}
           <Stack direction="row" spacing={2} sx={{ flexShrink: 0, alignItems: "center" }}>
             {isAuthenticated ? (
               <>
+                {/* Search Bar */}
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    backgroundColor: "#F5F5F5",
+                    borderRadius: "24px",
+                    px: 2,
+                    py: 0.75,
+                    minWidth: { xs: "150px", md: "250px" },
+                    transition: "all 0.3s ease",
+                    "&:hover": {
+                      backgroundColor: "#EBEBEB",
+                    },
+                    "&:focus-within": {
+                      backgroundColor: "#FFFFFF",
+                      boxShadow: "0 0 0 2px var(--primary)",
+                    },
+                  }}
+                >
+                  <Search size={20} style={{ color: "#666", marginRight: "8px" }} />
+                  <InputBase
+                    placeholder="Search..."
+                    sx={{
+                      flex: 1,
+                      fontSize: "0.95rem",
+                      color: "#2F302F",
+                      "& input::placeholder": {
+                        color: "#999",
+                        opacity: 1,
+                      },
+                    }}
+                  />
+                </Box>
+
                 {/* Message Icon */}
                 <IconButton
                   sx={{

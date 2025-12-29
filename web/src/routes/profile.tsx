@@ -92,7 +92,7 @@ function ProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-12 px-4">
+      <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 py-12 px-4">
         <div className="max-w-4xl mx-auto">
           <div className="animate-pulse space-y-6">
             <div className="bg-white rounded-2xl shadow-lg p-8 h-48"></div>
@@ -106,7 +106,7 @@ function ProfilePage() {
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+      <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
             Profile not found
@@ -132,11 +132,11 @@ function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/30 py-12 px-4">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 via-blue-50/30 to-purple-50/30 py-12 px-4">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Profile Header */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-          <div className="h-32 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
+          <div className="h-32 bg-linear-to-r from-blue-500 via-purple-500 to-pink-500"></div>
           <div className="px-8 pb-8">
             <div className="flex items-end justify-between -mt-16 mb-6">
               <div className="relative group">
@@ -147,7 +147,7 @@ function ProfilePage() {
                     className="w-32 h-32 rounded-full border-4 border-white shadow-xl object-cover"
                   />
                 ) : (
-                  <div className="w-32 h-32 rounded-full border-4 border-white shadow-xl bg-gradient-to-br from-yellow-400 to-yellow-500 flex items-center justify-center text-white text-4xl font-bold">
+                  <div className="w-32 h-32 rounded-full border-4 border-white shadow-xl bg-linear-to-br from-yellow-400 to-yellow-500 flex items-center justify-center text-white text-4xl font-bold">
                     {getInitials()}
                   </div>
                 )}
@@ -277,7 +277,7 @@ function ProfilePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                 <Phone size={16} />
                 Phone Number
               </label>
@@ -296,7 +296,7 @@ function ProfilePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                 <MapPin size={16} />
                 Country
               </label>

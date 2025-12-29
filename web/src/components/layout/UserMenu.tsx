@@ -1,19 +1,20 @@
 import { useState, useRef, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useAuthStore } from "@/stores/authStore";
-import { User, LogOut, ChevronDown, Loader2 } from "lucide-react";
-import { switchPersona } from "@/lib/auth-api";
-import { useToast } from "@/hooks/useToast";
 import { useProfileQuery } from "@/hooks/useProfileQuery";
+import { profileKeys } from "@/queries/profile";
+import { User, LogOut, ChevronDown } from "lucide-react";
+import { switchPersona } from "@/lib/auth-api";
 
 export default function UserMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const [isChangingPersona, setIsChangingPersona] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { profile, signOut } = useAuthStore();
+  const { data: profile } = useProfileQuery(); // Use query instead of store
+  const { signOut } = useAuthStore();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const toast = useToast();
-  const { refetch: refetchProfile } = useProfileQuery();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -53,30 +54,23 @@ export default function UserMenu() {
     if (newPersona === profile?.active_persona) return;
 
     setIsChangingPersona(true);
-    
-    // Safety timeout: Reset loading state after 8 seconds no matter what
-    const safetyTimeout = setTimeout(() => {
-      setIsChangingPersona(false);
-      toast.error("Persona switch timed out. Please check your connection.");
-      console.warn("Persona switch timed out.");
-    }, 8000);
-
     try {
       // Use the authenticated helper which attaches the Supabase access token
       await switchPersona(newPersona as any);
 
       // Refresh the profile to get updated data
-      await refetchProfile();
-
-      toast.success(`Switched to ${getPersonaLabel(newPersona)} persona`);
+      if (profile?.id) {
+        await queryClient.invalidateQueries({
+          queryKey: profileKeys.byUser(profile.id),
+        });
+      }
 
       // Close dropdown
       setIsOpen(false);
     } catch (error: any) {
       console.error("Failed to change persona:", error);
-      toast.error(error.message || error.response?.data?.error?.message || "Failed to change persona");
+      alert(error.message || error.response?.data?.error?.message || "Failed to change persona");
     } finally {
-      clearTimeout(safetyTimeout);
       setIsChangingPersona(false);
     }
   };
@@ -97,10 +91,10 @@ export default function UserMenu() {
   };
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative cursor-pointer" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+        className="cursor-pointer   flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors"
         aria-label="User menu"
       >
         {/* Avatar */}
@@ -134,15 +128,20 @@ export default function UserMenu() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 overflow-hidden">
+        <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+          {/* Loading Overlay */}
           {isChangingPersona && (
-            <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] z-60 flex items-center justify-center">
-              <div className="flex flex-col items-center gap-2">
-                <Loader2 size={24} className="animate-spin text-blue-600" />
-                <span className="text-xs font-medium text-blue-700">Switching persona...</span>
+            <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-lg flex items-center justify-center z-10">
+              <div className="flex flex-col items-center gap-3">
+                <div className="relative">
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600"></div>
+                  <div className="absolute inset-0 rounded-full bg-blue-400/20 animate-ping"></div>
+                </div>
+                <span className="text-sm font-semibold text-gray-800 animate-pulse">Switching persona...</span>
               </div>
             </div>
           )}
+
           {/* User info */}
           <div className="px-4 py-3 border-b border-gray-100">
             <p className="text-sm font-semibold text-gray-900">
@@ -160,17 +159,15 @@ export default function UserMenu() {
                   key={persona}
                   onClick={() => handlePersonaChange(persona)}
                   disabled={isChangingPersona || persona === profile?.active_persona}
-                  className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center justify-between ${
+                  className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors cursor-pointer ${
                     persona === profile?.active_persona
-                      ? "bg-blue-50 text-blue-700 font-medium cursor-default"
-                      : "text-gray-700 hover:bg-gray-50 cursor-pointer"
+                      ? "bg-blue-50 text-blue-700 font-medium"
+                      : "text-gray-700 hover:bg-gray-50"
                   } ${isChangingPersona ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
-                  <span className="flex items-center gap-2">
-                    {getPersonaLabel(persona)}
-                  </span>
+                  {getPersonaLabel(persona)}
                   {persona === profile?.active_persona && (
-                    <span className="text-xs">✓</span>
+                    <span className="ml-2 text-xs">✓</span>
                   )}
                 </button>
               ))}

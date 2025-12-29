@@ -1,24 +1,46 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useAuthStore } from "@/stores/authStore";
 import Header from "@/components/layout/Header";
+import { fetchProfile } from "@/queries/profile";
 
 export const Route = createFileRoute("/dashboard")({
   beforeLoad: () => {
-    const { isAuthenticated, profile } = useAuthStore.getState();
+    const { isAuthenticated } = useAuthStore.getState();
 
-    // Redirect to login if not authenticated
+    console.log('[DASHBOARD BEFORELOAD] isAuthenticated:', isAuthenticated);
+
+    // Only check authentication here
     if (!isAuthenticated) {
       throw redirect({
         to: "/auth/login",
       });
     }
+  },
+  loader: async () => {
+    const { user, setProfile } = useAuthStore.getState();
+    
+    console.log('[DASHBOARD LOADER] User:', user);
+    
+    if (!user) {
+      console.log('[DASHBOARD LOADER] No user found, returning null');
+      return null;
+    }
 
-    // Redirect to onboarding if not completed
+    // Fetch and sync profile to store
+    const profile = await fetchProfile(user.id);
+    console.log('[DASHBOARD LOADER] Fetched profile:', profile);
+    console.log('[DASHBOARD LOADER] has_completed_onboarding:', profile?.has_completed_onboarding);
+    setProfile(profile);
+    
+    // Check onboarding status AFTER fetching profile
     if (!profile?.has_completed_onboarding) {
+      console.log('[DASHBOARD LOADER] Redirecting to onboarding - not completed');
       throw redirect({
         to: "/onboarding",
       });
     }
+    
+    return { profile };
   },
   component: DashboardPage,
 });
