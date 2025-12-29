@@ -19,7 +19,7 @@ const Header = () => {
       position="sticky"
       sx={{
         bgcolor: "white",
-        boxShadow: 3,
+        boxShadow: 2,
         height: "80px",
         justifyContent: "center",
         top: 0,
