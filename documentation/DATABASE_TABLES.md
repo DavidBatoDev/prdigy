@@ -10,15 +10,17 @@ This document provides a quick reference for all database tables in the Prdigy a
 ## Tables Overview
 
 1. [profiles](#profiles) - User profile information
-2. [projects](#projects) - Main project records
-3. [project_members](#project_members) - Project team membership
-4. [milestones](#milestones) - Project milestones
-5. [work_items](#work_items) - Tasks and deliverables
-6. [payment_checkpoints](#payment_checkpoints) - Payment tracking
-7. [files](#files) - File storage and versioning
-8. [meetings](#meetings) - Scheduled meetings
-9. [chat_messages](#chat_messages) - Project communication
-10. [password_resets](#password_resets) - Password reset tokens
+2. [wallets](#wallets) - User wallet balances (available + escrow) **NEW**
+3. [transactions](#transactions) - Financial transaction ledger **NEW**
+4. [projects](#projects) - Main project records
+5. [project_members](#project_members) - Project team membership
+6. [milestones](#milestones) - Project milestones
+7. [work_items](#work_items) - Tasks and deliverables
+8. [payment_checkpoints](#payment_checkpoints) - Payment tracking
+9. [files](#files) - File storage and versioning
+10. [meetings](#meetings) - Scheduled meetings
+11. [chat_messages](#chat_messages) - Project communication
+12. [password_resets](#password_resets) - Password reset tokens
 
 ---
 
@@ -60,20 +62,91 @@ User profile information linked to authentication.
 
 ---
 
+## wallets
+
+User wallet balances for escrow system.
+
+| Column              | Type                        | Description                                           |
+| ------------------- | --------------------------- | ----------------------------------------------------- |
+| `id`                | uuid (PK)                   | Wallet ID                                             |
+| `user_id`           | uuid (FK, unique, not null) | References `profiles.id`                              |
+| `available_balance` | numeric(12,2)               | Funds available for withdrawal or escrow (CHECK >= 0) |
+| `escrow_balance`    | numeric(12,2)               | Funds locked in active projects (CHECK >= 0)          |
+| `currency`          | text                        | ISO 4217 currency code (default: USD)                 |
+| `created_at`        | timestamptz                 | Wallet creation timestamp                             |
+| `updated_at`        | timestamptz                 | Last update timestamp                                 |
+
+**Foreign Keys:**
+
+- `user_id` → `profiles.id` (ON DELETE CASCADE)
+
+**Notes:**
+
+- One wallet per user (enforced by UNIQUE constraint)
+- CHECK constraints prevent negative balances
+- Auto-created when user signs up
+- Has an update trigger for `updated_at`
+
+---
+
+## transactions
+
+Double-entry ledger for all fund movements (immutable audit trail).
+
+| Column          | Type                | Description                                                           |
+| --------------- | ------------------- | --------------------------------------------------------------------- |
+| `id`            | uuid (PK)           | Transaction ID                                                        |
+| `wallet_id`     | uuid (FK, not null) | References `wallets.id`                                               |
+| `project_id`    | uuid (FK)           | References `projects.id`                                              |
+| `checkpoint_id` | uuid (FK)           | References `payment_checkpoints.id`                                   |
+| `amount`        | numeric(12,2)       | Transaction amount (positive = credit, negative = debit)              |
+| `type`          | transaction_type    | Type of transaction                                                   |
+| `description`   | text                | Human-readable description                                            |
+| `metadata`      | jsonb               | Extensible field for gateway IDs, payment methods, etc. (default: {}) |
+| `created_at`    | timestamptz         | Transaction timestamp                                                 |
+
+**Foreign Keys:**
+
+- `wallet_id` → `wallets.id` (ON DELETE CASCADE)
+- `project_id` → `projects.id` (ON DELETE SET NULL)
+- `checkpoint_id` → `payment_checkpoints.id` (ON DELETE SET NULL)
+
+**Transaction Types:**
+
+- `deposit` - Funds added to platform (future: Stripe/PayPal)
+- `withdrawal` - Funds removed from platform (future: Stripe/PayPal)
+- `escrow_lock` - Client funds locked for a milestone
+- `escrow_release` - Funds released from escrow
+- `escrow_refund` - Escrowed funds returned to client
+- `platform_fee` - Platform fee deduction
+- `consultant_fee` - Consultant management fee
+- `freelancer_payout` - Payment to freelancer
+
+**Notes:**
+
+- Immutable records (no UPDATE/DELETE for users)
+- Positive amounts = credits to wallet
+- Negative amounts = debits from wallet
+- `metadata` JSONB prepared for Stripe/PayPal: `{"stripe_payment_intent_id": "pi_xxx", "payment_method": "card"}`
+
+---
+
 ## projects
 
 Main project records.
 
-| Column          | Type                | Description                     |
-| --------------- | ------------------- | ------------------------------- |
-| `id`            | uuid (PK)           | Project ID                      |
-| `title`         | text (not null)     | Project title                   |
-| `brief`         | text                | Project description/brief       |
-| `status`        | project_status      | Current status (default: draft) |
-| `client_id`     | uuid (FK, not null) | References `profiles.id`        |
-| `consultant_id` | uuid (FK)           | References `profiles.id`        |
-| `created_at`    | timestamptz         | Creation timestamp              |
-| `updated_at`    | timestamptz         | Last update timestamp           |
+| Column                   | Type                | Description                                |
+| ------------------------ | ------------------- | ------------------------------------------ |
+| `id`                     | uuid (PK)           | Project ID                                 |
+| `title`                  | text (not null)     | Project title                              |
+| `brief`                  | text                | Project description/brief                  |
+| `status`                 | project_status      | Current status (default: draft)            |
+| `client_id`              | uuid (FK, not null) | References `profiles.id`                   |
+| `consultant_id`          | uuid (FK)           | References `profiles.id`                   |
+| `platform_fee_percent`   | numeric(5,2)        | Platform fee percentage (default: 10.00)   |
+| `consultant_fee_percent` | numeric(5,2)        | Consultant fee percentage (default: 15.00) |
+| `created_at`             | timestamptz         | Creation timestamp                         |
+| `updated_at`             | timestamptz         | Last update timestamp                      |
 
 **Foreign Keys:**
 
@@ -316,15 +389,18 @@ auth.users (Supabase Auth)
     ↓
 profiles (1:1)
     ↓
-projects (1:many) as client or consultant
-    ↓
-    ├── project_members (many:many with profiles)
-    ├── milestones (1:many)
-    │   └── payment_checkpoints (1:many)
-    ├── work_items (1:many)
-    ├── files (1:many)
-    ├── meetings (1:many)
-    └── chat_messages (1:many)
+    ├── wallets (1:1) ← NEW
+    │   └── transactions (1:many) ← NEW
+    └── projects (1:many) as client or consultant
+        ↓
+        ├── project_members (many:many with profiles)
+        ├── milestones (1:many)
+        │   └── payment_checkpoints (1:many)
+        │       └── transactions (1:many) ← NEW
+        ├── work_items (1:many)
+        ├── files (1:many)
+        ├── meetings (1:many)
+        └── chat_messages (1:many)
 ```
 
 ---
