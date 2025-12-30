@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useAuthStore } from "@/stores/authStore";
 import Header from "@/components/layout/Header";
 import { fetchProfile } from "@/queries/profile";
@@ -22,7 +22,7 @@ export const Route = createFileRoute("/dashboard")({
     }
   },
   loader: async () => {
-    const { user, setProfile } = useAuthStore.getState();
+    const { user } = useAuthStore.getState();
 
     console.log("[DASHBOARD LOADER] User:", user);
 
@@ -31,33 +31,34 @@ export const Route = createFileRoute("/dashboard")({
       return null;
     }
 
-    // Fetch and sync profile to store
-    const profile = await fetchProfile(user.id);
-    console.log("[DASHBOARD LOADER] Fetched profile:", profile);
-    console.log(
-      "[DASHBOARD LOADER] has_completed_onboarding:",
-      profile?.has_completed_onboarding
-    );
-    setProfile(profile);
-
-    // Check onboarding status AFTER fetching profile
-    if (!profile?.has_completed_onboarding) {
-      console.log(
-        "[DASHBOARD LOADER] Redirecting to onboarding - not completed"
-      );
-      throw redirect({
-        to: "/onboarding",
-      });
-    }
-
-    return { profile };
+    return { user };
   },
   component: DashboardPage,
 });
 
 function DashboardPage() {
-  const { profile } = useAuthStore();
+  const { profile, user, setProfile } = useAuthStore();
   const { startTutorial, isActive } = useTutorial();
+  const navigate = useNavigate();
+
+  // Fetch profile on mount if not exists
+  useEffect(() => {
+    if (user && !profile) {
+      const loadProfile = async () => {
+        try {
+          const fetchedProfile = await fetchProfile(user.id);
+          setProfile(fetchedProfile);
+
+          if (!fetchedProfile?.has_completed_onboarding) {
+            navigate({ to: "/onboarding" });
+          }
+        } catch (error) {
+          console.error("Failed to load profile:", error);
+        }
+      };
+      loadProfile();
+    }
+  }, [user, profile, setProfile, navigate]);
 
   // Auto-start tutorial on first visit
   useEffect(() => {

@@ -1,17 +1,29 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { AppBar, Toolbar, Box, Typography, Stack, IconButton, InputBase } from "@mui/material";
 import { Button } from "../../ui/button";
 import Logo from "/prodigylogos/light/logo1.svg";
-import { useAuthStore } from "@/stores/authStore";
+import { useAuthStore, useIsLoading } from "@/stores/authStore";
 import UserMenu from "./UserMenu";
-import { MessageCircle, Bell, Search } from "lucide-react";
+import { MessageCircle, Bell, Search, ChevronDown } from "lucide-react";
 
 const Header = () => {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, profile } = useAuthStore();
+  const isAuthLoading = useIsLoading();
+  const isLoading = isAuthLoading || (isAuthenticated && !profile);
+  const [consultantsMenuOpen, setConsultantsMenuOpen] = useState(false);
+  
   const navItems = [
     { label: "Home", href: "/dashboard" },
     { label: "Projects", href: "/" },
     { label: "Market place", href: "/" },
+  ];
+
+  const consultantsMenuItems = [
+    { label: "Post a Project", href: "/client/project-posting" },
+    { label: "Browse Professional Consultants", href: "/browse-consultants" },
+    { label: "My Consultant Pool", href: "/consultant-pool" },
+    { label: "Direct Contacts", href: "/direct-contacts" },
   ];
 
   return (
@@ -87,12 +99,122 @@ const Header = () => {
                   </Typography>
                 </Link>
               ))}
+              
+              {/* My Consultants Dropdown */}
+              <Box
+                sx={{ position: "relative" }}
+                onMouseEnter={() => setConsultantsMenuOpen(true)}
+                onMouseLeave={() => setConsultantsMenuOpen(false)}
+              >
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                    cursor: "pointer",
+                  }}
+                >
+                  <Typography
+                    component="span"
+                    sx={{
+                      color: "#2F302F",
+                      whiteSpace: "nowrap",
+                      fontSize: { xs: "0.9rem", md: "1rem" },
+                      fontWeight: 600,
+                      "&:hover": {
+                        color: "var(--primary)",
+                      },
+                    }}
+                  >
+                    My Consultants
+                  </Typography>
+                  <ChevronDown
+                    size={16}
+                    color="#2F302F"
+                    style={{
+                      transition: "transform 0.2s ease",
+                      transform: consultantsMenuOpen ? "rotate(180deg)" : "rotate(0deg)",
+                    }}
+                  />
+                </Box>
+                
+                {/* Dropdown Menu */}
+                {consultantsMenuOpen && (
+                  <Box
+                    sx={{
+                      position: "absolute",
+                      top: "100%",
+                      left: 0,
+                      pt: 1, // Padding top acts as a transparent bridge
+                      zIndex: 10004,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        bgcolor: "white",
+                        borderRadius: "8px",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                        minWidth: "250px",
+                        py: 1,
+                      }}
+                    >
+                      {consultantsMenuItems.map((item) => (
+                      <Link
+                        key={item.label}
+                        to={item.href}
+                        style={{ textDecoration: "none" }}
+                      >
+                        <Box
+                          sx={{
+                            px: 3,
+                            py: 1.5,
+                            cursor: "pointer",
+                            "&:hover": {
+                              bgcolor: "#f5f5f5",
+                            },
+                          }}
+                        >
+                          <Typography
+                            sx={{
+                              color: "#2F302F",
+                              fontSize: "0.95rem",
+                              fontWeight: 500,
+                            }}
+                          >
+                            {item.label}
+                          </Typography>
+                        </Box>
+                      </Link>
+                    ))}
+                    </Box>
+                  </Box>
+                )}
+              </Box>
             </Stack>
           </Box>
 
           {/* Right Side: Search + Icons + Auth */}
           <Stack direction="row" spacing={2} sx={{ flexShrink: 0, alignItems: "center" }}>
-            {isAuthenticated ? (
+            {isLoading ? (
+              // Skeleton Loader
+              <Stack direction="row" spacing={2} alignItems="center">
+                {/* Search Skeleton */}
+                <Box
+                  sx={{
+                    width: { xs: "150px", md: "250px" },
+                    height: "40px",
+                    bgcolor: "rgba(0,0,0,0.05)",
+                    borderRadius: "24px",
+                  }}
+                  className="animate-pulse"
+                />
+                {/* Icons Skeleton */}
+                <Box sx={{ width: 40, height: 40, bgcolor: "rgba(0,0,0,0.05)", borderRadius: "50%" }} className="animate-pulse" />
+                <Box sx={{ width: 40, height: 40, bgcolor: "rgba(0,0,0,0.05)", borderRadius: "50%" }} className="animate-pulse" />
+                {/* Avatar Skeleton */}
+                <Box sx={{ width: 40, height: 40, bgcolor: "rgba(0,0,0,0.05)", borderRadius: "50%" }} className="animate-pulse" />
+              </Stack>
+            ) : isAuthenticated ? (
               <>
                 {/* Search Bar */}
                 <Box
