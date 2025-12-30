@@ -4,6 +4,7 @@ import {
   useNavigate,
   redirect,
 } from "@tanstack/react-router";
+import { motion, AnimatePresence } from "framer-motion";
 import { useMemo, useState } from "react";
 import { useAuthStore } from "../../stores/authStore";
 import { supabase } from "../../lib/supabase";
@@ -481,9 +482,17 @@ function RouteComponent() {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-5 overflow-hidden pt-4">
+              <AnimatePresence mode="wait">
               {step === 1 ? (
-                <>
+                <motion.div
+                  key="step1"
+                  initial={{ x: -20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: -20, opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex flex-col gap-5"
+                >
                   <div className="flex flex-wrap gap-8">
                     <TextField
                       label="First Name"
@@ -847,9 +856,16 @@ function RouteComponent() {
                       {isLoading ? "Signing up..." : "Sign Up"}
                     </Button>
                   </div>
-                </>
+                </motion.div>
               ) : (
-                <>
+                <motion.div
+                  key="step2"
+                  initial={{ x: 20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: 20, opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex flex-col gap-5"
+                >
                   <div className="flex flex-col gap-5">
                     <div className="flex flex-col gap-3">
                       <h2 className="text-3xl font-normal text-black">
@@ -917,8 +933,9 @@ function RouteComponent() {
                       {isResending ? "Resending..." : "Resend Code"}
                     </button>
                   </div>
-                </>
+                </motion.div>
               )}
+              </AnimatePresence>
             </form>
           </div>
         </div>

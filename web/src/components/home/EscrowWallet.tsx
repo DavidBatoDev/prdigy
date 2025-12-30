@@ -31,8 +31,31 @@ export function EscrowWallet() {
         <h2 className="text-[20px] font-semibold text-[#333438] mb-2">
           Escrow & Wallet
         </h2>
-        <div className="bg-white rounded-xl shadow-sm p-8 h-[280px] flex items-center justify-center">
-          <p className="text-[#92969f]">Loading wallet...</p>
+        <div className="bg-white rounded-xl shadow-sm p-8 h-[280px] flex flex-col relative overflow-hidden">
+          {/* Skeleton Content */}
+          <div className="animate-pulse relative z-10 w-full">
+            {/* Escrow Amount - Large Block */}
+            <div className="h-12 w-48 bg-gray-200 rounded-md mb-3" />
+            
+            {/* Label - Small Block */}
+            <div className="h-4 w-32 bg-gray-100 rounded-md mb-9" />
+            
+            {/* Details Rows */}
+            <div className="space-y-3 mb-9">
+              <div className="flex items-center gap-2">
+                <div className="h-4 w-56 bg-gray-100 rounded-md" />
+              </div>
+              <div className="flex items-center gap-2">
+                 <div className="h-4 w-40 bg-gray-100 rounded-md" />
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-4">
+              <div className="h-8 w-28 bg-gray-200 rounded-full" />
+              <div className="h-8 w-36 bg-gray-200 rounded-full" />
+            </div>
+          </div>
         </div>
       </div>
     );
