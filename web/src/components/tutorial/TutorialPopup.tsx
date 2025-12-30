@@ -2,11 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useTutorial } from '@/contexts/TutorialContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, SkipForward } from 'lucide-react';
-import {
-  getElementPosition,
-  calculatePopupPosition,
-  type CalculatedPosition,
-} from '@/lib/tutorialHelpers';
+import type { CalculatedPosition } from '@/lib/tutorialHelpers';
 
 export function TutorialPopup() {
   const {
@@ -36,35 +32,74 @@ export function TutorialPopup() {
       if (!currentStep.targetSelector) {
         // Center position for steps without target
         setPosition({
-          top: window.scrollY + window.innerHeight / 2 - 200,
-          left: window.scrollX + window.innerWidth / 2 - 200,
+          top: window.innerHeight / 2 - 200,
+          left: window.innerWidth / 2 - 200,
           position: 'center',
         });
         return;
       }
 
-      const targetRect = getElementPosition(currentStep.targetSelector);
-      if (!targetRect || !popupRef.current) return;
+      const element = document.querySelector(currentStep.targetSelector);
+      if (!element || !popupRef.current) return;
 
+      // Use getBoundingClientRect for viewport-relative positioning
+      const targetRect = element.getBoundingClientRect();
+      
       const popupSize = {
         width: popupRef.current.offsetWidth || 400,
         height: popupRef.current.offsetHeight || 300,
       };
 
-      const calculatedPos = calculatePopupPosition(
-        targetRect,
-        popupSize,
-        currentStep.position || 'bottom',
-        20
-      );
+      let top = 0;
+      let left = 0;
+      const spacing = 20;
 
-      setPosition(calculatedPos);
+      // Calculate position based on preference (viewport-relative)
+      switch (currentStep.position || 'bottom') {
+        case 'right':
+          top = targetRect.top + targetRect.height / 2 - popupSize.height / 2;
+          left = targetRect.right + spacing;
+          break;
+        case 'left':
+          top = targetRect.top + targetRect.height / 2 - popupSize.height / 2;
+          left = targetRect.left - popupSize.width - spacing;
+          break;
+        case 'top':
+          top = targetRect.top - popupSize.height - spacing;
+          left = targetRect.left + targetRect.width / 2 - popupSize.width / 2;
+          break;
+        case 'bottom':
+        default:
+          top = targetRect.bottom + spacing;
+          left = targetRect.left + targetRect.width / 2 - popupSize.width / 2;
+          break;
+      }
+
+      // Adjust for viewport boundaries
+      if (left + popupSize.width > window.innerWidth) {
+        left = window.innerWidth - popupSize.width - spacing;
+      }
+      if (left < spacing) {
+        left = spacing;
+      }
+      if (top + popupSize.height > window.innerHeight) {
+        top = window.innerHeight - popupSize.height - spacing;
+      }
+      if (top < spacing) {
+        top = spacing;
+      }
+
+      setPosition({
+        top,
+        left,
+        position: currentStep.position || 'bottom',
+      });
     };
 
     // Initial position calculation with delay to ensure popup is rendered
     setTimeout(updatePosition, 100);
 
-    // Update on scroll and resize
+    // Update on scroll and resize - use capture phase for scroll to catch all scroll events
     window.addEventListener('scroll', updatePosition, true);
     window.addEventListener('resize', updatePosition);
 

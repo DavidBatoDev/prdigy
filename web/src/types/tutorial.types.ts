@@ -25,6 +25,7 @@ export interface TutorialStep {
   action?: () => void | Promise<void>; // Optional action to perform on step entry
   beforeNext?: () => boolean | Promise<boolean>; // Validation before proceeding to next step
   disableNext?: boolean; // Disable next button (useful for steps requiring user action)
+  disableScroll?: boolean; // Disable auto-scroll to element (useful for elements already in view)
 }
 
 // Complete tutorial definition

@@ -2,7 +2,7 @@ import { Calendar, Clock } from "lucide-react";
 
 export function ProjectsGrid() {
   return (
-    <div>
+    <div data-tutorial="projects-grid">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div className="w-[18px] h-[18px] rounded-full bg-[#333438] flex items-center justify-center">

@@ -25,6 +25,7 @@ const Header = () => {
         justifyContent: "center",
         top: 0,
         zIndex: 1000,
+        overflow: "visible",
       }}
     >
       <Toolbar
@@ -34,6 +35,7 @@ const Header = () => {
           width: "100%",
           margin: "0 auto",
           px: { xs: 2, sm: 3, md: 4 },
+          overflow: "visible",
         }}
       >
         <Box

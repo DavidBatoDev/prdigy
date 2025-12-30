@@ -6,15 +6,18 @@ import { useProfileQuery } from "@/hooks/useProfileQuery";
 import { profileKeys } from "@/queries/profile";
 import { User, LogOut, ChevronDown } from "lucide-react";
 import { switchPersona } from "@/lib/auth-api";
+import { useTutorial } from "@/contexts/TutorialContext";
 
 export default function UserMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const [isChangingPersona, setIsChangingPersona] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const { data: profile } = useProfileQuery(); // Use query instead of store
   const { signOut } = useAuthStore();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { isActive } = useTutorial();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -90,10 +93,33 @@ export default function UserMenu() {
     return personas;
   };
 
+  // Calculate dropdown position when tutorial is active
+  const getDropdownStyle = () => {
+    if (!isActive || !buttonRef.current) {
+      return {
+        zIndex: 10003,
+        position: 'absolute' as const,
+        top: '100%',
+        right: 0,
+      };
+    }
+
+    // Use fixed positioning during tutorial to avoid parent positioning issues
+    const buttonRect = buttonRef.current.getBoundingClientRect();
+    return {
+      zIndex: 10003,
+      position: 'fixed' as const,
+      top: buttonRect.bottom + 8,
+      right: window.innerWidth - buttonRect.right,
+    };
+  };
+
   return (
-    <div className="relative cursor-pointer" ref={dropdownRef}>
+    <div className="relative cursor-pointer overflow-visible" ref={dropdownRef}>
       <button
+        ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
+        data-tutorial="user-menu"
         className="cursor-pointer   flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors"
         aria-label="User menu"
       >
@@ -128,7 +154,11 @@ export default function UserMenu() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+        <div 
+          data-tutorial="user-menu-dropdown"
+          className="w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2"
+          style={getDropdownStyle()}
+        >
           {/* Loading Overlay */}
           {isChangingPersona && (
             <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-lg flex items-center justify-center z-10">

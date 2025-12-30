@@ -210,7 +210,16 @@ export function highlightElement(selector: string): HTMLElement | null {
   if (!element) return null;
 
   element.setAttribute('data-tutorial-highlight', 'true');
-  element.style.position = 'relative';
+  
+  // Store original position value
+  const originalPosition = window.getComputedStyle(element).position;
+  element.setAttribute('data-tutorial-original-position', originalPosition);
+  
+  // Only set position if it's static (default), otherwise keep original
+  if (originalPosition === 'static') {
+    element.style.position = 'relative';
+  }
+  
   element.style.zIndex = '10001';
   
   return element;
@@ -223,6 +232,13 @@ export function unhighlightElement(element: HTMLElement | null): void {
   if (!element) return;
 
   element.removeAttribute('data-tutorial-highlight');
-  element.style.position = '';
+  
+  // Restore original position
+  const originalPosition = element.getAttribute('data-tutorial-original-position');
+  if (originalPosition === 'static') {
+    element.style.position = '';
+  }
+  element.removeAttribute('data-tutorial-original-position');
+  
   element.style.zIndex = '';
 }

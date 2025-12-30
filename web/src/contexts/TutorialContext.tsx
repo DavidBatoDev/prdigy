@@ -58,7 +58,9 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
       setTimeout(async () => {
         try {
           await waitForElement(firstStep.targetSelector!, 2000);
-          scrollToElement(firstStep.targetSelector!, 150);
+          if (!firstStep.disableScroll) {
+            scrollToElement(firstStep.targetSelector!, 150);
+          }
           setTimeout(() => {
             const element = highlightElement(firstStep.targetSelector!);
             setHighlightedElement(element);
@@ -104,7 +106,9 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
       setTimeout(async () => {
         try {
           await waitForElement(nextStepData.targetSelector!, 2000);
-          scrollToElement(nextStepData.targetSelector!, 150);
+          if (!nextStepData.disableScroll) {
+            scrollToElement(nextStepData.targetSelector!, 150);
+          }
           setTimeout(() => {
             const element = highlightElement(nextStepData.targetSelector!);
             setHighlightedElement(element);
@@ -141,7 +145,9 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
       setTimeout(async () => {
         try {
           await waitForElement(prevStepData.targetSelector!, 2000);
-          scrollToElement(prevStepData.targetSelector!, 150);
+          if (!prevStepData.disableScroll) {
+            scrollToElement(prevStepData.targetSelector!, 150);
+          }
           setTimeout(() => {
             const element = highlightElement(prevStepData.targetSelector!);
             setHighlightedElement(element);
