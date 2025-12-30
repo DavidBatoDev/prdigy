@@ -55,6 +55,7 @@ export function Hero() {
           </p>
           <a 
             href="/client/project-posting"
+            data-tutorial="post-project-btn"
             className="bg-[#e72074] hover:bg-[#d01a67] text-white px-6 py-2 rounded flex items-center gap-2 shadow-md transition-colors w-fit"
           >
             Post a Project Vision

@@ -4,6 +4,9 @@ import Header from "@/components/layout/Header";
 import { fetchProfile } from "@/queries/profile";
 import { LeftSide } from "@/components/home/LeftSide";
 import { RightSide } from "@/components/home/RightSide";
+import { useEffect } from "react";
+import { useTutorial } from "@/contexts/TutorialContext";
+import { dashboardTutorial } from "@/tutorials/dashboardTutorial";
 
 export const Route = createFileRoute("/dashboard")({
   beforeLoad: () => {
@@ -53,6 +56,23 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 function DashboardPage() {
+  const { profile } = useAuthStore();
+  const { startTutorial, isActive } = useTutorial();
+
+  // Auto-start tutorial on first visit
+  useEffect(() => {
+    if (!profile || isActive) return;
+
+    const hasCompletedTutorial = profile.tutorials_completed?.dashboard;
+    
+    if (!hasCompletedTutorial) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        startTutorial(dashboardTutorial);
+      }, 500);
+    }
+  }, [profile, startTutorial, isActive]);
+
   return (
     <div className="min-h-screen bg-[#f6f7f8]">
       <Header />
@@ -61,10 +81,14 @@ function DashboardPage() {
         {/* Main Content Grid */}
         <div className="grid grid-cols-[1fr_372px] gap-6">
           {/* Left Column */}
-          <LeftSide />
+          <div data-tutorial="projects-section">
+            <LeftSide />
+          </div>
 
           {/* Right Column */}
-          <RightSide />
+          <div data-tutorial="right-sidebar">
+            <RightSide />
+          </div>
         </div>
       </div>
     </div>

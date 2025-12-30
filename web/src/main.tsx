@@ -4,6 +4,8 @@ import { RouterProvider, createRouter } from "@tanstack/react-router";
 
 import * as TanStackQueryProvider from "./integrations/tanstack-query/root-provider.tsx";
 import { AuthInitializer } from "./components/auth/AuthInitializer";
+import { TutorialProvider } from "./contexts/TutorialContext";
+import { TutorialUI } from "./components/tutorial/TutorialUI";
 
 // Import the generated route tree
 import { routeTree } from "./routeTree.gen";
@@ -40,7 +42,10 @@ if (rootElement && !rootElement.innerHTML) {
     <StrictMode>
       <TanStackQueryProvider.Provider {...TanStackQueryProviderContext}>
         <AuthInitializer>
-          <RouterProvider router={router} />
+          <TutorialProvider>
+            <RouterProvider router={router} />
+            <TutorialUI />
+          </TutorialProvider>
         </AuthInitializer>
       </TanStackQueryProvider.Provider>
     </StrictMode>

@@ -17,6 +17,7 @@ const Header = () => {
   return (
     <AppBar
       position="static"
+      data-tutorial="header"
       sx={{
         bgcolor: "transparent",
         boxShadow: 0,

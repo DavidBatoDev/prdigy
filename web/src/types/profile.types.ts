@@ -44,6 +44,7 @@ export interface Profile {
   zip_code: string | null;
   settings: ProfileSettings;
   has_completed_onboarding: boolean;
+  tutorials_completed?: Record<string, any>; // JSONB field for tutorial completion tracking
   created_at: string;
   updated_at: string;
 }
