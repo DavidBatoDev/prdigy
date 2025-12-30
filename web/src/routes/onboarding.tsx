@@ -141,7 +141,8 @@ function OnboardingPage() {
 
       <div className="relative mx-auto flex h-screen max-w-6xl flex-col items-center justify-center px-6 lg:px-12 z-10">
         <AnimatePresence mode="wait">
-        {step === 0 ? (
+
+        {step === 0 && (
           <motion.div
              key="welcome"
              initial="hidden"
@@ -164,29 +165,12 @@ function OnboardingPage() {
              <div className="space-y-6 max-w-3xl flex flex-col items-center">
                 <div className="text-6xl -mx-16 md:text-7xl font-bold text-black tracking-tight flex flex-col md:flex-row items-center justify-center gap-6">
                   <motion.span 
-                    className="whitespace-nowrap flex overflow-hidden"
-                    initial="hidden"
-                    animate="visible"
-                    variants={{
-                      hidden: { opacity: 0 },
-                      visible: { 
-                        opacity: 1,
-                        transition: { staggerChildren: 0.08, delayChildren: 0.2 }
-                      }
-                    }}
+                    className="whitespace-nowrap"
+                    initial={{ opacity: 0, y: 30, filter: "blur(12px)", scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, filter: "blur(0px)", scale: 1 }}
+                    transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
                   >
-                    {Array.from("Welcome to").map((char, index) => (
-                      <motion.span
-                        key={index}
-                        variants={{
-                          hidden: { opacity: 0, x: -10 },
-                          visible: { opacity: 1, x: 0 }
-                        }}
-                        transition={{ type: "spring", damping: 12, stiffness: 200 }}
-                      >
-                        {char === " " ? "\u00A0" : char}
-                      </motion.span>
-                    ))}
+                    Welcome to
                   </motion.span>
                   
                   <motion.img 
@@ -195,7 +179,7 @@ function OnboardingPage() {
                     className="h-24 md:h-28 w-auto object-contain mt-2"
                     initial={{ opacity: 0, scale: 0.8, x: -20 }}
                     animate={{ opacity: 1, scale: 1, x: 0 }}
-                    transition={{ duration: 0.8, delay: 1.4, ease: [0.22, 1, 0.36, 1] }}
+                    transition={{ duration: 0.8, delay: 0.8, ease: [0.22, 1, 0.36, 1] }}
                   />
                 </div>
 
@@ -205,7 +189,7 @@ function OnboardingPage() {
                   transition={{ duration: 0.8, delay: 1.8, ease: [0.22, 1, 0.36, 1] }}
                   className="text-2xl text-[#020202]/70 leading-relaxed"
                 >
-                   Your journey to seamless project management and expert collaboration starts here.
+                   A consultant-led startup marketplace where clients don’t hire freelancers — they hire structured teams curated by professionals.
                 </motion.p>
              </div>
              
@@ -222,7 +206,60 @@ function OnboardingPage() {
              </Button>
              </motion.div>
           </motion.div>
-        ) : (
+        )}
+
+        {step === 1 && (
+          <motion.div
+             key="expertise"
+             initial={{ opacity: 0, y: 20 }}
+             animate={{ opacity: 1, y: 0 }}
+             exit={{ opacity: 0, x: -50 }}
+             transition={{ duration: 0.5 }}
+             className="w-full flex flex-col items-center justify-center h-full gap-8 scale-90 md:scale-100" // Added scale fix for smaller screens if needed
+          >
+             <div className="w-full max-w-[1400px] px-8"> {/* Increased max-width significantly */}
+               <h2 className="text-4xl font-bold text-center text-[#333438] mb-4 tracking-tight">
+                 Discover our Consultant's Expertise
+               </h2>
+               <p className="text-xl text-center text-[#61636c] mb-12 max-w-3xl mx-auto">
+                 Access structured teams led by top-tier professionals across various domains.
+               </p>
+               
+               {/* Grid Container - WIDER and FLUSH */}
+               <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 w-full">
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-2">
+                   {[
+                      "Business Automation Consultants", "Cloud Services Consultants", "Cybersecurity Consultants",
+                      "Data Analytics Consultants", "Digital Marketing Consultants", "Digital Product Managers",
+                      "Digital Sales Consultants", "Emerging Technologies Consultants", "ERP Consultants",
+                      "Finance Consultants", "Interim Managers", "Business Turnaround Consultants",
+                      "Corporate Development Consultants", "CRM Consultants", "Customer Service Consultants",
+                      "Innovation Consultants", "Manufacturing Consultants", "Marketing Consultants",
+                      "People and Culture Consultants", "Performance Improvement Consultants", "Pricing Consultants",
+                      "Procurement Consultants", "Sales Consultants", "Strategy Consultants",
+                      "Supply Chain Consultants", "Sustainability Consultants", "Project Management Consultants",
+                      "Digital Transformation Consultants", "New Business Model Consultants", "Organization Consultants"
+                   ].map((item, index) => (
+                     <div key={index} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0 hover:bg-gray-50/50 transition-colors rounded-lg px-2 -mx-2">
+                       <span className="text-[13.5px] text-gray-600 font-medium tracking-wide">{item}</span>
+                     </div>
+                   ))}
+                 </div>
+               </div>
+
+               <div className="flex justify-center mt-12">
+                 <Button
+                    onClick={() => setStep(2)}
+                    className="min-w-[280px] bg-[#ff9900] px-12 py-4 text-xl font-bold text-white rounded-full shadow-lg hover:bg-[#ff3366] transition-all hover:-translate-y-1 hover:shadow-xl tracking-wide"
+                 >
+                    Continue
+                 </Button>
+               </div>
+             </div>
+          </motion.div>
+        )}
+
+        {step === 2 && (
           <motion.div
              key="selection"
              initial={{ opacity: 0, x: 50 }}

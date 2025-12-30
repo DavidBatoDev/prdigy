@@ -19,12 +19,43 @@ const Header = () => {
     { label: "Market place", href: "/" },
   ];
 
-  const consultantsMenuItems = [
-    { label: "Post a Project", href: "/client/project-posting" },
-    { label: "Browse Professional Consultants", href: "/browse-consultants" },
-    { label: "My Consultant Pool", href: "/consultant-pool" },
-    { label: "Direct Contacts", href: "/direct-contacts" },
-  ];
+  const getPersonaMenu = () => {
+    const persona = profile?.active_persona || 'client';
+    
+    switch (persona) {
+      case 'freelancer':
+        return {
+          label: 'Mentorship',
+          items: [
+            { label: "Find a Mentor", href: "/mentors" },
+            { label: "My Applications", href: "/applications" },
+            { label: "Saved Mentors", href: "/saved-mentors" },
+          ]
+        };
+      case 'consultant':
+        return {
+          label: 'My Clients',
+          items: [
+            { label: "Browse Opportunities", href: "/projects" },
+            { label: "My Clients", href: "/clients" },
+            { label: "Active Contracts", href: "/contracts" },
+          ]
+        };
+      case 'client':
+      default:
+        return {
+          label: 'My Consultants',
+          items: [
+            { label: "Post a Project", href: "/client/project-posting" },
+            { label: "Browse Professional Consultants", href: "/browse-consultants" },
+            { label: "My Consultant Pool", href: "/consultant-pool" },
+            { label: "Direct Contacts", href: "/direct-contacts" },
+          ]
+        };
+    }
+  };
+
+  const menuConfig = getPersonaMenu();
 
   return (
     <AppBar
@@ -126,7 +157,7 @@ const Header = () => {
                       },
                     }}
                   >
-                    My Consultants
+                    {menuConfig.label}
                   </Typography>
                   <ChevronDown
                     size={16}
@@ -158,7 +189,7 @@ const Header = () => {
                         py: 1,
                       }}
                     >
-                      {consultantsMenuItems.map((item) => (
+                      {menuConfig.items.map((item) => (
                       <Link
                         key={item.label}
                         to={item.href}

@@ -62,7 +62,8 @@ function DashboardPage() {
 
   // Auto-start tutorial on first visit
   useEffect(() => {
-    if (!profile || isActive) return;
+    // Only start tutorial if profile is loaded, tutorial not active, AND onboarding is completed
+    if (!profile || isActive || !profile.has_completed_onboarding) return;
 
     const hasCompletedTutorial = profile.tutorials_completed?.dashboard;
     
