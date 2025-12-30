@@ -1,4 +1,4 @@
-import { Calendar, Clock, Plus } from "lucide-react";
+import { Calendar, Clock } from "lucide-react";
 
 export function ProjectsGrid() {
   return (
@@ -115,7 +115,7 @@ function ProjectCard({
 }) {
   return (
     <div
-      className="bg-gradient-to-b from-white from-98% to-transparent rounded-xl shadow-sm p-4 h-[385px] flex flex-col"
+      className="bg-linear-to-b from-white from-98% to-transparent rounded-xl shadow-sm p-4 h-[385px] flex flex-col"
       style={{
         backgroundImage: `linear-gradient(to bottom, white 98%, ${statusColor}20)`,
       }}
@@ -162,7 +162,7 @@ function ProjectCard({
 
         {/* Next Up */}
         <div className="flex gap-2">
-          <Clock className="w-[18px] h-[18px] text-[#92969f] flex-shrink-0 mt-0.5" />
+          <Clock className="w-[18px] h-[18px] text-[#92969f] shrink-0 mt-0.5" />
           <div className="space-y-2">
             <div>
               <p className="text-[14px] font-semibold text-[#61636c]">

@@ -53,10 +53,13 @@ export function Hero() {
             Don't let your idea stay on a napkin. Match with an expert
             Consultant today to architect your roadmap.
           </p>
-          <button className="bg-[#e72074] hover:bg-[#d01a67] text-white px-6 py-2 rounded flex items-center gap-2 shadow-md transition-colors">
+          <a 
+            href="/client/project-posting"
+            className="bg-[#e72074] hover:bg-[#d01a67] text-white px-6 py-2 rounded flex items-center gap-2 shadow-md transition-colors w-fit"
+          >
             Post a Project Vision
             <ArrowRight className="w-5 h-5" />
-          </button>
+          </a>
         </div>
       </div>
     </div>

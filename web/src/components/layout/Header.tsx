@@ -9,17 +9,17 @@ import { MessageCircle, Bell, Search } from "lucide-react";
 const Header = () => {
   const { isAuthenticated } = useAuthStore();
   const navItems = [
-    { label: "Home", target: "hero" },
-    { label: "Projects", target: "projects" },
-    { label: "Market place", target: "marketplace" },
+    { label: "Home", href: "/dashboard" },
+    { label: "Projects", href: "/" },
+    { label: "Market place", href: "/" },
   ];
 
   return (
     <AppBar
-      position="sticky"
+      position="static"
       sx={{
-        bgcolor: "white",
-        boxShadow: 2,
+        bgcolor: "transparent",
+        boxShadow: 0,
         height: "80px",
         justifyContent: "center",
         top: 0,
@@ -62,25 +62,27 @@ const Header = () => {
               }}
             >
               {navItems.map((item) => (
-                <Typography
-                  key={item.target}
-                  component="button"
-                  sx={{
-                    color: "#2F302F",
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    fontSize: { xs: "0.9rem", md: "1rem" },
-                    fontWeight: 600,
-                    "&:hover": {
-                      color: "var(--primary)",
-                    },
-                    background: "none",
-                    border: "none",
-                    padding: 0,
-                  }}
+                <Link
+                  key={item.label}
+                  to={item.href}
+                  style={{ textDecoration: "none" }}
                 >
-                  {item.label}
-                </Typography>
+                  <Typography
+                    component="span"
+                    sx={{
+                      color: "#2F302F",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      fontSize: { xs: "0.9rem", md: "1rem" },
+                      fontWeight: 600,
+                      "&:hover": {
+                        color: "var(--primary)",
+                      },
+                    }}
+                  >
+                    {item.label}
+                  </Typography>
+                </Link>
               ))}
             </Stack>
           </Box>

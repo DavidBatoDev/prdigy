@@ -57,7 +57,7 @@ function DashboardPage() {
     <div className="min-h-screen bg-[#f6f7f8]">
       <Header />
 
-      <div className="max-w-[1440px] mx-auto py-8">
+      <div className="max-w-[1440px] mx-auto px-10 py-8">
         {/* Main Content Grid */}
         <div className="grid grid-cols-[1fr_372px] gap-6">
           {/* Left Column */}
