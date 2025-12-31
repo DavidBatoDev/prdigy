@@ -16,13 +16,7 @@ export function Hero() {
       buttonText: "Post a Project Vision",
       buttonLink: "/client/project-posting",
       dataTutorial: "post-project-btn",
-      // Design tokens
-      bgColor: "#FFEBD6", // Peach
-      waveColor: "#FF85A3", // Pink
-      blobColors: ["#ff993326", "#fdba74", "#fbcfe8"], // Orange/Pink variants
-      buttonBg: "#e72074",
-      buttonHoverBg: "#d01a67",
-      artSrc: "/svgs/art/9@2x.svg",
+      artSrc: "/svgs/art/client-art.svg",
     },
     freelancer: {
       title: "Propose your skills to expert Consultants.",
@@ -31,13 +25,7 @@ export function Hero() {
       buttonText: "Find Consultants",
       buttonLink: "/browse-consultants",
       dataTutorial: "browse-consultants-btn",
-      // Design tokens
-      bgColor: "#E0F2FE", // Light Blue
-      waveColor: "#38BDF8", // Sky Blue
-      blobColors: ["#0ea5e926", "#7dd3fc", "#c7d2fe"], // Sky/Indigo variants
-      buttonBg: "#0284C7", // Sky 600
-      buttonHoverBg: "#0369a1", // Sky 700
-      artSrc: "/svgs/art/9@2x.svg", // We can use the same art or a placeholder if a specific one isn't available
+      artSrc: "/svgs/art/freelancer-art.svg",
     },
     consultant: {
       title: "Share your expertise with the world.",
@@ -46,13 +34,7 @@ export function Hero() {
       buttonText: "Browse Opportunities",
       buttonLink: "/projects",
       dataTutorial: "browse-opportunities-btn",
-      // Design tokens
-      bgColor: "#DCFCE7", // Light Green
-      waveColor: "#4ADE80", // Green
-      blobColors: ["#22c55e26", "#86efac", "#a7f3d0"], // Green/Emerald variants
-      buttonBg: "#059669", // Emerald 600
-      buttonHoverBg: "#047857", // Emerald 700
-      artSrc: "/svgs/art/9@2x.svg",
+      artSrc: "/svgs/art/consultant-art.svg",
     },
     admin: {
       title: "Turn your vision into reality.",
@@ -61,12 +43,6 @@ export function Hero() {
       buttonText: "Post a Project Vision",
       buttonLink: "/client/project-posting",
       dataTutorial: "post-project-btn",
-      // Design tokens
-      bgColor: "#FFEBD6",
-      waveColor: "#FF85A3",
-      blobColors: ["#ff993326", "#fdba74", "#fbcfe8"],
-      buttonBg: "#e72074",
-      buttonHoverBg: "#d01a67",
       artSrc: "/svgs/art/9@2x.svg",
     },
   };
@@ -99,7 +75,8 @@ export function Hero() {
   return (
     <div 
       className="relative rounded-xl overflow-hidden h-[275px] transition-colors duration-500"
-      style={{ backgroundColor: currentContent.bgColor }}
+      data-theme={persona}
+      style={{ backgroundColor: "var(--primary-light)" }}
     >
       {/* Right SVG Art */}
       <img
@@ -116,14 +93,11 @@ export function Hero() {
       >
         <path
           d="M0,90 Q10,80 700,200 T1000,100 L1000,200 L0,200 Z"
-          fill={currentContent.waveColor}
+          fill="var(--secondary)" // Using secondary color for wave
           opacity="0.6"
         />
       </svg>
-      {/* <svg xmlns="http://www.w3.org/2000/svg" width="883" height="84" viewBox="0 0 883 84" fill="none">
-        <path d="M1003.12 96.0718C899.726 126.693 727.115 74.4768 354.482 66.3786C50.7173 66.3786 35.402 45.3647 -59.8132 0.000109838L-182.347 8.06927L-194.094 117.206L1097.71 213.103L1109.46 103.966L1003.12 96.0718Z" fill="#FF85A3"/>
-    </svg> */}
-
+      
       <div className="absolute inset-0 opacity-100">
         <div className="absolute top-[-50px] left-[-194px] w-[883px] h-[275px]">
           {/* Decorative circles */}
@@ -132,7 +106,7 @@ export function Hero() {
             style={{ 
               top: "0px", 
               left: "101px",
-              backgroundColor: currentContent.blobColors[0] 
+              backgroundColor: "var(--primary)" 
             }}
           />
           <div
@@ -140,7 +114,7 @@ export function Hero() {
             style={{ 
               top: "207px", 
               left: "145px",
-              backgroundColor: currentContent.blobColors[1]
+              backgroundColor: "var(--secondary-light)"
             }}
           />
           <div
@@ -148,7 +122,7 @@ export function Hero() {
             style={{ 
               top: "-31px", 
               right: "0px",
-              backgroundColor: currentContent.blobColors[2]
+              backgroundColor: "var(--primary-dark)"
             }}
           />
         </div>
@@ -167,13 +141,13 @@ export function Hero() {
             data-tutorial={currentContent.dataTutorial}
             className="text-white px-6 py-2 rounded flex items-center gap-2 shadow-md transition-all w-fit"
             style={{ 
-              backgroundColor: currentContent.buttonBg,
+              backgroundColor: "var(--secondary)",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = currentContent.buttonHoverBg;
+              e.currentTarget.style.backgroundColor = "var(--secondary-dark)";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = currentContent.buttonBg;
+              e.currentTarget.style.backgroundColor = "var(--secondary)";
             }}
           >
             {currentContent.buttonText}

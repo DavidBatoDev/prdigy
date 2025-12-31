@@ -1,9 +1,19 @@
-import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useAuthStore } from "@/stores/authStore";
 
 export function CalendarWidget() {
+  const { profile } = useAuthStore();
+  const persona = profile?.active_persona || "client";
+
   return (
-    <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-      <div className="bg-[#ff9933] text-white text-center py-3">
+    <div 
+      className="bg-white rounded-xl shadow-sm overflow-hidden" 
+      data-theme={persona}
+    >
+      <div 
+        className="text-white text-center py-3"
+        style={{ backgroundColor: "var(--secondary)" }}
+      >
         <h3 className="text-[20px] font-semibold">MY CALENDAR</h3>
       </div>
 
@@ -33,8 +43,9 @@ export function CalendarWidget() {
             <div
               key={i}
               className={`w-[42px] h-[42px] flex items-center justify-center ${
-                date === 3 ? "bg-[#ffc285] rounded-[5px]" : ""
-              } ${date === 31 ? "opacity-40" : ""} text-black`}
+                date === 3 ? "text-white rounded-[5px]" : "text-black"
+              } ${date === 31 ? "opacity-40" : ""}`}
+              style={date === 3 ? { backgroundColor: "var(--secondary)" } : {}}
             >
               {date}
             </div>
@@ -46,7 +57,10 @@ export function CalendarWidget() {
       <div className="bg-white p-8 max-h-[219px] overflow-y-auto hide-scrollbar">
         <div className="space-y-4">
           <div>
-            <p className="text-[16px] font-semibold text-[#ff9933] mb-3">
+            <p 
+              className="text-[16px] font-semibold mb-3"
+              style={{ color: "var(--secondary)" }}
+            >
               TODAY, SEPT. 3
             </p>
             <div className="space-y-2 text-[14px]">
@@ -67,7 +81,10 @@ export function CalendarWidget() {
           </div>
 
           <div>
-            <p className="text-[16px] font-normal text-[#ff9933]">
+            <p 
+              className="text-[16px] font-normal"
+              style={{ color: "var(--secondary)" }}
+            >
               SEPTEMBER 4
             </p>
           </div>

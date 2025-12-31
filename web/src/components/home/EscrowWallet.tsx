@@ -1,10 +1,13 @@
 import { useWallet, useWalletBalance } from "@/queries/wallet";
 import { useTransactions } from "@/queries/transactions";
+import { useAuthStore } from "@/stores/authStore";
 
 export function EscrowWallet() {
   const { data: wallet, isLoading } = useWallet();
   const walletBalance = useWalletBalance();
   const { data: transactions = [] } = useTransactions({ limit: 100 });
+  const { profile } = useAuthStore();
+  const persona = profile?.active_persona || "client";
 
   // Calculate total spent from completed transactions
   const totalSpent = transactions
@@ -52,7 +55,6 @@ export function EscrowWallet() {
 
             {/* Buttons */}
             <div className="flex gap-4">
-              <div className="h-8 w-28 bg-gray-200 rounded-full" />
               <div className="h-8 w-36 bg-gray-200 rounded-full" />
             </div>
           </div>
@@ -79,8 +81,14 @@ export function EscrowWallet() {
       <h2 className="text-[20px] font-semibold text-[#333438] mb-2">
         Escrow & Wallet
       </h2>
-      <div className="bg-white rounded-xl shadow-sm p-8 relative overflow-hidden h-[280px]">
-        <div className="absolute right-0 top-0 w-[105px] h-[105px] bg-[#ff9933] opacity-20 rounded-full blur-2xl" />
+      <div 
+        className="bg-white rounded-xl shadow-sm p-8 relative overflow-hidden h-[280px]"
+        data-theme={persona}
+      >
+        <div 
+          className="absolute right-0 top-0 w-[105px] h-[105px] opacity-20 rounded-full blur-2xl transition-colors duration-500"
+          style={{ backgroundColor: "var(--primary)" }}
+        />
 
         <div className="relative z-10">
           <div className="mb-8">
@@ -108,10 +116,19 @@ export function EscrowWallet() {
           </div>
 
           <div className="flex gap-4">
-            <button className="bg-[#ffad5c] hover:bg-[#ff9e42] text-white px-4 py-1 rounded-full text-[14px] shadow-sm transition-colors">
-              + Add Funds
-            </button>
-            <button className="border border-[#ff993380] text-[#ffad5c] hover:bg-[#ff99331a] px-4 py-1 rounded-full text-[14px] transition-colors">
+            <button 
+              className="px-4 py-1 rounded-full text-[14px] transition-colors border"
+              style={{ 
+                borderColor: "var(--primary)",
+                color: "var(--primary)" 
+              }}
+              onMouseEnter={(e) => {
+                 e.currentTarget.style.backgroundColor = "var(--primary-light)";
+              }}
+              onMouseLeave={(e) => {
+                 e.currentTarget.style.backgroundColor = "transparent";
+              }}
+            >
               View Transactions
             </button>
           </div>
