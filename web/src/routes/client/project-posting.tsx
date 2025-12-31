@@ -3,6 +3,8 @@ import { useState } from "react";
 import Header from "@/components/layout/Header";
 import { Upload, X, CornerDownLeft, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/client/project-posting")({
   component: ProjectPostingPage,
@@ -20,6 +22,7 @@ interface FormData {
   
   // Step 2
   skills: string[];
+  customSkills: string[];
   duration: string;
   roadmapFile: File | null;
   
@@ -39,6 +42,7 @@ function ProjectPostingPage() {
     problemSolving: "",
     projectState: "idea",
     skills: [],
+    customSkills: [],
     duration: "1-3_months",
     roadmapFile: null,
     budgetRange: "< $1,000",
@@ -525,7 +529,20 @@ function Step2({ formData, updateFormData }: { formData: FormData; updateFormDat
   const [skillInput, setSkillInput] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   
-  const generalSkills = [
+  const { data: skillsData } = useQuery({
+    queryKey: ['skills'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('skills')
+        .select('name, slug')
+        .order('name');
+      
+      if (error) throw error;
+      return data as { name: string; slug: string }[];
+    },
+  });
+  
+  const generalSkills = skillsData?.map(s => s.name) || [
     "Graphic Design", "Content Writing", "Web Development", "Data Entry",
     "Digital Marketing", "Project Management", "Translation", "Video Editing",
     "SEO", "Social Media Marketing", "Virtual Assistant", "Illustration",
@@ -539,15 +556,40 @@ function Step2({ formData, updateFormData }: { formData: FormData; updateFormDat
   );
 
   const addSkill = (skill: string) => {
-    if (!formData.skills.includes(skill)) {
-      updateFormData({ skills: [...formData.skills, skill] });
+    // Check if skill exists in the fetched list (case-insensitive)
+    const existingSkill = generalSkills.find(
+      (s) => s.toLowerCase() === skill.toLowerCase()
+    );
+
+    if (existingSkill) {
+      // It's an existing skill
+      if (!formData.skills.includes(existingSkill)) {
+        updateFormData({ skills: [...formData.skills, existingSkill] });
+      }
+    } else {
+      // It's a custom skill
+      // Check if it's already in customSkills (case-insensitive check to avoid duplicates)
+      const isDuplicateCustom = formData.customSkills.some(
+        (s) => s.toLowerCase() === skill.toLowerCase()
+      );
+      
+      if (!isDuplicateCustom) {
+        updateFormData({ customSkills: [...formData.customSkills, skill] });
+      }
     }
     setSkillInput("");
     setShowDropdown(false);
   };
 
   const removeSkill = (skill: string) => {
-    updateFormData({ skills: formData.skills.filter((s) => s !== skill) });
+    // Try removing from standard skills
+    if (formData.skills.includes(skill)) {
+      updateFormData({ skills: formData.skills.filter((s) => s !== skill) });
+    }
+    // Try removing from custom skills
+    if (formData.customSkills.includes(skill)) {
+      updateFormData({ customSkills: formData.customSkills.filter((s) => s !== skill) });
+    }
   };
 
   return (
@@ -598,7 +640,7 @@ function Step2({ formData, updateFormData }: { formData: FormData; updateFormDat
 
         {/* Selected Skills */}
         <div className="flex flex-wrap gap-2">
-          {formData.skills.map((skill) => (
+          {[...formData.skills, ...formData.customSkills].map((skill) => (
             <div
               key={skill}
               className="px-4 py-1.5 bg-white border border-gray-300 text-[#333438] rounded-full text-sm flex items-center gap-2 shadow-sm cursor-pointer hover:border-red-500 hover:text-red-500 transition-colors group"
