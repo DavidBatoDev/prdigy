@@ -21,7 +21,7 @@ import {
 import { RoadmapCanvas } from "@/components/roadmap/RoadmapCanvas";
 import type { Milestone } from "@/components/roadmap/MilestoneCard";
 
-export const Route = createFileRoute("/project/")({
+export const Route = createFileRoute("/project/roadmap/")({
   component: RoadmapBuilderPage,
 });
 
@@ -240,6 +240,14 @@ function RoadmapBuilderPage() {
           />
         </div>
       </div>
+
+      {/* Edit Project Brief trigger */}
+      <button
+        onClick={() => setIsBriefOpen(true)}
+        className="fixed top-[92px] right-6 z-30 px-4 py-2 rounded-lg bg-white border border-gray-200 shadow-sm hover:shadow-md text-[#333438] flex items-center gap-2"
+      >
+        <Pencil className="w-4 h-4" /> Edit Project Brief
+      </button>
 
       {/* Project Brief Modal (Steps 1-2) */}
       <AnimatePresence>

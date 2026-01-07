@@ -20,6 +20,7 @@ import { Route as AuthVerifyRouteImport } from './routes/auth/verify'
 import { Route as AuthSignupRouteImport } from './routes/auth/signup'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
+import { Route as ProjectRoadmapIndexRouteImport } from './routes/project/roadmap/index'
 import { Route as AuthAdminSigninRouteImport } from './routes/auth/admin/signin'
 import { Route as AuthAdminLoginRouteImport } from './routes/auth/admin/login'
 
@@ -78,6 +79,11 @@ const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
   path: '/auth/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProjectRoadmapIndexRoute = ProjectRoadmapIndexRouteImport.update({
+  id: '/project/roadmap/',
+  path: '/project/roadmap/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthAdminSigninRoute = AuthAdminSigninRouteImport.update({
   id: '/auth/admin/signin',
   path: '/auth/admin/signin',
@@ -103,6 +109,7 @@ export interface FileRoutesByFullPath {
   '/project': typeof ProjectIndexRoute
   '/auth/admin/login': typeof AuthAdminLoginRoute
   '/auth/admin/signin': typeof AuthAdminSigninRoute
+  '/project/roadmap': typeof ProjectRoadmapIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -118,6 +125,7 @@ export interface FileRoutesByTo {
   '/project': typeof ProjectIndexRoute
   '/auth/admin/login': typeof AuthAdminLoginRoute
   '/auth/admin/signin': typeof AuthAdminSigninRoute
+  '/project/roadmap': typeof ProjectRoadmapIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -134,6 +142,7 @@ export interface FileRoutesById {
   '/project/': typeof ProjectIndexRoute
   '/auth/admin/login': typeof AuthAdminLoginRoute
   '/auth/admin/signin': typeof AuthAdminSigninRoute
+  '/project/roadmap/': typeof ProjectRoadmapIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -151,6 +160,7 @@ export interface FileRouteTypes {
     | '/project'
     | '/auth/admin/login'
     | '/auth/admin/signin'
+    | '/project/roadmap'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -166,6 +176,7 @@ export interface FileRouteTypes {
     | '/project'
     | '/auth/admin/login'
     | '/auth/admin/signin'
+    | '/project/roadmap'
   id:
     | '__root__'
     | '/'
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | '/project/'
     | '/auth/admin/login'
     | '/auth/admin/signin'
+    | '/project/roadmap/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -197,6 +209,7 @@ export interface RootRouteChildren {
   ProjectIndexRoute: typeof ProjectIndexRoute
   AuthAdminLoginRoute: typeof AuthAdminLoginRoute
   AuthAdminSigninRoute: typeof AuthAdminSigninRoute
+  ProjectRoadmapIndexRoute: typeof ProjectRoadmapIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -278,6 +291,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/project/roadmap/': {
+      id: '/project/roadmap/'
+      path: '/project/roadmap'
+      fullPath: '/project/roadmap'
+      preLoaderRoute: typeof ProjectRoadmapIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/admin/signin': {
       id: '/auth/admin/signin'
       path: '/auth/admin/signin'
@@ -309,6 +329,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProjectIndexRoute: ProjectIndexRoute,
   AuthAdminLoginRoute: AuthAdminLoginRoute,
   AuthAdminSigninRoute: AuthAdminSigninRoute,
+  ProjectRoadmapIndexRoute: ProjectRoadmapIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

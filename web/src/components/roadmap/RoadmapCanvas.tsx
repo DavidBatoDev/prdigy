@@ -52,17 +52,6 @@ export function RoadmapCanvas({
               </div>
             </div>
           </div>
-          <Button
-            onClick={() => {
-              /* TODO: Export functionality */
-            }}
-            variant="outlined"
-            colorScheme="primary"
-            className="flex items-center gap-2"
-          >
-            <Download className="w-4 h-4" />
-            Export
-          </Button>
         </div>
       </div>
 
