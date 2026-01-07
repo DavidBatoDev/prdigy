@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as LandingRouteImport } from './routes/landing'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ClientProjectPostingRouteImport } from './routes/client/project-posting'
@@ -29,6 +30,11 @@ const ProfileRoute = ProfileRouteImport.update({
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LandingRoute = LandingRouteImport.update({
+  id: '/landing',
+  path: '/landing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -80,6 +86,7 @@ const AuthAdminLoginRoute = AuthAdminLoginRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/landing': typeof LandingRoute
   '/onboarding': typeof OnboardingRoute
   '/profile': typeof ProfileRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
@@ -93,6 +100,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/landing': typeof LandingRoute
   '/onboarding': typeof OnboardingRoute
   '/profile': typeof ProfileRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
@@ -107,6 +115,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/landing': typeof LandingRoute
   '/onboarding': typeof OnboardingRoute
   '/profile': typeof ProfileRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
@@ -122,6 +131,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dashboard'
+    | '/landing'
     | '/onboarding'
     | '/profile'
     | '/auth/forgot-password'
@@ -135,6 +145,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/dashboard'
+    | '/landing'
     | '/onboarding'
     | '/profile'
     | '/auth/forgot-password'
@@ -148,6 +159,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/dashboard'
+    | '/landing'
     | '/onboarding'
     | '/profile'
     | '/auth/forgot-password'
@@ -162,6 +174,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
+  LandingRoute: typeof LandingRoute
   OnboardingRoute: typeof OnboardingRoute
   ProfileRoute: typeof ProfileRoute
   AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
@@ -187,6 +200,13 @@ declare module '@tanstack/react-router' {
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/landing': {
+      id: '/landing'
+      path: '/landing'
+      fullPath: '/landing'
+      preLoaderRoute: typeof LandingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -258,6 +278,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
+  LandingRoute: LandingRoute,
   OnboardingRoute: OnboardingRoute,
   ProfileRoute: ProfileRoute,
   AuthForgotPasswordRoute: AuthForgotPasswordRoute,

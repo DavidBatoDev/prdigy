@@ -1,28 +1,32 @@
 import { createFileRoute } from "@tanstack/react-router";
 import Header from "@/components/landing/Header";
-import Hero from "@/components/landing/Hero";
-import About from "@/components/landing/About";
-import Stats from "@/components/landing/Stats";
-import Services from "@/components/landing/Services";
-import References from "@/components/landing/References";
-import CTA from "@/components/landing/CTA";
-import Footer from "@/components/landing/Footer";
+import { HeroSection } from "@/components/root/HeroSection";
+import { ProjectTypes } from "@/components/root/ProjectTypes";
+import { TemplatesSection } from "@/components/root/TemplatesSection";
+import { HowItWorks } from "@/components/root/HowItWorks";
+import { CTASection } from "@/components/root/CTASection";
+import { RootFooter } from "@/components/root/RootFooter";
 
 export const Route = createFileRoute("/")({
-  component: App,
+  component: Index,
 });
 
-function App() {
+function Index() {
   return (
-    <div className="text-center">
+    <div className="min-h-screen bg-white">
       <Header />
-      <Hero />
-      <About />
-      <Stats />
-      <Services />
-      <References />
-      <CTA />
-      <Footer />
+
+      <main className="pt-20 pb-20">
+        <div className="container mx-auto px-6 lg:px-12">
+          <HeroSection />
+          <ProjectTypes />
+          <TemplatesSection />
+          <HowItWorks />
+          <CTASection />
+        </div>
+      </main>
+
+      <RootFooter />
     </div>
   );
 }
