@@ -17,14 +17,22 @@ interface ProjectType {
 }
 
 const projectTypes: ProjectType[] = [
-  { icon: Globe, label: "Web Application", description: "Full-stack platforms" },
+  {
+    icon: Globe,
+    label: "Web Application",
+    description: "Full-stack platforms",
+  },
   { icon: Smartphone, label: "Mobile App", description: "iOS & Android apps" },
   { icon: ShoppingCart, label: "E-commerce", description: "Online stores" },
   { icon: BarChart3, label: "SaaS Product", description: "Cloud software" },
   { icon: Target, label: "Landing Page", description: "Marketing sites" },
   { icon: Palette, label: "Design System", description: "UI libraries" },
   { icon: FileText, label: "API Service", description: "Backend systems" },
-  { icon: Presentation, label: "Enterprise App", description: "Business tools" },
+  {
+    icon: Presentation,
+    label: "Enterprise App",
+    description: "Business tools",
+  },
 ];
 
 export const ProjectTypes = () => {
