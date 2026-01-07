@@ -14,6 +14,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LandingRouteImport } from './routes/landing'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProjectIndexRouteImport } from './routes/project/index'
 import { Route as ClientProjectPostingRouteImport } from './routes/client/project-posting'
 import { Route as AuthVerifyRouteImport } from './routes/auth/verify'
 import { Route as AuthSignupRouteImport } from './routes/auth/signup'
@@ -45,6 +46,11 @@ const DashboardRoute = DashboardRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectIndexRoute = ProjectIndexRouteImport.update({
+  id: '/project/',
+  path: '/project/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ClientProjectPostingRoute = ClientProjectPostingRouteImport.update({
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/auth/signup': typeof AuthSignupRoute
   '/auth/verify': typeof AuthVerifyRoute
   '/client/project-posting': typeof ClientProjectPostingRoute
+  '/project': typeof ProjectIndexRoute
   '/auth/admin/login': typeof AuthAdminLoginRoute
   '/auth/admin/signin': typeof AuthAdminSigninRoute
 }
@@ -108,6 +115,7 @@ export interface FileRoutesByTo {
   '/auth/signup': typeof AuthSignupRoute
   '/auth/verify': typeof AuthVerifyRoute
   '/client/project-posting': typeof ClientProjectPostingRoute
+  '/project': typeof ProjectIndexRoute
   '/auth/admin/login': typeof AuthAdminLoginRoute
   '/auth/admin/signin': typeof AuthAdminSigninRoute
 }
@@ -123,6 +131,7 @@ export interface FileRoutesById {
   '/auth/signup': typeof AuthSignupRoute
   '/auth/verify': typeof AuthVerifyRoute
   '/client/project-posting': typeof ClientProjectPostingRoute
+  '/project/': typeof ProjectIndexRoute
   '/auth/admin/login': typeof AuthAdminLoginRoute
   '/auth/admin/signin': typeof AuthAdminSigninRoute
 }
@@ -139,6 +148,7 @@ export interface FileRouteTypes {
     | '/auth/signup'
     | '/auth/verify'
     | '/client/project-posting'
+    | '/project'
     | '/auth/admin/login'
     | '/auth/admin/signin'
   fileRoutesByTo: FileRoutesByTo
@@ -153,6 +163,7 @@ export interface FileRouteTypes {
     | '/auth/signup'
     | '/auth/verify'
     | '/client/project-posting'
+    | '/project'
     | '/auth/admin/login'
     | '/auth/admin/signin'
   id:
@@ -167,6 +178,7 @@ export interface FileRouteTypes {
     | '/auth/signup'
     | '/auth/verify'
     | '/client/project-posting'
+    | '/project/'
     | '/auth/admin/login'
     | '/auth/admin/signin'
   fileRoutesById: FileRoutesById
@@ -182,6 +194,7 @@ export interface RootRouteChildren {
   AuthSignupRoute: typeof AuthSignupRoute
   AuthVerifyRoute: typeof AuthVerifyRoute
   ClientProjectPostingRoute: typeof ClientProjectPostingRoute
+  ProjectIndexRoute: typeof ProjectIndexRoute
   AuthAdminLoginRoute: typeof AuthAdminLoginRoute
   AuthAdminSigninRoute: typeof AuthAdminSigninRoute
 }
@@ -221,6 +234,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/project/': {
+      id: '/project/'
+      path: '/project'
+      fullPath: '/project'
+      preLoaderRoute: typeof ProjectIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/client/project-posting': {
@@ -286,6 +306,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthSignupRoute: AuthSignupRoute,
   AuthVerifyRoute: AuthVerifyRoute,
   ClientProjectPostingRoute: ClientProjectPostingRoute,
+  ProjectIndexRoute: ProjectIndexRoute,
   AuthAdminLoginRoute: AuthAdminLoginRoute,
   AuthAdminSigninRoute: AuthAdminSigninRoute,
 }
