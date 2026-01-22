@@ -6,7 +6,6 @@ import {
   X,
   CornerDownLeft,
   Check,
-  Pencil,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -263,6 +262,9 @@ function RoadmapBuilderPage() {
         onEditBrief={() => setIsBriefOpen(true)}
         onExport={() => {
           /* TODO: Export functionality */
+        }}
+        onTitleChange={(newTitle) => {
+          setFormData((prev) => ({ ...prev, title: newTitle }));
         }}
       />
       {/* Local style to hide scrollbar UI while preserving scroll */}

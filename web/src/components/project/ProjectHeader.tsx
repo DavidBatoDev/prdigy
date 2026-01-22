@@ -1,19 +1,59 @@
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Download, Settings } from "lucide-react";
+import { ArrowLeft, Download, Settings, Pencil, Check, X } from "lucide-react";
 import { Button } from "@/ui/button";
+import { useState, useRef, useEffect } from "react";
 
 interface ProjectHeaderProps {
   projectTitle?: string;
   onEditBrief?: () => void;
   onExport?: () => void;
+  onTitleChange?: (newTitle: string) => void;
 }
 
 export function ProjectHeader({
   projectTitle = "Untitled Project",
   onEditBrief,
   onExport,
+  onTitleChange,
 }: ProjectHeaderProps) {
   const navigate = useNavigate();
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(projectTitle);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setEditedTitle(projectTitle);
+  }, [projectTitle]);
+
+  useEffect(() => {
+    if (isEditingTitle && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditingTitle]);
+
+  const handleSaveTitle = () => {
+    const trimmedTitle = editedTitle.trim();
+    if (trimmedTitle && trimmedTitle !== projectTitle && onTitleChange) {
+      onTitleChange(trimmedTitle);
+    } else {
+      setEditedTitle(projectTitle);
+    }
+    setIsEditingTitle(false);
+  };
+
+  const handleCancelEdit = () => {
+    setEditedTitle(projectTitle);
+    setIsEditingTitle(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSaveTitle();
+    } else if (e.key === "Escape") {
+      handleCancelEdit();
+    }
+  };
 
   return (
     <header className="h-20 bg-white border-b border-gray-200 shadow-sm">
@@ -29,10 +69,48 @@ export function ProjectHeader({
           </button>
 
           <div className="flex items-center gap-3 min-w-0">
-            <div className="min-w-0">
-              <h1 className="text-lg font-semibold text-gray-900 truncate">
-                {projectTitle}
-              </h1>
+            <div className="min-w-0 flex items-center gap-2">
+              {isEditingTitle ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={editedTitle}
+                    onChange={(e) => setEditedTitle(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    onBlur={handleSaveTitle}
+                    className="text-lg font-semibold text-gray-900 border border-primary rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary min-w-[200px]"
+                    placeholder="Enter project title"
+                  />
+                  <button
+                    onClick={handleSaveTitle}
+                    className="p-1 hover:bg-green-100 rounded transition-colors flex-shrink-0"
+                    title="Save (Enter)"
+                  >
+                    <Check className="w-4 h-4 text-green-600" />
+                  </button>
+                  <button
+                    onClick={handleCancelEdit}
+                    className="p-1 hover:bg-red-100 rounded transition-colors flex-shrink-0"
+                    title="Cancel (Esc)"
+                  >
+                    <X className="w-4 h-4 text-red-600" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 group">
+                  <h1 className="text-lg font-semibold text-gray-900 truncate">
+                    {projectTitle}
+                  </h1>
+                  <button
+                    onClick={() => setIsEditingTitle(true)}
+                    className="p-1 opacity-0 group-hover:opacity-100 hover:bg-gray-100 rounded transition-all flex-shrink-0"
+                    title="Edit title"
+                  >
+                    <Pencil className="w-4 h-4 text-gray-600" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
