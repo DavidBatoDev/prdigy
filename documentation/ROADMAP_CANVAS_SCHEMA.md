@@ -1,8 +1,26 @@
 # Roadmap Canvas Database Schema
 
-**Version:** 1.0  
+**Version:** 2.0  
 **Created:** January 11, 2026  
+**Updated:** January 21, 2026  
 **Author:** Prdigy Development Team
+
+## Changelog
+
+### v2.0 (January 21, 2026)
+
+**Breaking Change:** Milestones now link to **Features**, not Epics.
+
+- ❌ Removed `milestone_epics` junction table
+- ✅ Added `milestone_features` junction table
+- ✅ Added `roadmap_id` to `roadmap_features` (denormalized for performance)
+- ✅ Added `is_deliverable` flag to `roadmap_features`
+- ✅ Updated `get_milestone_progress()` to calculate from features
+- ✅ Updated core principle and documentation
+
+**Rationale:** Epics are too large to track meaningful delivery at milestones. Features are the smallest deliverable unit, enabling partial epic delivery and accurate progress tracking.
+
+---
 
 ## Overview
 
@@ -20,9 +38,9 @@ This document describes the database schema for the **Roadmap Canvas** feature -
 
 ### Core Principle
 
-> **"Milestones define success in time. Epics define the work that achieves it."**
+> **"Milestones define delivered value in time. Features deliver that value. Epics organize the work."**
 
-Milestones and Epics have a **many-to-many** relationship - the same Epic can contribute to multiple Milestones, and a Milestone can require multiple Epics.
+Milestones and Features have a **many-to-many** relationship - the same Feature can contribute to multiple Milestones, and a Milestone can require multiple Features. Epics serve as **structural containers** that organize related Features, but they are not directly tied to Milestones.
 
 ---
 
@@ -34,8 +52,8 @@ Milestones and Epics have a **many-to-many** relationship - the same Epic can co
    - [roadmaps](#roadmaps)
    - [roadmap_milestones](#roadmap_milestones)
    - [roadmap_epics](#roadmap_epics)
-   - [milestone_epics](#milestone_epics)
    - [roadmap_features](#roadmap_features)
+   - [milestone_features](#milestone_features)
    - [roadmap_tasks](#roadmap_tasks)
    - [task_comments](#task_comments)
    - [task_attachments](#task_attachments)
@@ -153,6 +171,9 @@ CREATE TYPE task_priority AS ENUM (
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              ROADMAP CANVAS ERD                              │
+│                                                                             │
+│  Conceptual Model: Epic → Feature ↔ Milestone                               │
+│  Epics are structural containers. Features are the smallest deliverable.    │
 └─────────────────────────────────────────────────────────────────────────────┘
 
                                  ┌──────────────┐
@@ -167,8 +188,8 @@ CREATE TYPE task_priority AS ENUM (
                                  ┌──────────────┐
                                  │   roadmaps   │
                                  │──────────────│
-                                 │ id (PK)      │
-                                 │ project_id   │◄──────────────────────┐
+                                 │ id (PK)      │◄──────────────────────┐
+                                 │ project_id   │                       │
                                  │ name         │                       │
                                  │ owner_id     │                       │
                                  │ status       │                       │
@@ -188,60 +209,63 @@ CREATE TYPE task_priority AS ENUM (
          │ status           │   │ position         │        │           │
          └────────┬─────────┘   └────────┬─────────┘        │           │
                   │                      │                  │           │
-                  │      N:M             │                  │           │
-                  │  ┌───────────────────┘                  │           │
-                  │  │                                      │           │
-                  ▼  ▼                                      │           │
-         ┌──────────────────┐                               │           │
-         │  milestone_epics │ (Junction Table)              │           │
-         │──────────────────│                               │           │
-         │ id (PK)          │                               │           │
-         │ milestone_id(FK) │                               │           │
-         │ epic_id (FK)     │                               │           │
-         │ position         │                               │           │
-         └──────────────────┘                               │           │
-                                                            │           │
-                                        ┌───────────────────┘           │
-                                        │ 1:N                           │
-                                        ▼                               │
-                               ┌──────────────────┐                     │
-                               │ roadmap_features │                     │
-                               │──────────────────│                     │
-                               │ id (PK)          │                     │
-                               │ epic_id (FK)     │                     │
-                               │ title            │                     │
-                               │ status           │                     │
-                               │ position         │                     │
-                               └────────┬─────────┘                     │
-                                        │ 1:N                           │
-                                        ▼                               │
-                               ┌──────────────────┐                     │
-                               │  roadmap_tasks   │                     │
-                               │──────────────────│                     │
-                               │ id (PK)          │                     │
-                               │ feature_id (FK)  │                     │
-                               │ title            │                     │
-                               │ assignee_id (FK) │─────► profiles      │
-                               │ status           │                     │
-                               │ position         │                     │
-                               └────────┬─────────┘                     │
-                                        │                               │
-                    ┌───────────────────┼───────────────────┐           │
-                    │ 1:N               │ 1:N               │           │
-                    ▼                   ▼                   │           │
-         ┌──────────────────┐   ┌──────────────────┐        │           │
-         │  task_comments   │   │ task_attachments │        │           │
-         │──────────────────│   │──────────────────│        │           │
-         │ id (PK)          │   │ id (PK)          │        │           │
-         │ task_id (FK)     │   │ task_id (FK)     │        │           │
-         │ author_id (FK)   │   │ file_url         │        │           │
-         │ content          │   │ uploaded_by (FK) │        │           │
-         └──────────────────┘   └──────────────────┘        │           │
-                                                            │           │
-                                                            │           │
-                               ┌─────────────────────────────┘           │
-                               │                                        │
-                               └────────────────────────────────────────┘
+                  │                      │ 1:N              │           │
+                  │                      ▼                  │           │
+                  │             ┌──────────────────┐        │           │
+                  │             │ roadmap_features │        │           │
+                  │             │──────────────────│        │           │
+                  │             │ id (PK)          │        │           │
+                  │             │ roadmap_id (FK)  │────────┘           │
+                  │             │ epic_id (FK)     │                    │
+                  │             │ title            │                    │
+                  │             │ status           │                    │
+                  │             │ position         │                    │
+                  │             │ is_deliverable   │                    │
+                  │             └────────┬─────────┘                    │
+                  │                      │                              │
+                  │      N:M             │                              │
+                  │  ┌───────────────────┘                              │
+                  │  │                                                  │
+                  ▼  ▼                                                  │
+         ┌────────────────────┐                                         │
+         │ milestone_features │ (Junction Table)                        │
+         │────────────────────│                                         │
+         │ id (PK)            │                                         │
+         │ milestone_id (FK)  │                                         │
+         │ feature_id (FK)    │                                         │
+         │ position           │                                         │
+         └────────────────────┘                                         │
+                                                                        │
+                               ┌────────────────────────────────────────┘
+                               │ 1:N
+                               ▼
+                      ┌──────────────────┐
+                      │  roadmap_tasks   │
+                      │──────────────────│
+                      │ id (PK)          │
+                      │ feature_id (FK)  │
+                      │ title            │
+                      │ assignee_id (FK) │─────► profiles
+                      │ status           │
+                      │ position         │
+                      └────────┬─────────┘
+                               │
+           ┌───────────────────┼───────────────────┐
+           │ 1:N               │ 1:N               │
+           ▼                   ▼                   │
+  ┌──────────────────┐   ┌──────────────────┐      │
+  │  task_comments   │   │ task_attachments │      │
+  │──────────────────│   │──────────────────│      │
+  │ id (PK)          │   │ id (PK)          │      │
+  │ task_id (FK)     │   │ task_id (FK)     │      │
+  │ author_id (FK)   │   │ file_url         │      │
+  │ content          │   │ uploaded_by (FK) │      │
+  └──────────────────┘   └──────────────────┘      │
+                                                   │
+                                                   │
+                         ┌─────────────────────────┘
+                         │
+                         └──────────────────────────────────────────────────────
 
 
 LEGEND:
@@ -401,78 +425,95 @@ CREATE TABLE roadmap_epics (
 
 ---
 
-### `milestone_epics`
-
-Junction table linking milestones to epics (many-to-many relationship).
-
-| Column         | Type        | Constraints                   | Description                        |
-| -------------- | ----------- | ----------------------------- | ---------------------------------- |
-| `id`           | uuid        | PK, DEFAULT gen_random_uuid() | Unique link identifier             |
-| `milestone_id` | uuid        | FK, NOT NULL                  | References `roadmap_milestones.id` |
-| `epic_id`      | uuid        | FK, NOT NULL                  | References `roadmap_epics.id`      |
-| `position`     | integer     | NOT NULL DEFAULT 0            | Order of epic within milestone     |
-| `created_at`   | timestamptz | DEFAULT now()                 | Link creation timestamp            |
-
-**Foreign Keys:**
-
-- `milestone_id` → `roadmap_milestones.id` (ON DELETE CASCADE)
-- `epic_id` → `roadmap_epics.id` (ON DELETE CASCADE)
-
-**Unique Constraint:**
-
-- `(milestone_id, epic_id)` - Prevents duplicate links
-
-```sql
-CREATE TABLE milestone_epics (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  milestone_id uuid NOT NULL REFERENCES roadmap_milestones(id) ON DELETE CASCADE,
-  epic_id uuid NOT NULL REFERENCES roadmap_epics(id) ON DELETE CASCADE,
-  position integer NOT NULL DEFAULT 0,
-  created_at timestamptz DEFAULT now(),
-  UNIQUE(milestone_id, epic_id)
-);
-```
-
----
-
 ### `roadmap_features`
 
-Components within an epic that group related tasks.
+The smallest deliverable unit within an epic. Features are **the key unit for milestone tracking** - they represent concrete value that can be delivered at specific milestones.
 
-| Column            | Type           | Constraints                   | Description                                  |
-| ----------------- | -------------- | ----------------------------- | -------------------------------------------- |
-| `id`              | uuid           | PK, DEFAULT gen_random_uuid() | Unique feature identifier                    |
-| `epic_id`         | uuid           | FK, NOT NULL                  | References `roadmap_epics.id`                |
-| `title`           | text           | NOT NULL                      | Feature title (e.g., "Define app structure") |
-| `description`     | text           |                               | Feature description                          |
-| `status`          | feature_status | DEFAULT 'not_started'         | Current status                               |
-| `position`        | integer        | NOT NULL                      | Order within epic (0-indexed)                |
-| `estimated_hours` | numeric(8,2)   |                               | Estimated effort                             |
-| `actual_hours`    | numeric(8,2)   |                               | Actual hours spent                           |
-| `created_at`      | timestamptz    | DEFAULT now()                 | Creation timestamp                           |
-| `updated_at`      | timestamptz    | DEFAULT now()                 | Last update timestamp                        |
+| Column            | Type           | Constraints                   | Description                                           |
+| ----------------- | -------------- | ----------------------------- | ----------------------------------------------------- |
+| `id`              | uuid           | PK, DEFAULT gen_random_uuid() | Unique feature identifier                             |
+| `roadmap_id`      | uuid           | FK, NOT NULL                  | References `roadmaps.id` (denormalized for perf)      |
+| `epic_id`         | uuid           | FK, NOT NULL                  | References `roadmap_epics.id`                         |
+| `title`           | text           | NOT NULL                      | Feature title (e.g., "Define app structure")          |
+| `description`     | text           |                               | Feature description                                   |
+| `status`          | feature_status | DEFAULT 'not_started'         | Current status                                        |
+| `position`        | integer        | NOT NULL                      | Order within epic (0-indexed)                         |
+| `is_deliverable`  | boolean        | DEFAULT true                  | Whether this feature counts toward milestone progress |
+| `estimated_hours` | numeric(8,2)   |                               | Estimated effort                                      |
+| `actual_hours`    | numeric(8,2)   |                               | Actual hours spent                                    |
+| `created_at`      | timestamptz    | DEFAULT now()                 | Creation timestamp                                    |
+| `updated_at`      | timestamptz    | DEFAULT now()                 | Last update timestamp                                 |
 
 **Foreign Keys:**
 
+- `roadmap_id` → `roadmaps.id` (ON DELETE CASCADE)
 - `epic_id` → `roadmap_epics.id` (ON DELETE CASCADE)
 
 **Unique Constraint:**
 
 - `(epic_id, position)` - Ensures unique ordering within an epic
 
+**Notes:**
+
+- `roadmap_id` is intentionally denormalized to avoid deep joins in queries and RLS policies
+- `is_deliverable` allows excluding non-delivery features (refactors, infra work) from milestone progress
+
 ```sql
 CREATE TABLE roadmap_features (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  roadmap_id uuid NOT NULL REFERENCES roadmaps(id) ON DELETE CASCADE,
   epic_id uuid NOT NULL REFERENCES roadmap_epics(id) ON DELETE CASCADE,
   title text NOT NULL,
   description text,
   status feature_status DEFAULT 'not_started',
   position integer NOT NULL,
+  is_deliverable boolean DEFAULT true,
   estimated_hours numeric(8,2),
   actual_hours numeric(8,2),
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now(),
   UNIQUE(epic_id, position)
+);
+```
+
+---
+
+### `milestone_features`
+
+Junction table linking milestones to features (many-to-many relationship). This is the **key table for delivery tracking** - it defines which features contribute to which milestones.
+
+| Column         | Type        | Constraints                   | Description                        |
+| -------------- | ----------- | ----------------------------- | ---------------------------------- |
+| `id`           | uuid        | PK, DEFAULT gen_random_uuid() | Unique link identifier             |
+| `milestone_id` | uuid        | FK, NOT NULL                  | References `roadmap_milestones.id` |
+| `feature_id`   | uuid        | FK, NOT NULL                  | References `roadmap_features.id`   |
+| `position`     | integer     | NOT NULL DEFAULT 0            | Order of feature within milestone  |
+| `created_at`   | timestamptz | DEFAULT now()                 | Link creation timestamp            |
+
+**Foreign Keys:**
+
+- `milestone_id` → `roadmap_milestones.id` (ON DELETE CASCADE)
+- `feature_id` → `roadmap_features.id` (ON DELETE CASCADE)
+
+**Unique Constraint:**
+
+- `(milestone_id, feature_id)` - Prevents duplicate links
+
+**Why Features, Not Epics:**
+
+- Epics are too large to be meaningfully "done" at a milestone
+- Epics often span multiple milestones
+- Features are the smallest deliverable unit
+- This enables partial epic delivery across milestones
+
+```sql
+CREATE TABLE milestone_features (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  milestone_id uuid NOT NULL REFERENCES roadmap_milestones(id) ON DELETE CASCADE,
+  feature_id uuid NOT NULL REFERENCES roadmap_features(id) ON DELETE CASCADE,
+  position integer NOT NULL DEFAULT 0,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(milestone_id, feature_id)
 );
 ```
 
@@ -616,6 +657,9 @@ Progress is calculated automatically from the bottom up using database functions
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    PROGRESS CALCULATION                          │
+│                                                                 │
+│  Key Change: Milestone progress is calculated from FEATURES,    │
+│  not from Epics. This ensures accurate delivery tracking.       │
 └─────────────────────────────────────────────────────────────────┘
 
 Task Progress:
@@ -631,8 +675,8 @@ Feature Progress:
 Epic Progress:
   └── AVG(feature progress for all features in epic)
 
-Milestone Progress:
-  └── AVG(epic progress for all linked epics)
+Milestone Progress:  ⭐ KEY CHANGE
+  └── AVG(feature progress for all linked features via milestone_features)
 
 Roadmap Progress:
   └── AVG(milestone progress for all milestones)
@@ -681,13 +725,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE;
 
--- Calculate milestone progress
+-- Calculate milestone progress (from linked FEATURES, not epics)
 CREATE OR REPLACE FUNCTION get_milestone_progress(p_milestone_id uuid)
 RETURNS numeric AS $$
 BEGIN
   RETURN COALESCE(
-    (SELECT AVG(get_epic_progress(epic_id))
-     FROM milestone_epics
+    (SELECT AVG(get_feature_progress(feature_id))
+     FROM milestone_features
      WHERE milestone_id = p_milestone_id),
     0
   );
@@ -761,8 +805,8 @@ FROM roadmaps r;
 | roadmaps           | DELETE      | Owner only                           |
 | roadmap_milestones | ALL         | Via roadmap access                   |
 | roadmap_epics      | ALL         | Via roadmap access                   |
-| milestone_epics    | ALL         | Via roadmap access                   |
-| roadmap_features   | ALL         | Via epic access                      |
+| roadmap_features   | ALL         | Via roadmap access (has roadmap_id)  |
+| milestone_features | ALL         | Via roadmap access                   |
 | roadmap_tasks      | SELECT      | Project members                      |
 | roadmap_tasks      | INSERT      | Project members                      |
 | roadmap_tasks      | UPDATE      | Assignee, reporter, or project admin |
@@ -782,8 +826,8 @@ FROM roadmaps r;
 ALTER TABLE roadmaps ENABLE ROW LEVEL SECURITY;
 ALTER TABLE roadmap_milestones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE roadmap_epics ENABLE ROW LEVEL SECURITY;
-ALTER TABLE milestone_epics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE roadmap_features ENABLE ROW LEVEL SECURITY;
+ALTER TABLE milestone_features ENABLE ROW LEVEL SECURITY;
 ALTER TABLE roadmap_tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE task_comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE task_attachments ENABLE ROW LEVEL SECURITY;
@@ -917,14 +961,16 @@ CREATE INDEX idx_roadmap_epics_priority ON roadmap_epics(priority);
 CREATE INDEX idx_roadmap_epics_position ON roadmap_epics(roadmap_id, position);
 CREATE INDEX idx_roadmap_epics_tags ON roadmap_epics USING GIN(tags);
 
--- Milestone-Epic Links
-CREATE INDEX idx_milestone_epics_milestone_id ON milestone_epics(milestone_id);
-CREATE INDEX idx_milestone_epics_epic_id ON milestone_epics(epic_id);
+-- Milestone-Feature Links
+CREATE INDEX idx_milestone_features_milestone_id ON milestone_features(milestone_id);
+CREATE INDEX idx_milestone_features_feature_id ON milestone_features(feature_id);
 
 -- Features
+CREATE INDEX idx_roadmap_features_roadmap_id ON roadmap_features(roadmap_id);
 CREATE INDEX idx_roadmap_features_epic_id ON roadmap_features(epic_id);
 CREATE INDEX idx_roadmap_features_status ON roadmap_features(status);
 CREATE INDEX idx_roadmap_features_position ON roadmap_features(epic_id, position);
+CREATE INDEX idx_roadmap_features_is_deliverable ON roadmap_features(is_deliverable) WHERE is_deliverable = true;
 
 -- Tasks
 CREATE INDEX idx_roadmap_tasks_feature_id ON roadmap_tasks(feature_id);
@@ -989,33 +1035,48 @@ INSERT INTO roadmap_epics (roadmap_id, title, description, priority, position, t
 ('abc123...', 'Workout Logging UI', 'Interface for logging workouts', 'high', 6, ARRAY['frontend', 'ui']),
 ('abc123...', 'Dashboard UI', 'Main dashboard with progress overview', 'medium', 7, ARRAY['frontend', 'ui']);
 
--- 4. Link Epics to Milestones
--- Design Ready milestone links
-INSERT INTO milestone_epics (milestone_id, epic_id, position)
-SELECT m.id, e.id, e.position
-FROM roadmap_milestones m, roadmap_epics e
-WHERE m.title = 'Design Ready'
-AND e.title IN ('Low-Fidelity Design', 'High-Fidelity Design');
+-- 4. Link Features to Milestones (instead of Epics)
+-- This is the key change: Features are linked to Milestones for delivery tracking
 
--- Backend Ready milestone links
-INSERT INTO milestone_epics (milestone_id, epic_id, position)
-SELECT m.id, e.id, e.position
-FROM roadmap_milestones m, roadmap_epics e
-WHERE m.title = 'Backend Ready'
-AND e.title IN ('Authentication System', 'Workout Management API', 'Progress Tracking API');
-
--- 5. Create Features for an Epic
-INSERT INTO roadmap_features (epic_id, title, description, position)
-SELECT e.id, f.title, f.description, f.position
-FROM roadmap_epics e
+-- First, create Features for the Epics (with roadmap_id)
+INSERT INTO roadmap_features (roadmap_id, epic_id, title, description, position)
+SELECT r.id, e.id, f.title, f.description, f.position
+FROM roadmaps r
+JOIN roadmap_epics e ON e.roadmap_id = r.id
 CROSS JOIN (VALUES
   ('Define app structure', 'Create basic app structure and navigation', 0),
   ('Organize design assets', 'Set up design system and asset library', 1),
   ('Map user flows', 'Document all user journeys', 2)
 ) AS f(title, description, position)
-WHERE e.title = 'Low-Fidelity Design';
+WHERE r.name = 'Fitness Web App – MVP'
+AND e.title = 'Low-Fidelity Design';
 
--- 6. Create Tasks for a Feature
+INSERT INTO roadmap_features (roadmap_id, epic_id, title, description, position)
+SELECT r.id, e.id, f.title, f.description, f.position
+FROM roadmaps r
+JOIN roadmap_epics e ON e.roadmap_id = r.id
+CROSS JOIN (VALUES
+  ('Polish login screens', 'Final login and signup designs', 0),
+  ('Polish dashboard', 'Final dashboard visual design', 1)
+) AS f(title, description, position)
+WHERE r.name = 'Fitness Web App – MVP'
+AND e.title = 'High-Fidelity Design';
+
+-- Now link Features to the Design Ready milestone
+INSERT INTO milestone_features (milestone_id, feature_id, position)
+SELECT m.id, f.id, f.position
+FROM roadmap_milestones m
+JOIN roadmap_features f ON f.roadmap_id = m.roadmap_id
+WHERE m.title = 'Design Ready'
+AND f.title IN (
+  'Define app structure',
+  'Organize design assets',
+  'Map user flows',
+  'Polish login screens',
+  'Polish dashboard'
+);
+
+-- 5. Create Tasks for a Feature
 INSERT INTO roadmap_tasks (feature_id, title, description, assignee_id, priority, position)
 SELECT f.id, t.title, t.description, t.assignee_id, t.priority::task_priority, t.position
 FROM roadmap_features f
@@ -1026,7 +1087,7 @@ CROSS JOIN (VALUES
 ) AS t(title, description, assignee_id, priority, position)
 WHERE f.title = 'Define app structure';
 
--- 7. Query roadmap with progress
+-- 6. Query roadmap with progress
 SELECT
   r.name,
   r.status,
@@ -1071,32 +1132,90 @@ WHERE r.id = 'abc123...';
 
 ## UI Visualization
 
-### Tree View Structure
+### Correct Mental Model
 
 ```
-📋 Roadmap: Fitness Web App – MVP
+┌─────────────────────────────────────────────────────────────────┐
+│                    UI MENTAL MODEL                              │
+└─────────────────────────────────────────────────────────────────┘
+
+✗ WRONG (Old Model):
+  Milestone
+   └── Epic
+       └── Feature
+           └── Task
+
+✓ CORRECT (New Model):
+  Milestone
+   ├── Feature (from Epic A)
+   ├── Feature (from Epic B)
+   └── Feature (from Epic C)
+
+  Epics appear as:
+   • Swimlanes
+   • Group headers / Color coding
+   • Filters
+   • Sidebar navigation
+```
+
+### Milestone View (Delivery-focused)
+
+```
+📝 Roadmap: Fitness Web App – MVP
 │
 ├── 🏔 Milestone: Design Ready (Feb 15) ████████░░ 80%
-│   ├── 📦 Epic: Low-Fidelity Design ██████████ 100%
-│   │   ├── 📑 Feature: Define app structure
-│   │   │   ├── ✅ Create login screen wireframe
-│   │   │   ├── ✅ Create dashboard wireframe
-│   │   │   └── ✅ Create workout logging wireframe
-│   │   └── 📑 Feature: Map user flows
-│   │       ├── ✅ Document signup flow
-│   │       └── ✅ Document workout logging flow
-│   └── 📦 Epic: High-Fidelity Design ██████░░░░ 60%
-│       ├── 📑 Feature: Polish login screens
-│       │   ├── ✅ Final login design
-│       │   └── ⏳ Final signup design
-│       └── 📑 Feature: Polish dashboard
-│           └── ⏳ Dashboard visual design
+│   ├── 📑 Define app structure (Epic: Low-Fi Design) ██████████ 100%
+│   │   ├── ✅ Create login screen wireframe
+│   │   ├── ✅ Create dashboard wireframe
+│   │   └── ✅ Create workout logging wireframe
+│   ├── 📑 Map user flows (Epic: Low-Fi Design) ██████████ 100%
+│   │   ├── ✅ Document signup flow
+│   │   └── ✅ Document workout logging flow
+│   ├── 📑 Polish login screens (Epic: Hi-Fi Design) ██████░░░░ 60%
+│   │   ├── ✅ Final login design
+│   │   └── ⏳ Final signup design
+│   └── 📑 Polish dashboard (Epic: Hi-Fi Design) ██░░░░░░░░ 25%
+│       └── ⏳ Dashboard visual design
 │
 ├── 🏔 Milestone: Backend Ready (Mar 10) ███░░░░░░░ 30%
+│   ├── 📑 User registration API (Epic: Auth System)
+│   ├── 📑 Login/logout API (Epic: Auth System)
+│   ├── 📑 Create workout endpoint (Epic: Workout API)
 │   └── ...
 │
 └── 🏔 Milestone: MVP Launch (Apr 1) █░░░░░░░░░ 5%
     └── ...
+```
+
+### Epic View (Work Organization)
+
+```
+📦 Epic: Low-Fidelity Design ██████████ 100%
+│  Tags: [design] [ui]
+│  Contributes to: Design Ready
+│
+├── 📑 Feature: Define app structure
+│   ├── ✅ Create login screen wireframe
+│   ├── ✅ Create dashboard wireframe
+│   └── ✅ Create workout logging wireframe
+│
+├── 📑 Feature: Organize design assets
+│   └── ✅ Set up design system
+│
+└── 📑 Feature: Map user flows
+    ├── ✅ Document signup flow
+    └── ✅ Document workout logging flow
+
+📦 Epic: High-Fidelity Design ██████░░░░ 60%
+│  Tags: [design] [ui]
+│  Contributes to: Design Ready
+│
+├── 📑 Feature: Polish login screens
+│   ├── ✅ Final login design
+│   └── ⏳ Final signup design
+│
+└── 📑 Feature: Polish dashboard
+    └── ⏳ Dashboard visual design
 ```
 
 ### Timeline View
@@ -1120,15 +1239,31 @@ Feb 1                Feb 15              Mar 10              Mar 25             
 
 ## Why This Schema Works
 
-| ✅ Benefit                      | Description                                           |
-| ------------------------------- | ----------------------------------------------------- |
-| **Clear ownership**             | Every item has an owner, assignee, or reporter        |
-| **Clean data model**            | Normalized structure prevents data duplication        |
-| **Timeline-compatible**         | Milestones with target dates enable Gantt-style views |
-| **Works for solo devs & teams** | Flexible assignment and collaboration                 |
-| **Scales to real PM use**       | Supports enterprise-level project management          |
-| **Progress tracking**           | Automatic calculation from bottom-up                  |
-| **Trello-like cards**           | Tasks with comments, attachments, and checklists      |
+| ✅ Benefit                      | Description                                                 |
+| ------------------------------- | ----------------------------------------------------------- |
+| **Feature-based delivery**      | Milestones track features (smallest deliverable), not epics |
+| **Partial epic delivery**       | Features from one epic can span multiple milestones         |
+| **Accurate progress**           | Milestone progress reflects actual delivered value          |
+| **Clear ownership**             | Every item has an owner, assignee, or reporter              |
+| **Clean data model**            | Normalized structure prevents data duplication              |
+| **Denormalized where needed**   | `roadmap_id` in features avoids deep joins                  |
+| **Timeline-compatible**         | Milestones with target dates enable Gantt-style views       |
+| **Works for solo devs & teams** | Flexible assignment and collaboration                       |
+| **Scales to real PM use**       | Supports enterprise-level project management                |
+| **Progress tracking**           | Automatic calculation from bottom-up                        |
+| **Trello-like cards**           | Tasks with comments, attachments, and checklists            |
+
+### Key Design Decision: Features Linked to Milestones
+
+The critical insight is that **milestones should track delivered features, not epics**:
+
+| ❌ Old Model (Problematic)        | ✅ New Model (Correct)                   |
+| --------------------------------- | ---------------------------------------- |
+| `Milestone ↔ Epic`                | `Milestone ↔ Feature`                    |
+| Epics are too large to be "done"  | Features are smallest deliverable unit   |
+| Epic progress inflates milestones | Feature progress is accurate             |
+| Can't do partial epic delivery    | Features from one epic → many milestones |
+| UI implies epics "belong" to MS   | Epics are structural containers only     |
 
 ---
 
@@ -1140,8 +1275,8 @@ When implementing, create tables in this order to respect foreign key dependenci
 2. `roadmaps`
 3. `roadmap_milestones`
 4. `roadmap_epics`
-5. `milestone_epics`
-6. `roadmap_features`
+5. `roadmap_features` (requires roadmaps and roadmap_epics)
+6. `milestone_features` (requires roadmap_milestones and roadmap_features)
 7. `roadmap_tasks`
 8. `task_comments`
 9. `task_attachments`
