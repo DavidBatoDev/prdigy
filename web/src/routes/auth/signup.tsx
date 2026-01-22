@@ -31,7 +31,7 @@ export const Route = createFileRoute("/auth/signup")({
 
     // Don't redirect if we're in the signup flow (between step 1 and step 2)
     const isInSignupFlow = sessionStorage.getItem("isInSignupFlow") === "true";
-    
+
     // Only redirect if auth is loaded, user is authenticated, and NOT in signup flow
     if (!isLoading && isAuthenticated && !isInSignupFlow) {
       throw redirect({
@@ -46,41 +46,61 @@ function RouteComponent() {
   const signUp = useAuthStore((state) => state.signUp);
   const navigate = useNavigate();
   const toast = useToast();
-  
+
   // Persist step state to survive component remounts
   const [step, setStepState] = useState(() => {
     const savedStep = sessionStorage.getItem("signupStep");
     return savedStep ? parseInt(savedStep) : 1;
   });
-  
+
   const setStep = (newStep: number) => {
     sessionStorage.setItem("signupStep", newStep.toString());
     setStepState(newStep);
   };
 
   // No automatic redirect during signup flow - redirect is handled explicitly in step 2
-  
+
   // Persist form data to survive component remounts
   const getStoredValue = (key: string, defaultValue: any = "") => {
     const stored = sessionStorage.getItem(key);
     return stored !== null ? stored : defaultValue;
   };
-  
-  const [firstName, setFirstName] = useState(() => getStoredValue("signup_firstName"));
-  const [lastName, setLastName] = useState(() => getStoredValue("signup_lastName"));
+
+  const [firstName, setFirstName] = useState(() =>
+    getStoredValue("signup_firstName"),
+  );
+  const [lastName, setLastName] = useState(() =>
+    getStoredValue("signup_lastName"),
+  );
   const [gender, setGender] = useState(() => getStoredValue("signup_gender"));
-  const [phoneNumber, setPhoneNumber] = useState(() => getStoredValue("signup_phoneNumber"));
+  const [phoneNumber, setPhoneNumber] = useState(() =>
+    getStoredValue("signup_phoneNumber"),
+  );
   const [email, setEmail] = useState(() => getStoredValue("signup_email"));
-  const [dateOfBirth, setDateOfBirth] = useState(() => getStoredValue("signup_dateOfBirth"));
-  const [country, setCountry] = useState(() => getStoredValue("signup_country"));
+  const [dateOfBirth, setDateOfBirth] = useState(() =>
+    getStoredValue("signup_dateOfBirth"),
+  );
+  const [country, setCountry] = useState(() =>
+    getStoredValue("signup_country"),
+  );
   const [city, setCity] = useState(() => getStoredValue("signup_city"));
-  const [zipCode, setZipCode] = useState(() => getStoredValue("signup_zipCode"));
-  const [password, setPassword] = useState(() => getStoredValue("signup_password"));
-  const [confirmPassword, setConfirmPassword] = useState(() => getStoredValue("signup_confirmPassword"));
-  const [acceptedTerms, setAcceptedTerms] = useState(() => getStoredValue("signup_acceptedTerms", "false") === "true");
+  const [zipCode, setZipCode] = useState(() =>
+    getStoredValue("signup_zipCode"),
+  );
+  const [password, setPassword] = useState(() =>
+    getStoredValue("signup_password"),
+  );
+  const [confirmPassword, setConfirmPassword] = useState(() =>
+    getStoredValue("signup_confirmPassword"),
+  );
+  const [acceptedTerms, setAcceptedTerms] = useState(
+    () => getStoredValue("signup_acceptedTerms", "false") === "true",
+  );
   const [verificationCode, setVerificationCode] = useState("");
-  const [sentVerificationCode, setSentVerificationCode] = useState(() => getStoredValue("signup_sentCode"));
-  const [success, setSuccess] = useState(false);
+  const [sentVerificationCode, setSentVerificationCode] = useState(() =>
+    getStoredValue("signup_sentCode"),
+  );
+  const [_success, _setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
 
@@ -96,7 +116,7 @@ function RouteComponent() {
         // "https://www.figma.com/api/mcp/asset/1a713252-c509-4cef-8a26-4ab7db43b0cb",
         DecorativeRightSide,
     }),
-    []
+    [],
   );
 
   // Cleanup function to clear all signup data
@@ -142,7 +162,7 @@ function RouteComponent() {
   async function fetchWithTimeout(
     resource: string,
     options: RequestInit = {},
-    timeout = EMAIL_FETCH_TIMEOUT_MS
+    timeout = EMAIL_FETCH_TIMEOUT_MS,
   ) {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
@@ -176,14 +196,14 @@ function RouteComponent() {
             lastName,
             verificationCode: code,
           }),
-        }
+        },
       );
 
       if (!response.ok) {
         const text = await response.text().catch(() => null);
         console.warn("send-signup-email returned non-OK:", text);
         toast.error(
-          "Verification email could not be sent. You can resend the code."
+          "Verification email could not be sent. You can resend the code.",
         );
         return;
       }
@@ -195,7 +215,7 @@ function RouteComponent() {
       } else {
         console.error("Error sending verification email:", emailError);
         toast.error(
-          "Failed to send verification email. You can resend the code."
+          "Failed to send verification email. You can resend the code.",
         );
       }
     }
@@ -236,7 +256,6 @@ function RouteComponent() {
         return;
       }
 
-
       setIsLoading(true);
 
       try {
@@ -252,18 +271,21 @@ function RouteComponent() {
         sessionStorage.setItem("signup_zipCode", zipCode);
         sessionStorage.setItem("signup_password", password);
         sessionStorage.setItem("signup_confirmPassword", confirmPassword);
-        sessionStorage.setItem("signup_acceptedTerms", acceptedTerms.toString());
-        
+        sessionStorage.setItem(
+          "signup_acceptedTerms",
+          acceptedTerms.toString(),
+        );
+
         // Set a flag to prevent navigation during signup flow
         sessionStorage.setItem("isInSignupFlow", "true");
 
         // Generate verification code FIRST (synchronous operation)
         const generatedCode = Math.floor(
-          100000 + Math.random() * 900000
+          100000 + Math.random() * 900000,
         ).toString();
         setSentVerificationCode(generatedCode);
         sessionStorage.setItem("signup_sentCode", generatedCode);
-        
+
         // Move to step 2 IMMEDIATELY before async operations
         // This ensures UI updates before any remounting can occur
         setStep(2);
@@ -287,7 +309,7 @@ function RouteComponent() {
         await sendVerificationEmail(generatedCode);
       } catch (err) {
         const message = err instanceof Error ? err.message : "";
-        
+
         // Clear the flag if signup fails (but keep form data for retry)
         sessionStorage.removeItem("isInSignupFlow");
         sessionStorage.removeItem("signupStep");
@@ -337,10 +359,10 @@ function RouteComponent() {
         }
 
         toast.success("Email verified successfully!");
-        
+
         // Clear all signup data after successful verification
         clearSignupData();
-        
+
         navigate({ to: "/onboarding" });
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Verification failed");
@@ -355,7 +377,7 @@ function RouteComponent() {
     setIsResending(true);
     try {
       const generatedCode = Math.floor(
-        100000 + Math.random() * 900000
+        100000 + Math.random() * 900000,
       ).toString();
       setSentVerificationCode(generatedCode);
       setVerificationCode("");
@@ -378,7 +400,7 @@ function RouteComponent() {
               lastName,
               verificationCode: generatedCode,
             }),
-          }
+          },
         );
 
         if (!response.ok) {
@@ -401,7 +423,7 @@ function RouteComponent() {
     }
   };
 
-  if (success) {
+  if (_success) {
     return (
       <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_60%,rgba(255,153,102,0.18),rgba(255,255,255,0.75)_45%,white_65%)]" />
@@ -482,422 +504,86 @@ function RouteComponent() {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="flex flex-col gap-5 overflow-hidden pt-4">
+            <form
+              onSubmit={handleSubmit}
+              className="flex flex-col gap-5 overflow-hidden pt-4"
+            >
               <AnimatePresence mode="wait">
-              {step === 1 ? (
-                <motion.div
-                  key="step1"
-                  initial={{ x: -20, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={{ x: -20, opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="flex flex-col gap-5"
-                >
-                  <div className="flex flex-wrap gap-8">
-                    <TextField
-                      label="First Name"
-                      type="text"
-                      placeholder="Name"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      required
-                      className="flex-1"
-                      style={{ minWidth: "300px" }}
-                      variant="outlined"
-                      sx={{
-                        "& .MuiOutlinedInput-root": {
-                          "& fieldset": { borderColor: "#d4d4d4" },
-                          "&:hover fieldset": { borderColor: "#ff9900" },
-                          "&.Mui-focused fieldset": { borderColor: "#ff9900" },
-                        },
-                        "& .MuiInputLabel-root": {
-                          color: "#020202",
-                          fontWeight: 600,
-                          fontSize: "0.875rem",
-                          "&.Mui-focused": { color: "#ff9900" },
-                        },
-                      }}
-                    />
-
-                    <TextField
-                      label="Last Name"
-                      type="text"
-                      placeholder="Name"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      required
-                      className="flex-1"
-                      style={{ minWidth: "300px" }}
-                      variant="outlined"
-                      sx={{
-                        "& .MuiOutlinedInput-root": {
-                          "& fieldset": { borderColor: "#d4d4d4" },
-                          "&:hover fieldset": { borderColor: "#ff9900" },
-                          "&.Mui-focused fieldset": { borderColor: "#ff9900" },
-                        },
-                        "& .MuiInputLabel-root": {
-                          color: "#020202",
-                          fontWeight: 600,
-                          fontSize: "0.875rem",
-                          "&.Mui-focused": { color: "#ff9900" },
-                        },
-                      }}
-                    />
-                  </div>
-
-                  <TextField
-                    label="Email"
-                    type="email"
-                    placeholder="abc123@gmail.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    fullWidth
-                    variant="outlined"
-                    inputProps={{ autoComplete: "email" }}
-                    sx={{
-                      "& .MuiOutlinedInput-root": {
-                        "& fieldset": { borderColor: "#b1b1b1" },
-                        "&:hover fieldset": { borderColor: "#ff9900" },
-                        "&.Mui-focused fieldset": { borderColor: "#ff9900" },
-                      },
-                      "& .MuiInputLabel-root": {
-                        color: "#020202",
-                        fontWeight: 600,
-                        fontSize: "0.875rem",
-                        "&.Mui-focused": { color: "#ff9900" },
-                      },
-                    }}
-                  />
-
-                  <div className="flex flex-wrap gap-8">
-                    <TextField
-                      label="Password"
-                      type="password"
-                      placeholder="********"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="flex-1"
-                      style={{ minWidth: "300px" }}
-                      variant="outlined"
-                      inputProps={{ autoComplete: "new-password" }}
-                      sx={{
-                        "& .MuiOutlinedInput-root": {
-                          "& fieldset": { borderColor: "#d4d4d4" },
-                          "&:hover fieldset": { borderColor: "#ff9900" },
-                          "&.Mui-focused fieldset": { borderColor: "#ff9900" },
-                        },
-                        "& .MuiInputLabel-root": {
-                          color: "#020202",
-                          fontWeight: 600,
-                          fontSize: "0.875rem",
-                          "&.Mui-focused": { color: "#ff9900" },
-                        },
-                      }}
-                    />
-
-                    <TextField
-                      label="Confirm Password"
-                      type="password"
-                      placeholder="********"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      required
-                      className="flex-1"
-                      style={{ minWidth: "300px" }}
-                      variant="outlined"
-                      inputProps={{ autoComplete: "new-password" }}
-                      sx={{
-                        "& .MuiOutlinedInput-root": {
-                          "& fieldset": { borderColor: "#d4d4d4" },
-                          "&:hover fieldset": { borderColor: "#ff9900" },
-                          "&.Mui-focused fieldset": { borderColor: "#ff9900" },
-                        },
-                        "& .MuiInputLabel-root": {
-                          color: "#020202",
-                          fontWeight: 600,
-                          fontSize: "0.875rem",
-                          "&.Mui-focused": { color: "#ff9900" },
-                        },
-                      }}
-                    />
-                  </div>
-
-                  <FormControl className="flex flex-col gap-2">
-                    <FormLabel
-                      className="text-sm font-semibold text-[#020202]"
-                      sx={{
-                        color: "#020202",
-                        fontWeight: 600,
-                        fontSize: "0.875rem",
-                        "&.Mui-focused": { color: "#020202" },
-                      }}
-                    >
-                      Gender
-                    </FormLabel>
-                    <RadioGroup
-                      row
-                      value={gender}
-                      onChange={(e) => setGender(e.target.value)}
-                      className="flex flex-wrap gap-6 rounded-md border border-[#b1b1b1] bg-white px-10 py-3"
-                    >
-                      <FormControlLabel
-                        value="male"
-                        control={
-                          <Radio
-                            sx={{
-                              color: "#b1b1b1",
-                              "&.Mui-checked": { color: "#ff9900" },
-                            }}
-                          />
-                        }
-                        label="Male"
+                {step === 1 ? (
+                  <motion.div
+                    key="step1"
+                    initial={{ x: -20, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    exit={{ x: -20, opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex flex-col gap-5"
+                  >
+                    <div className="flex flex-wrap gap-8">
+                      <TextField
+                        label="First Name"
+                        type="text"
+                        placeholder="Name"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        required
+                        className="flex-1"
+                        style={{ minWidth: "300px" }}
+                        variant="outlined"
                         sx={{
-                          "& .MuiFormControlLabel-label": {
-                            fontSize: "1rem",
-                            color: "rgba(2, 2, 2, 0.7)",
+                          "& .MuiOutlinedInput-root": {
+                            "& fieldset": { borderColor: "#d4d4d4" },
+                            "&:hover fieldset": { borderColor: "#ff9900" },
+                            "&.Mui-focused fieldset": {
+                              borderColor: "#ff9900",
+                            },
+                          },
+                          "& .MuiInputLabel-root": {
+                            color: "#020202",
+                            fontWeight: 600,
+                            fontSize: "0.875rem",
+                            "&.Mui-focused": { color: "#ff9900" },
                           },
                         }}
                       />
-                      <FormControlLabel
-                        value="female"
-                        control={
-                          <Radio
-                            sx={{
-                              color: "#b1b1b1",
-                              "&.Mui-checked": { color: "#ff9900" },
-                            }}
-                          />
-                        }
-                        label="Female"
+
+                      <TextField
+                        label="Last Name"
+                        type="text"
+                        placeholder="Name"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        required
+                        className="flex-1"
+                        style={{ minWidth: "300px" }}
+                        variant="outlined"
                         sx={{
-                          "& .MuiFormControlLabel-label": {
-                            fontSize: "1rem",
-                            color: "rgba(2, 2, 2, 0.7)",
+                          "& .MuiOutlinedInput-root": {
+                            "& fieldset": { borderColor: "#d4d4d4" },
+                            "&:hover fieldset": { borderColor: "#ff9900" },
+                            "&.Mui-focused fieldset": {
+                              borderColor: "#ff9900",
+                            },
+                          },
+                          "& .MuiInputLabel-root": {
+                            color: "#020202",
+                            fontWeight: 600,
+                            fontSize: "0.875rem",
+                            "&.Mui-focused": { color: "#ff9900" },
                           },
                         }}
                       />
-                      <FormControlLabel
-                        value="other"
-                        control={
-                          <Radio
-                            sx={{
-                              color: "#b1b1b1",
-                              "&.Mui-checked": { color: "#ff9900" },
-                            }}
-                          />
-                        }
-                        label="Other"
-                        sx={{
-                          "& .MuiFormControlLabel-label": {
-                            fontSize: "1rem",
-                            color: "rgba(2, 2, 2, 0.7)",
-                          },
-                        }}
-                      />
-                    </RadioGroup>
-                  </FormControl>
-
-                  <div className="flex flex-wrap gap-8">
-                    <MuiTelInput
-                      label="Phone (optional)"
-                      placeholder="Optional"
-                      value={phoneNumber}
-                      onChange={(value) => setPhoneNumber(value)}
-                      defaultCountry="PH"
-                      className="flex-1"
-                      style={{ minWidth: "300px" }}
-                      variant="outlined"
-                      sx={{
-                        "& .MuiOutlinedInput-root": {
-                          "& fieldset": { borderColor: "#b1b1b1" },
-                          "&:hover fieldset": { borderColor: "#ff9900" },
-                          "&.Mui-focused fieldset": { borderColor: "#ff9900" },
-                        },
-                        "& .MuiInputLabel-root": {
-                          color: "#020202",
-                          fontWeight: 600,
-                          fontSize: "0.875rem",
-                          "&.Mui-focused": { color: "#ff9900" },
-                        },
-                      }}
-                    />
-                  </div>
-
-                  <div className="flex flex-wrap gap-8">
-                    <TextField
-                      label="Date of birth"
-                      type="date"
-                      value={dateOfBirth}
-                      onChange={(e) => setDateOfBirth(e.target.value)}
-                      className="flex-1"
-                      style={{ minWidth: "300px" }}
-                      variant="outlined"
-                      InputLabelProps={{ shrink: true }}
-                      sx={{
-                        "& .MuiOutlinedInput-root": {
-                          "& fieldset": { borderColor: "#b1b1b1" },
-                          "&:hover fieldset": { borderColor: "#ff9900" },
-                          "&.Mui-focused fieldset": { borderColor: "#ff9900" },
-                        },
-                        "& .MuiInputLabel-root": {
-                          color: "#020202",
-                          fontWeight: 600,
-                          fontSize: "0.875rem",
-                          "&.Mui-focused": { color: "#ff9900" },
-                        },
-                      }}
-                    />
-
-                    <TextField
-                      label="Country"
-                      type="text"
-                      placeholder="Pakistan"
-                      value={country}
-                      onChange={(e) => setCountry(e.target.value)}
-                      className="flex-1"
-                      style={{ minWidth: "300px" }}
-                      variant="outlined"
-                      sx={{
-                        "& .MuiOutlinedInput-root": {
-                          "& fieldset": { borderColor: "#b1b1b1" },
-                          "&:hover fieldset": { borderColor: "#ff9900" },
-                          "&.Mui-focused fieldset": { borderColor: "#ff9900" },
-                        },
-                        "& .MuiInputLabel-root": {
-                          color: "#020202",
-                          fontWeight: 600,
-                          fontSize: "0.875rem",
-                          "&.Mui-focused": { color: "#ff9900" },
-                        },
-                      }}
-                    />
-                  </div>
-
-                  <div className="flex flex-wrap gap-8">
-                    <TextField
-                      label="City"
-                      type="text"
-                      placeholder="Lahore"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      className="flex-1"
-                      style={{ minWidth: "300px" }}
-                      variant="outlined"
-                      sx={{
-                        "& .MuiOutlinedInput-root": {
-                          "& fieldset": { borderColor: "#b1b1b1" },
-                          "&:hover fieldset": { borderColor: "#ff9900" },
-                          "&.Mui-focused fieldset": { borderColor: "#ff9900" },
-                        },
-                        "& .MuiInputLabel-root": {
-                          color: "#020202",
-                          fontWeight: 600,
-                          fontSize: "0.875rem",
-                          "&.Mui-focused": { color: "#ff9900" },
-                        },
-                      }}
-                    />
-
-                    <TextField
-                      label="Zip code"
-                      type="text"
-                      placeholder="54000"
-                      value={zipCode}
-                      onChange={(e) => setZipCode(e.target.value)}
-                      className="flex-1"
-                      style={{ minWidth: "300px" }}
-                      variant="outlined"
-                      sx={{
-                        "& .MuiOutlinedInput-root": {
-                          "& fieldset": { borderColor: "#b1b1b1" },
-                          "&:hover fieldset": { borderColor: "#ff9900" },
-                          "&.Mui-focused fieldset": { borderColor: "#ff9900" },
-                        },
-                        "& .MuiInputLabel-root": {
-                          color: "#020202",
-                          fontWeight: 600,
-                          fontSize: "0.875rem",
-                          "&.Mui-focused": { color: "#ff9900" },
-                        },
-                      }}
-                    />
-                  </div>
-
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={acceptedTerms}
-                        onChange={(e) => setAcceptedTerms(e.target.checked)}
-                        sx={{
-                          color: "#b1b1b1",
-                          "&.Mui-checked": { color: "#ff9900" },
-                        }}
-                      />
-                    }
-                    label="I have read and accept Terms of Use, Privacy Policy, Terms & Conditions"
-                    sx={{
-                      "& .MuiFormControlLabel-label": {
-                        fontSize: "0.875rem",
-                        color: "black",
-                      },
-                    }}
-                  />
-
-                  <div className="flex flex-col items-center gap-3">
-                    <Button
-                      type="submit"
-                      disabled={isLoading}
-                      variant="contained"
-                      colorScheme="primary"
-                      className="w-[255px] bg-[#ff9900] px-10 py-3 text-lg font-semibold text-white shadow-[0_1px_5px_rgba(0,0,0,0.12),0_2px_2px_rgba(0,0,0,0.14),0_3px_1px_-2px_rgba(0,0,0,0.2)] transition-transform hover:-translate-y-0.5 hover:bg-[#ff9900] disabled:hover:translate-y-0"
-                    >
-                      {isLoading ? "Signing up..." : "Sign Up"}
-                    </Button>
-                  </div>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="step2"
-                  initial={{ x: 20, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={{ x: 20, opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="flex flex-col gap-5"
-                >
-                  <div className="flex flex-col gap-5">
-                    <div className="flex flex-col gap-3">
-                      <h2 className="text-3xl font-normal text-black">
-                        Verify Your Email
-                      </h2>
-                      <p className="text-lg font-normal text-[#020202]/70">
-                        Enter the verification code sent to {email}
-                      </p>
                     </div>
 
                     <TextField
-                      label="Verification Code"
-                      type="text"
-                      placeholder="000000"
-                      value={verificationCode}
-                      onChange={(e) =>
-                        setVerificationCode(
-                          e.target.value.replace(/\D/g, "").slice(0, 6)
-                        )
-                      }
+                      label="Email"
+                      type="email"
+                      placeholder="abc123@gmail.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       required
                       fullWidth
                       variant="outlined"
-                      inputProps={{
-                        maxLength: 6,
-                        style: {
-                          textAlign: "center",
-                          letterSpacing: "4px",
-                          fontSize: "24px",
-                          fontWeight: "bold",
-                        },
-                      }}
+                      inputProps={{ autoComplete: "email" }}
                       sx={{
                         "& .MuiOutlinedInput-root": {
                           "& fieldset": { borderColor: "#b1b1b1" },
@@ -912,29 +598,388 @@ function RouteComponent() {
                         },
                       }}
                     />
-                  </div>
 
-                  <div className="flex flex-col items-center gap-3">
-                    <Button
-                      type="submit"
-                      disabled={isLoading}
-                      variant="contained"
-                      colorScheme="primary"
-                      className="w-[255px] bg-[#ff9900] px-10 py-3 text-lg font-semibold text-white shadow-[0_1px_5px_rgba(0,0,0,0.12),0_2px_2px_rgba(0,0,0,0.14),0_3px_1px_-2px_rgba(0,0,0,0.2)] transition-transform hover:-translate-y-0.5 hover:bg-[#ff9900] disabled:hover:translate-y-0"
-                    >
-                      {isLoading ? "Verifying..." : "Verify Code"}
-                    </Button>
-                    <button
-                      type="button"
-                      onClick={handleResendCode}
-                      disabled={isResending}
-                      className="text-sm font-normal text-[#020202] transition-colors hover:text-[#ff9900] disabled:opacity-50"
-                    >
-                      {isResending ? "Resending..." : "Resend Code"}
-                    </button>
-                  </div>
-                </motion.div>
-              )}
+                    <div className="flex flex-wrap gap-8">
+                      <TextField
+                        label="Password"
+                        type="password"
+                        placeholder="********"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        className="flex-1"
+                        style={{ minWidth: "300px" }}
+                        variant="outlined"
+                        inputProps={{ autoComplete: "new-password" }}
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            "& fieldset": { borderColor: "#d4d4d4" },
+                            "&:hover fieldset": { borderColor: "#ff9900" },
+                            "&.Mui-focused fieldset": {
+                              borderColor: "#ff9900",
+                            },
+                          },
+                          "& .MuiInputLabel-root": {
+                            color: "#020202",
+                            fontWeight: 600,
+                            fontSize: "0.875rem",
+                            "&.Mui-focused": { color: "#ff9900" },
+                          },
+                        }}
+                      />
+
+                      <TextField
+                        label="Confirm Password"
+                        type="password"
+                        placeholder="********"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        required
+                        className="flex-1"
+                        style={{ minWidth: "300px" }}
+                        variant="outlined"
+                        inputProps={{ autoComplete: "new-password" }}
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            "& fieldset": { borderColor: "#d4d4d4" },
+                            "&:hover fieldset": { borderColor: "#ff9900" },
+                            "&.Mui-focused fieldset": {
+                              borderColor: "#ff9900",
+                            },
+                          },
+                          "& .MuiInputLabel-root": {
+                            color: "#020202",
+                            fontWeight: 600,
+                            fontSize: "0.875rem",
+                            "&.Mui-focused": { color: "#ff9900" },
+                          },
+                        }}
+                      />
+                    </div>
+
+                    <FormControl className="flex flex-col gap-2">
+                      <FormLabel
+                        className="text-sm font-semibold text-[#020202]"
+                        sx={{
+                          color: "#020202",
+                          fontWeight: 600,
+                          fontSize: "0.875rem",
+                          "&.Mui-focused": { color: "#020202" },
+                        }}
+                      >
+                        Gender
+                      </FormLabel>
+                      <RadioGroup
+                        row
+                        value={gender}
+                        onChange={(e) => setGender(e.target.value)}
+                        className="flex flex-wrap gap-6 rounded-md border border-[#b1b1b1] bg-white px-10 py-3"
+                      >
+                        <FormControlLabel
+                          value="male"
+                          control={
+                            <Radio
+                              sx={{
+                                color: "#b1b1b1",
+                                "&.Mui-checked": { color: "#ff9900" },
+                              }}
+                            />
+                          }
+                          label="Male"
+                          sx={{
+                            "& .MuiFormControlLabel-label": {
+                              fontSize: "1rem",
+                              color: "rgba(2, 2, 2, 0.7)",
+                            },
+                          }}
+                        />
+                        <FormControlLabel
+                          value="female"
+                          control={
+                            <Radio
+                              sx={{
+                                color: "#b1b1b1",
+                                "&.Mui-checked": { color: "#ff9900" },
+                              }}
+                            />
+                          }
+                          label="Female"
+                          sx={{
+                            "& .MuiFormControlLabel-label": {
+                              fontSize: "1rem",
+                              color: "rgba(2, 2, 2, 0.7)",
+                            },
+                          }}
+                        />
+                        <FormControlLabel
+                          value="other"
+                          control={
+                            <Radio
+                              sx={{
+                                color: "#b1b1b1",
+                                "&.Mui-checked": { color: "#ff9900" },
+                              }}
+                            />
+                          }
+                          label="Other"
+                          sx={{
+                            "& .MuiFormControlLabel-label": {
+                              fontSize: "1rem",
+                              color: "rgba(2, 2, 2, 0.7)",
+                            },
+                          }}
+                        />
+                      </RadioGroup>
+                    </FormControl>
+
+                    <div className="flex flex-wrap gap-8">
+                      <MuiTelInput
+                        label="Phone (optional)"
+                        placeholder="Optional"
+                        value={phoneNumber}
+                        onChange={(value) => setPhoneNumber(value)}
+                        defaultCountry="PH"
+                        className="flex-1"
+                        style={{ minWidth: "300px" }}
+                        variant="outlined"
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            "& fieldset": { borderColor: "#b1b1b1" },
+                            "&:hover fieldset": { borderColor: "#ff9900" },
+                            "&.Mui-focused fieldset": {
+                              borderColor: "#ff9900",
+                            },
+                          },
+                          "& .MuiInputLabel-root": {
+                            color: "#020202",
+                            fontWeight: 600,
+                            fontSize: "0.875rem",
+                            "&.Mui-focused": { color: "#ff9900" },
+                          },
+                        }}
+                      />
+                    </div>
+
+                    <div className="flex flex-wrap gap-8">
+                      <TextField
+                        label="Date of birth"
+                        type="date"
+                        value={dateOfBirth}
+                        onChange={(e) => setDateOfBirth(e.target.value)}
+                        className="flex-1"
+                        style={{ minWidth: "300px" }}
+                        variant="outlined"
+                        InputLabelProps={{ shrink: true }}
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            "& fieldset": { borderColor: "#b1b1b1" },
+                            "&:hover fieldset": { borderColor: "#ff9900" },
+                            "&.Mui-focused fieldset": {
+                              borderColor: "#ff9900",
+                            },
+                          },
+                          "& .MuiInputLabel-root": {
+                            color: "#020202",
+                            fontWeight: 600,
+                            fontSize: "0.875rem",
+                            "&.Mui-focused": { color: "#ff9900" },
+                          },
+                        }}
+                      />
+
+                      <TextField
+                        label="Country"
+                        type="text"
+                        placeholder="Pakistan"
+                        value={country}
+                        onChange={(e) => setCountry(e.target.value)}
+                        className="flex-1"
+                        style={{ minWidth: "300px" }}
+                        variant="outlined"
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            "& fieldset": { borderColor: "#b1b1b1" },
+                            "&:hover fieldset": { borderColor: "#ff9900" },
+                            "&.Mui-focused fieldset": {
+                              borderColor: "#ff9900",
+                            },
+                          },
+                          "& .MuiInputLabel-root": {
+                            color: "#020202",
+                            fontWeight: 600,
+                            fontSize: "0.875rem",
+                            "&.Mui-focused": { color: "#ff9900" },
+                          },
+                        }}
+                      />
+                    </div>
+
+                    <div className="flex flex-wrap gap-8">
+                      <TextField
+                        label="City"
+                        type="text"
+                        placeholder="Lahore"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        className="flex-1"
+                        style={{ minWidth: "300px" }}
+                        variant="outlined"
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            "& fieldset": { borderColor: "#b1b1b1" },
+                            "&:hover fieldset": { borderColor: "#ff9900" },
+                            "&.Mui-focused fieldset": {
+                              borderColor: "#ff9900",
+                            },
+                          },
+                          "& .MuiInputLabel-root": {
+                            color: "#020202",
+                            fontWeight: 600,
+                            fontSize: "0.875rem",
+                            "&.Mui-focused": { color: "#ff9900" },
+                          },
+                        }}
+                      />
+
+                      <TextField
+                        label="Zip code"
+                        type="text"
+                        placeholder="54000"
+                        value={zipCode}
+                        onChange={(e) => setZipCode(e.target.value)}
+                        className="flex-1"
+                        style={{ minWidth: "300px" }}
+                        variant="outlined"
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            "& fieldset": { borderColor: "#b1b1b1" },
+                            "&:hover fieldset": { borderColor: "#ff9900" },
+                            "&.Mui-focused fieldset": {
+                              borderColor: "#ff9900",
+                            },
+                          },
+                          "& .MuiInputLabel-root": {
+                            color: "#020202",
+                            fontWeight: 600,
+                            fontSize: "0.875rem",
+                            "&.Mui-focused": { color: "#ff9900" },
+                          },
+                        }}
+                      />
+                    </div>
+
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={acceptedTerms}
+                          onChange={(e) => setAcceptedTerms(e.target.checked)}
+                          sx={{
+                            color: "#b1b1b1",
+                            "&.Mui-checked": { color: "#ff9900" },
+                          }}
+                        />
+                      }
+                      label="I have read and accept Terms of Use, Privacy Policy, Terms & Conditions"
+                      sx={{
+                        "& .MuiFormControlLabel-label": {
+                          fontSize: "0.875rem",
+                          color: "black",
+                        },
+                      }}
+                    />
+
+                    <div className="flex flex-col items-center gap-3">
+                      <Button
+                        type="submit"
+                        disabled={isLoading}
+                        variant="contained"
+                        colorScheme="primary"
+                        className="w-[255px] bg-[#ff9900] px-10 py-3 text-lg font-semibold text-white shadow-[0_1px_5px_rgba(0,0,0,0.12),0_2px_2px_rgba(0,0,0,0.14),0_3px_1px_-2px_rgba(0,0,0,0.2)] transition-transform hover:-translate-y-0.5 hover:bg-[#ff9900] disabled:hover:translate-y-0"
+                      >
+                        {isLoading ? "Signing up..." : "Sign Up"}
+                      </Button>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="step2"
+                    initial={{ x: 20, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    exit={{ x: 20, opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex flex-col gap-5"
+                  >
+                    <div className="flex flex-col gap-5">
+                      <div className="flex flex-col gap-3">
+                        <h2 className="text-3xl font-normal text-black">
+                          Verify Your Email
+                        </h2>
+                        <p className="text-lg font-normal text-[#020202]/70">
+                          Enter the verification code sent to {email}
+                        </p>
+                      </div>
+
+                      <TextField
+                        label="Verification Code"
+                        type="text"
+                        placeholder="000000"
+                        value={verificationCode}
+                        onChange={(e) =>
+                          setVerificationCode(
+                            e.target.value.replace(/\D/g, "").slice(0, 6),
+                          )
+                        }
+                        required
+                        fullWidth
+                        variant="outlined"
+                        inputProps={{
+                          maxLength: 6,
+                          style: {
+                            textAlign: "center",
+                            letterSpacing: "4px",
+                            fontSize: "24px",
+                            fontWeight: "bold",
+                          },
+                        }}
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            "& fieldset": { borderColor: "#b1b1b1" },
+                            "&:hover fieldset": { borderColor: "#ff9900" },
+                            "&.Mui-focused fieldset": {
+                              borderColor: "#ff9900",
+                            },
+                          },
+                          "& .MuiInputLabel-root": {
+                            color: "#020202",
+                            fontWeight: 600,
+                            fontSize: "0.875rem",
+                            "&.Mui-focused": { color: "#ff9900" },
+                          },
+                        }}
+                      />
+                    </div>
+
+                    <div className="flex flex-col items-center gap-3">
+                      <Button
+                        type="submit"
+                        disabled={isLoading}
+                        variant="contained"
+                        colorScheme="primary"
+                        className="w-[255px] bg-[#ff9900] px-10 py-3 text-lg font-semibold text-white shadow-[0_1px_5px_rgba(0,0,0,0.12),0_2px_2px_rgba(0,0,0,0.14),0_3px_1px_-2px_rgba(0,0,0,0.2)] transition-transform hover:-translate-y-0.5 hover:bg-[#ff9900] disabled:hover:translate-y-0"
+                      >
+                        {isLoading ? "Verifying..." : "Verify Code"}
+                      </Button>
+                      <button
+                        type="button"
+                        onClick={handleResendCode}
+                        disabled={isResending}
+                        className="text-sm font-normal text-[#020202] transition-colors hover:text-[#ff9900] disabled:opacity-50"
+                      >
+                        {isResending ? "Resending..." : "Resend Code"}
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
               </AnimatePresence>
             </form>
           </div>
