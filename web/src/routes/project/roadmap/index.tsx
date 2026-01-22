@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ProjectHeader } from "@/components/project/ProjectHeader";
 import Logo from "/prodigylogos/light/logovector.svg";
 import {
@@ -17,6 +17,7 @@ import {
   type Message,
 } from "@/components/roadmap/LeftSidePanel";
 import { RoadmapCanvas } from "@/components/roadmap/RoadmapCanvas";
+import { callGeminiAPI } from "@/lib/gemini";
 // Milestone type is now RoadmapMilestone from @/types/roadmap
 import type {
   RoadmapMilestone,
@@ -77,7 +78,24 @@ function RoadmapBuilderPage() {
     RoadmapMilestone[]
   >([]);
 
-  const handleSendMessage = (message: string) => {
+  const buildProjectBrief = (data: FormData) => {
+    const lines: string[] = [];
+    if (data.title) lines.push(`Title: ${data.title}`);
+    if (data.category) lines.push(`Category: ${data.category}`);
+    if (data.description) lines.push(`Description: ${data.description}`);
+    if (data.problemSolving) {
+      lines.push(`Problem: ${data.problemSolving}`);
+    }
+    if (data.projectState) lines.push(`Project state: ${data.projectState}`);
+
+    const skills = [...data.skills, ...data.customSkills].filter(Boolean);
+    if (skills.length > 0) lines.push(`Skills: ${skills.join(", ")}`);
+    if (data.duration) lines.push(`Duration: ${data.duration}`);
+
+    return lines.join("\n");
+  };
+
+  const handleSendMessage = async (message: string) => {
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -88,17 +106,45 @@ function RoadmapBuilderPage() {
     setMessages((prev) => [...prev, userMessage]);
     setIsGenerating(true);
 
-    // Mock assistant response until backend wiring is added
-    setTimeout(() => {
+    try {
+      // Convert messages to the format expected by Gemini API
+      const conversationHistory = messages.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      }));
+
+      // Add the new user message
+      conversationHistory.push({
+        role: "user",
+        content: message,
+      });
+
+      const projectBrief = buildProjectBrief(formData);
+
+      // Call Gemini API
+      const aiResponse = await callGeminiAPI(conversationHistory, projectBrief);
+
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: "Got it — I will adjust the roadmap accordingly.",
+        content: aiResponse,
         timestamp: new Date(),
       };
+
       setMessages((prev) => [...prev, aiMessage]);
+    } catch (error) {
+      console.error("Error getting response from Gemini:", error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content:
+          "Sorry, I encountered an error while processing your request. Please try again.",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
       setIsGenerating(false);
-    }, 1200);
+    }
   };
 
   const updateFormData = (updates: Partial<FormData>) => {
@@ -116,23 +162,6 @@ function RoadmapBuilderPage() {
   const prevStep = () => {
     if (briefStep > 1) setBriefStep(briefStep - 1);
   };
-
-  // Optionally auto-close modal if a title/description already exist
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content:
-          "I understand. Let me help you with that. I've updated the roadmap based on your request.",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, aiMessage]);
-      setIsGenerating(false);
-    }, 1500);
-
-    return () => clearTimeout(timer);
-  }, []);
 
   const handleAddMilestone = () => {
     const newMilestone: RoadmapMilestone = {

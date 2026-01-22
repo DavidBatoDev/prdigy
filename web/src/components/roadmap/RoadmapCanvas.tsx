@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Plus } from "lucide-react";
+import { X, Plus, Map, Flag } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -394,7 +394,7 @@ const RoadmapCanvas = ({
     : null;
 
   return (
-    <div className="relative h-full bg-gray-50 flex flex-col">
+    <div className="relative h-full bg-linear-to-br from-[color-mix(in_srgb,_var(--primary-light)_5%,_white)] via-[color-mix(in_srgb,_var(--secondary-light)_8%,_white)] to-[color-mix(in_srgb,_var(--primary)_3%,_white)] flex flex-col">
       {/* View Mode Tabs */}
       <div className="bg-white border-b border-gray-200 px-6 flex items-center gap-4 overflow-x-auto">
         <button
@@ -402,22 +402,24 @@ const RoadmapCanvas = ({
             setViewMode("roadmap");
             setSelectedEpic(null);
           }}
-          className={`px-4 py-3 font-medium text-sm transition-colors border-b-2 shrink-0 ${
+          className={`px-4 py-3 font-medium text-sm transition-colors border-b-2 shrink-0 flex items-center gap-2 ${
             viewMode === "roadmap"
               ? "text-primary border-primary"
               : "text-gray-600 hover:text-gray-900 border-transparent"
           }`}
         >
+          <Map className="w-4 h-4" />
           Roadmap View
         </button>
         <button
           onClick={() => setViewMode("milestones")}
-          className={`px-4 py-3 font-medium text-sm transition-colors border-b-2 shrink-0 ${
+          className={`px-4 py-3 font-medium text-sm transition-colors border-b-2 shrink-0 flex items-center gap-2 ${
             viewMode === "milestones"
               ? "text-primary border-primary"
               : "text-gray-600 hover:text-gray-900 border-transparent"
           }`}
         >
+          <Flag className="w-4 h-4" />
           Milestones
         </button>
 

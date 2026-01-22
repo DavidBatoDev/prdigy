@@ -1,6 +1,48 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, User } from "lucide-react";
 import { Button } from "@/ui/button";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import Logo from "/prodigylogos/light/logovector.svg";
+
+const markdownComponents = {
+  p: (props: { children?: React.ReactNode }) => (
+    <p className="mb-2 last:mb-0">{props.children}</p>
+  ),
+  ul: (props: { children?: React.ReactNode }) => (
+    <ul className="list-disc list-inside mb-2 space-y-1 pl-2">
+      {props.children}
+    </ul>
+  ),
+  ol: (props: { children?: React.ReactNode }) => (
+    <ol className="list-decimal list-inside mb-2 space-y-1 pl-2">
+      {props.children}
+    </ol>
+  ),
+  li: (props: { children?: React.ReactNode }) => (
+    <li className="ml-1">{props.children}</li>
+  ),
+  strong: (props: { children?: React.ReactNode }) => (
+    <strong className="font-semibold">{props.children}</strong>
+  ),
+  em: (props: { children?: React.ReactNode }) => (
+    <em className="italic">{props.children}</em>
+  ),
+  code: (props: { children?: React.ReactNode }) => (
+    <code className="bg-gray-200 px-1.5 py-0.5 rounded text-xs font-mono">
+      {props.children}
+    </code>
+  ),
+  h1: (props: { children?: React.ReactNode }) => (
+    <h1 className="text-base font-bold mb-2">{props.children}</h1>
+  ),
+  h2: (props: { children?: React.ReactNode }) => (
+    <h2 className="text-sm font-bold mb-2">{props.children}</h2>
+  ),
+  h3: (props: { children?: React.ReactNode }) => (
+    <h3 className="text-sm font-semibold mb-1">{props.children}</h3>
+  ),
+};
 
 export type Message = {
   id: string;
@@ -50,9 +92,7 @@ export function ChatPanel({
       {/* Header */}
       <div className="px-6 py-4 border-b border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-          <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-primary/10 text-primary font-bold text-[12px] leading-none">
-            P
-          </span>
+          <img src={Logo} alt="Prodigi Logo" className="h-5" />
           Prodigi
         </h2>
         <p className="text-sm text-gray-600 mt-1">
@@ -82,8 +122,8 @@ export function ChatPanel({
             className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}
           >
             {message.role === "assistant" && (
-              <div className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center flex-shrink-0">
-                P
+              <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                <img src={Logo} alt="Prodigi" className="h-5" />
               </div>
             )}
 
@@ -94,9 +134,20 @@ export function ChatPanel({
                   : "bg-gray-100 text-gray-900"
               }`}
             >
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                {message.content}
-              </p>
+              {message.role === "assistant" ? (
+                <div className="text-sm leading-relaxed">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={markdownComponents}
+                  >
+                    {String(message.content)}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                  {message.content}
+                </p>
+              )}
               <span className="text-xs opacity-70 mt-1 block">
                 {message.timestamp.toLocaleTimeString([], {
                   hour: "2-digit",
@@ -115,8 +166,8 @@ export function ChatPanel({
 
         {isGenerating && (
           <div className="flex gap-3 justify-start">
-            <div className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center flex-shrink-0">
-              P
+            <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+              <img src={Logo} alt="Prodigi" className="h-5" />
             </div>
             <div className="bg-gray-100 text-gray-900 rounded-2xl px-4 py-3">
               <div className="flex gap-1">

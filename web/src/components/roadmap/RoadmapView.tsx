@@ -178,8 +178,6 @@ export const RoadmapView = ({
   onNavigateToEpic,
 }: RoadmapViewProps) => {
   const [zoom, setZoom] = useState(1);
-  const [reactFlowInstance, setReactFlowInstance] =
-    useState<ReactFlowInstance | null>(null);
 
   const DEFAULT_VIEWPORT_X = -50;
   const DEFAULT_VIEWPORT_Y = 0;
@@ -329,7 +327,7 @@ export const RoadmapView = ({
   }, []);
 
   return (
-    <div className="w-full h-full bg-gray-50 relative">
+    <div className="w-full h-full bg-linear-to-br from-[color-mix(in_srgb,_var(--primary-light)_5%,_white)] via-[color-mix(in_srgb,_var(--secondary-light)_8%,_white)] to-[color-mix(in_srgb,_var(--primary)_3%,_white)] relative">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -340,7 +338,6 @@ export const RoadmapView = ({
           setZoom(viewport.zoom);
         }}
         onInit={(instance: ReactFlowInstance) => {
-          setReactFlowInstance(instance);
           setZoom(instance.getZoom());
         }}
         defaultViewport={{
