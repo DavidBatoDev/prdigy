@@ -30,9 +30,6 @@ export function ProjectHeader({
 
           <div className="flex items-center gap-3 min-w-0">
             <div className="min-w-0">
-              <p className="text-xs text-gray-500 uppercase tracking-wide">
-                Roadmap Builder
-              </p>
               <h1 className="text-lg font-semibold text-gray-900 truncate">
                 {projectTitle}
               </h1>

@@ -91,7 +91,7 @@ export const HeroSection = () => {
         transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
         className="flex justify-center gap-4 mt-12"
       >
-        <Link to="/project">
+        <Link to="/project/roadmap">
           <Button
             variant="contained"
             colorScheme="primary"

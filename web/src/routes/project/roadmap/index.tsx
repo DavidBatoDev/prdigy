@@ -2,7 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ProjectHeader } from "@/components/project/ProjectHeader";
 import Logo from "/prodigylogos/light/logovector.svg";
-import { X, CornerDownLeft, Check, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  X,
+  CornerDownLeft,
+  Check,
+  Pencil,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -12,7 +19,11 @@ import {
 } from "@/components/roadmap/LeftSidePanel";
 import { RoadmapCanvas } from "@/components/roadmap/RoadmapCanvas";
 // Milestone type is now RoadmapMilestone from @/types/roadmap
-import type { RoadmapMilestone, RoadmapEpic, RoadmapFeature } from "@/types/roadmap";
+import type {
+  RoadmapMilestone,
+  RoadmapEpic,
+  RoadmapFeature,
+} from "@/types/roadmap";
 
 export const Route = createFileRoute("/project/roadmap/")({
   component: RoadmapBuilderPage,
@@ -189,7 +200,12 @@ function RoadmapBuilderPage() {
     data: {
       title: string;
       description: string;
-      status: "not_started" | "in_progress" | "in_review" | "completed" | "blocked";
+      status:
+        | "not_started"
+        | "in_progress"
+        | "in_review"
+        | "completed"
+        | "blocked";
       is_deliverable: boolean;
     },
   ) => {
@@ -936,7 +952,6 @@ function Step2({
           />
         </div>
       </div>
-
     </div>
   );
 }

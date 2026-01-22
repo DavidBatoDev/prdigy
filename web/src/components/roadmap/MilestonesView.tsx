@@ -35,9 +35,7 @@ export const MilestonesView = ({
           <h2 className="text-2xl font-semibold text-gray-900 mb-2">
             Milestones Timeline
           </h2>
-          <p className="text-gray-600">
-            Timeline visualization coming soon
-          </p>
+          <p className="text-gray-600">Timeline visualization coming soon</p>
         </div>
 
         {/* Simple list of milestones */}
@@ -76,7 +74,7 @@ export const MilestonesView = ({
                 <div className="flex items-center justify-between">
                   <span
                     className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded border ${getStatusColor(
-                      milestone.status
+                      milestone.status,
                     )}`}
                   >
                     {milestone.status.replace(/_/g, " ")}
@@ -85,7 +83,8 @@ export const MilestonesView = ({
                   <div className="flex items-center gap-4 text-sm text-gray-600">
                     {milestone.target_date && (
                       <span>
-                        Target: {new Date(milestone.target_date).toLocaleDateString()}
+                        Target:{" "}
+                        {new Date(milestone.target_date).toLocaleDateString()}
                       </span>
                     )}
                     {milestone.progress !== undefined && (
