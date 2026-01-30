@@ -22,6 +22,17 @@ export function LeftSidePanel({
 
   return (
     <div className="h-full w-full flex flex-col bg-white">
+      {/* Logo and Brand Header */}
+      <div className="px-6 py-4 border-b border-gray-200">
+        <div className="flex items-center gap-3 mb-2">
+          <img src="/prodigylogos/light/logovector.svg" alt="Prodigi" className="h-6" />
+          <h2 className="text-lg font-semibold text-gray-900">Prodigi</h2>
+        </div>
+        <p className="text-sm text-gray-600">
+          Ask questions or request changes to your roadmap
+        </p>
+      </div>
+
       {/* Tabs */}
       <div className="flex border-b border-gray-200 bg-gray-50">
         <button

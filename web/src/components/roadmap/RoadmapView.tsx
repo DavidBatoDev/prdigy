@@ -17,6 +17,7 @@ import type { Roadmap, RoadmapEpic, RoadmapFeature } from "@/types/roadmap";
 interface RoadmapViewProps {
   roadmap: Roadmap;
   epics: RoadmapEpic[];
+  showGrid?: boolean;
   onUpdateEpic: (epic: RoadmapEpic) => void;
   onDeleteEpic: (epicId: string) => void;
   onUpdateFeature: (feature: RoadmapFeature) => void;
@@ -166,6 +167,7 @@ const getLayoutedElements = (
 
 export const RoadmapView = ({
   epics,
+  showGrid = true,
   onUpdateEpic,
   onDeleteEpic,
   onUpdateFeature,
@@ -177,12 +179,13 @@ export const RoadmapView = ({
   onEditFeature,
   onNavigateToEpic,
 }: RoadmapViewProps) => {
-  const [zoom, setZoom] = useState(1);
+  const DEFAULT_ZOOM = 0.67;
+  const [zoom, setZoom] = useState(DEFAULT_ZOOM);
 
   const DEFAULT_VIEWPORT_X = -50;
   const DEFAULT_VIEWPORT_Y = 0;
-  const MAX_ZOOM = 1.0;
-  const MIN_ZOOM = 0.6;
+  const MAX_ZOOM = 1.2;
+  const MIN_ZOOM = 0.4;
 
   // Helper function to get edge color based on status
   const getEdgeColor = (status: RoadmapFeature["status"]) => {
@@ -327,7 +330,7 @@ export const RoadmapView = ({
   }, []);
 
   return (
-    <div className="w-full h-full bg-linear-to-br from-[color-mix(in_srgb,_var(--primary-light)_5%,_white)] via-[color-mix(in_srgb,_var(--secondary-light)_8%,_white)] to-[color-mix(in_srgb,_var(--primary)_3%,_white)] relative">
+    <div className="w-full h-full bg-white relative">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -343,12 +346,12 @@ export const RoadmapView = ({
         defaultViewport={{
           x: DEFAULT_VIEWPORT_X,
           y: DEFAULT_VIEWPORT_Y,
-          zoom: MAX_ZOOM,
+          zoom: DEFAULT_ZOOM,
         }}
         minZoom={MIN_ZOOM}
         maxZoom={MAX_ZOOM}
         translateExtent={translateExtent}
-        panOnDrag={false}
+        panOnDrag={[1, 2]}
         panOnScroll
         zoomOnScroll
         zoomOnPinch
@@ -357,7 +360,14 @@ export const RoadmapView = ({
           type: "simplebezier",
         }}
       >
-        <Background color="#e5e7eb" gap={20} />
+        {showGrid && (
+          <Background
+            color="#94a3b8"
+            gap={16}
+            size={1}
+            variant="dots"
+          />
+        )}
         <Controls />
         <MiniMap
           nodeColor={(node) => {

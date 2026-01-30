@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { X, Plus, Map, Flag } from "lucide-react";
+import {
+  X,
+  Plus,
+  Settings,
+  Download,
+  Grid3x3,
+} from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -68,10 +74,10 @@ const SortableEpicTab = ({
       ref={setNodeRef}
       style={style}
       onClick={onClick}
-      className={`flex items-center gap-2 px-3 py-2 rounded-t-lg border-b-2 shrink-0 cursor-pointer transition-colors ${
+      className={`flex items-center gap-2 px-4 py-3 border-b-2 shrink-0 cursor-pointer transition-colors text-sm font-medium ${
         isActive
-          ? "bg-gray-100 border-primary text-primary"
-          : "bg-white border-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+          ? "text-gray-900 border-gray-900"
+          : "text-gray-600 hover:text-gray-900 border-transparent"
       }`}
     >
       <div
@@ -117,6 +123,8 @@ interface RoadmapCanvasProps {
   ) => void;
   onUpdateFeature: (feature: RoadmapFeature) => void;
   onDeleteFeature: (featureId: string) => void;
+  onEditBrief?: () => void;
+  onExport?: () => void;
 }
 
 const RoadmapCanvas = ({
@@ -133,11 +141,14 @@ const RoadmapCanvas = ({
   onAddFeature,
   onUpdateFeature,
   onDeleteFeature,
+  onEditBrief,
+  onExport,
 }: RoadmapCanvasProps) => {
   const [viewMode, setViewMode] = useState<ViewMode>("roadmap");
   const [selectedEpic, setSelectedEpic] = useState<string | null>(null);
   const [openEpicTabs, setOpenEpicTabs] = useState<string[]>([]); // Track opened epic tabs
   const [selectedFeature, setSelectedFeature] = useState<string | null>(null);
+  const [showGrid, setShowGrid] = useState(true);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [sidePanelOpen, setSidePanelOpen] = useState(false);
   const [targetFeatureForTask, setTargetFeatureForTask] = useState<
@@ -164,7 +175,7 @@ const RoadmapCanvas = ({
     label: string;
   } | null>(null);
 
-  // DnD Kit sensors for drag and drop
+  // DnD Kit sensors for epic tabs
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -394,32 +405,30 @@ const RoadmapCanvas = ({
     : null;
 
   return (
-    <div className="relative h-full bg-linear-to-br from-[color-mix(in_srgb,_var(--primary-light)_5%,_white)] via-[color-mix(in_srgb,_var(--secondary-light)_8%,_white)] to-[color-mix(in_srgb,_var(--primary)_3%,_white)] flex flex-col">
-      {/* View Mode Tabs */}
-      <div className="bg-white border-b border-gray-200 px-6 flex items-center gap-4 overflow-x-auto">
+    <div className="relative h-full bg-white flex flex-col">
+      {/* View Mode Tabs - Figma Design */}
+      <div className="bg-white border-b border-gray-200 flex items-center px-6 overflow-x-auto">
         <button
           onClick={() => {
             setViewMode("roadmap");
             setSelectedEpic(null);
           }}
-          className={`px-4 py-3 font-medium text-sm transition-colors border-b-2 shrink-0 flex items-center gap-2 ${
+          className={`px-4 py-3 font-medium text-sm transition-colors border-b-2 shrink-0 ${
             viewMode === "roadmap"
-              ? "text-primary border-primary"
+              ? "text-orange-600 border-orange-600"
               : "text-gray-600 hover:text-gray-900 border-transparent"
           }`}
         >
-          <Map className="w-4 h-4" />
           Roadmap View
         </button>
         <button
           onClick={() => setViewMode("milestones")}
-          className={`px-4 py-3 font-medium text-sm transition-colors border-b-2 shrink-0 flex items-center gap-2 ${
+          className={`px-4 py-3 font-medium text-sm transition-colors border-b-2 shrink-0 ${
             viewMode === "milestones"
-              ? "text-primary border-primary"
+              ? "text-orange-600 border-orange-600"
               : "text-gray-600 hover:text-gray-900 border-transparent"
           }`}
         >
-          <Flag className="w-4 h-4" />
           Milestones
         </button>
 
@@ -462,6 +471,55 @@ const RoadmapCanvas = ({
 
       {/* View Content */}
       <div className="flex-1 relative overflow-hidden">
+        {viewMode === "roadmap" && (
+          <div
+            className="absolute right-4 top-4 z-40 bg-white rounded-lg shadow-lg border border-gray-200"
+          >
+            <div className="flex items-center gap-1 p-1">
+              {/* Grid Toggle Button */}
+              <button
+                onClick={() => setShowGrid(!showGrid)}
+                className={`p-1.5 rounded transition-colors ${
+                  showGrid
+                    ? "bg-blue-50 hover:bg-blue-100"
+                    : "hover:bg-gray-100"
+                }`}
+                title={showGrid ? "Hide Grid" : "Show Grid"}
+              >
+                <Grid3x3
+                  className={`w-3.5 h-3.5 ${
+                    showGrid ? "text-blue-600" : "text-gray-600"
+                  }`}
+                />
+              </button>
+
+              {/* Divider */}
+              <div className="w-px h-5 bg-gray-200" />
+
+              {/* Edit Brief Button */}
+              {onEditBrief && (
+                <button
+                  onClick={onEditBrief}
+                  className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                  title="Edit Brief"
+                >
+                  <Settings className="w-3.5 h-3.5 text-gray-600" />
+                </button>
+              )}
+
+              {/* Export Button */}
+              {onExport && (
+                <button
+                  onClick={onExport}
+                  className="p-1.5 hover:bg-orange-50 rounded transition-colors"
+                  title="Export"
+                >
+                  <Download className="w-3.5 h-3.5 text-orange-500" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
         {viewMode === "roadmap" && epics.length === 0 ? (
           // Empty state - no epics
           <div className="flex flex-col items-center justify-center h-full">
@@ -491,6 +549,7 @@ const RoadmapCanvas = ({
           <RoadmapView
             roadmap={roadmap}
             epics={epics}
+            showGrid={showGrid}
             onUpdateEpic={onUpdateEpic}
             onDeleteEpic={handleDeleteEpic}
             onUpdateFeature={onUpdateFeature}

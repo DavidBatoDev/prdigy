@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { ProjectHeader } from "@/components/project/ProjectHeader";
 import Logo from "/prodigylogos/light/logovector.svg";
 import {
   X,
@@ -8,6 +7,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  ArrowLeft,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -286,23 +286,27 @@ function RoadmapBuilderPage() {
 
   return (
     <div className="min-h-screen bg-[#f6f7f8] relative overflow-hidden">
-      <ProjectHeader
-        projectTitle={formData.title || "Untitled Project"}
-        onEditBrief={() => setIsBriefOpen(true)}
-        onExport={() => {
-          /* TODO: Export functionality */
-        }}
-        onTitleChange={(newTitle) => {
-          setFormData((prev) => ({ ...prev, title: newTitle }));
-        }}
-      />
+      {/* Header matching Figma design */}
+      <div className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-gray-200 z-50 flex items-center px-6">
+        <button
+          onClick={() => window.history.back()}
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          title="Go back"
+        >
+          <ArrowLeft className="w-5 h-5 text-gray-700" />
+        </button>
+        <h1 className="ml-4 text-lg font-semibold text-gray-900">
+          {formData.title || "Untitled Project"}
+        </h1>
+      </div>
+
       {/* Local style to hide scrollbar UI while preserving scroll */}
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
       {/* Builder Console always visible */}
-      <div className="fixed top-[80px] left-0 right-0 bottom-0 flex">
+      <div className="fixed top-16 left-0 right-0 bottom-0 flex">
         {/* Left: Chat Sidebar (collapsible) */}
         <motion.div
           id="roadmap-chat-panel"
@@ -372,6 +376,10 @@ function RoadmapBuilderPage() {
             onAddFeature={handleAddFeature}
             onUpdateFeature={handleUpdateFeature}
             onDeleteFeature={handleDeleteFeature}
+            onEditBrief={() => setIsBriefOpen(true)}
+            onExport={() => {
+              /* TODO: Export functionality */
+            }}
           />
         </div>
       </div>
@@ -380,20 +388,21 @@ function RoadmapBuilderPage() {
       <AnimatePresence>
         {isBriefOpen && (
           <motion.div
-            className="fixed inset-0 z-40 flex items-center justify-center p-4 sm:p-6 overflow-auto"
+            className="fixed inset-0 z-9999 flex items-center justify-center"
+            style={{ zoom: 1 }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
             <motion.div
-              className="absolute inset-0 bg-gradient-to-b from-black/55 to-black/35 backdrop-blur-[2px]"
+              className="absolute inset-0 bg-linear-to-b from-black/55 to-black/35 backdrop-blur-xs"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsBriefOpen(false)}
             />
             <motion.div
-              className="relative z-50 w-[min(960px,94vw)] max-h-[80vh] p-[1px] rounded-xl bg-gradient-to-r from-[#ff9933] via-[#e91e63] to-[#ff1744] shadow-[0_18px_48px_rgba(0,0,0,0.22)] self-center my-auto"
+              className="relative z-50 w-[min(820px,90vw)] h-[min(600px,85vh)] p-px rounded-xl bg-linear-to-r from-[#ff9933] via-[#e91e63] to-[#ff1744] shadow-[0_18px_48px_rgba(0,0,0,0.22)]"
               initial={{ scale: 0.94, y: 8, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.98, y: 8, opacity: 0 }}
@@ -401,7 +410,7 @@ function RoadmapBuilderPage() {
               role="dialog"
               aria-modal="true"
             >
-              <div className="relative rounded-xl bg-[#f6f7f8]/95 backdrop-blur-xl overflow-hidden flex flex-col">
+              <div className="relative rounded-xl bg-[#f6f7f8]/95 backdrop-blur-xl overflow-hidden flex flex-col h-full">
                 {/* Decorative blobs */}
                 <motion.div
                   className="pointer-events-none absolute -top-24 -left-24 w-[300px] h-[300px] bg-[#ff993326] rounded-full blur-3xl"
@@ -426,7 +435,7 @@ function RoadmapBuilderPage() {
                 <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between bg-white/85 backdrop-blur">
                   <div className="flex items-center gap-2.5">
                     <img src={Logo} alt="Prodigy Logo" className="h-6" />
-                    <h2 className="text-lg font-semibold text-transparent bg-clip-text bg-gradient-to-r from-[#333438] to-[#5b5d65]">
+                    <h2 className="text-lg font-semibold text-transparent bg-clip-text bg-linear-to-r from-[#333438] to-[#5b5d65]">
                       Project Brief
                     </h2>
                   </div>
@@ -449,7 +458,7 @@ function RoadmapBuilderPage() {
                     />
                     <div className="w-20 h-1 bg-gray-200 rounded-full mx-2 overflow-hidden mt-[-18px]">
                       <motion.div
-                        className="h-full bg-gradient-to-r from-[#ff9933] to-[#e91e63]"
+                        className="h-full bg-linear-to-r from-[#ff9933] to-[#e91e63]"
                         initial={{ width: "0%" }}
                         animate={{ width: briefStep > 1 ? "100%" : "0%" }}
                         transition={{ duration: 0.5, ease: "easeInOut" }}
@@ -510,7 +519,7 @@ function RoadmapBuilderPage() {
                     </div>
 
                     {/* Right Form */}
-                    <div className="min-h-[320px] pb-2.5">
+                    <div className="min-h-80 pb-2.5">
                       <AnimatePresence mode="wait">
                         {briefStep === 1 && (
                           <motion.div
@@ -557,14 +566,14 @@ function RoadmapBuilderPage() {
                   {briefStep < 2 ? (
                     <button
                       onClick={nextStep}
-                      className="px-4 py-2 text-sm bg-gradient-to-r from-[#ff9933] to-[#ff6b35] text-white rounded-md font-semibold shadow-sm hover:shadow-lg hover:brightness-105 transition-all"
+                      className="px-4 py-2 text-sm bg-linear-to-r from-[#ff9933] to-[#ff6b35] text-white rounded-md font-semibold shadow-sm hover:shadow-lg hover:brightness-105 transition-all"
                     >
                       Next
                     </button>
                   ) : (
                     <button
                       onClick={nextStep}
-                      className="px-4 py-2 text-sm bg-gradient-to-r from-[#e91e63] to-[#ff1744] text-white rounded-md font-semibold shadow-sm hover:shadow-lg hover:brightness-105 transition-all"
+                      className="px-4 py-2 text-sm bg-linear-to-r from-[#e91e63] to-[#ff1744] text-white rounded-md font-semibold shadow-sm hover:shadow-lg hover:brightness-105 transition-all"
                     >
                       Build Roadmap
                     </button>
@@ -618,7 +627,7 @@ function StepIndicator({
       <div className="relative">
         {/* Glow ring */}
         <motion.div
-          className={`absolute -inset-2 rounded-full blur-md opacity-60 bg-gradient-to-r ${glowGradient}`}
+          className={`absolute -inset-2 rounded-full blur-md opacity-60 bg-linear-to-r ${glowGradient}`}
           initial={false}
           animate={{
             opacity: isActive || isCompleted ? 0.7 : 0,
