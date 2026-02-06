@@ -4,6 +4,7 @@ import {
   Plus,
   Settings,
   Download,
+  ArrowLeft,
 } from "lucide-react";
 import {
   DndContext,
@@ -104,6 +105,7 @@ interface RoadmapCanvasProps {
   roadmap: Roadmap;
   milestones: RoadmapMilestone[];
   epics: RoadmapEpic[];
+  projectTitle?: string;
   onUpdateRoadmap: (roadmap: Roadmap) => void;
   onAddMilestone: () => void;
   onUpdateMilestone: (milestone: RoadmapMilestone) => void;
@@ -130,6 +132,7 @@ const RoadmapCanvas = ({
   roadmap,
   milestones,
   epics,
+  projectTitle,
   onUpdateRoadmap: _onUpdateRoadmap,
   onAddMilestone: _onAddMilestone,
   onUpdateMilestone,
@@ -404,6 +407,47 @@ const RoadmapCanvas = ({
 
   return (
     <div className="relative h-full bg-white flex flex-col">
+      {/* Header */}
+      <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0">
+        <div className="flex items-center">
+          <button
+            onClick={() => window.history.back()}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Go back"
+          >
+            <ArrowLeft className="w-5 h-5 text-gray-700" />
+          </button>
+          <h1 className="ml-4 text-lg font-semibold text-gray-900">
+            {projectTitle || "Untitled Project"}
+          </h1>
+        </div>
+        
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2">
+          {onEditBrief && (
+            <button
+              onClick={onEditBrief}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors border border-gray-300"
+              title="Edit Project Brief"
+            >
+              <Settings className="w-4 h-4" />
+              Project Brief
+            </button>
+          )}
+          
+          {onExport && (
+            <button
+              onClick={onExport}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors"
+              title="Export Roadmap"
+            >
+              <Download className="w-4 h-4" />
+              Export
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* View Mode Tabs - Figma Design */}
       <div className="bg-gray-100 border-b border-gray-200 flex items-center px-6 overflow-x-auto">
         <button
@@ -469,35 +513,6 @@ const RoadmapCanvas = ({
 
       {/* View Content */}
       <div className="flex-1 relative overflow-hidden">
-        {viewMode === "roadmap" && (
-          <div
-            className="absolute right-4 top-4 z-40 bg-white rounded-lg shadow-lg border border-gray-200"
-          >
-            <div className="flex items-center gap-1 p-1">
-              {/* Edit Brief Button */}
-              {onEditBrief && (
-                <button
-                  onClick={onEditBrief}
-                  className="p-1.5 hover:bg-gray-100 rounded transition-colors"
-                  title="Edit Brief"
-                >
-                  <Settings className="w-3.5 h-3.5 text-gray-600" />
-                </button>
-              )}
-
-              {/* Export Button */}
-              {onExport && (
-                <button
-                  onClick={onExport}
-                  className="p-1.5 hover:bg-orange-50 rounded transition-colors"
-                  title="Export"
-                >
-                  <Download className="w-3.5 h-3.5 text-orange-500" />
-                </button>
-              )}
-            </div>
-          </div>
-        )}
         {viewMode === "roadmap" && epics.length === 0 ? (
           // Empty state - no epics
           <div className="flex flex-col bg-[#F9F9F9] items-center justify-center h-full">

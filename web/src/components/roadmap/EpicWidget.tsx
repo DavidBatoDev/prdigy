@@ -40,20 +40,19 @@ export const EpicWidget = memo(({ data }: NodeProps<EpicWidgetNode>) => {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
     >
-      {/* Handle at top for connecting from previous epic */}
+      {/* Invisible handles for edge connections */}
       <Handle
         type="target"
         position={Position.Top}
         id="epic-top"
-        className="w-3 h-3 bg-gray-400 border-2 border-white"
+        className="w-3 h-3 opacity-0"
       />
 
-      {/* Handle at bottom for connecting to next epic */}
       <Handle
         type="source"
         position={Position.Bottom}
         id="epic-bottom"
-        className="w-3 h-3 bg-gray-400 border-2 border-white"
+        className="w-3 h-3 opacity-0"
       />
 
       {/* Handle for connecting to features */}
@@ -61,7 +60,7 @@ export const EpicWidget = memo(({ data }: NodeProps<EpicWidgetNode>) => {
         type="source"
         position={Position.Right}
         id="epic-right"
-        className="w-3 h-3 bg-gray-400 border-2 border-white"
+        className="w-3 h-3 opacity-0"
       />
 
       {/* Add Feature button (right side) */}

@@ -81,16 +81,16 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
         </div>
       )}
 
-      {/* Handles for connecting */}
+      {/* Invisible handles for edge connections */}
       <Handle
         type="target"
         position={Position.Left}
-        className="w-3 h-3 bg-amber-400 border-2 border-white"
+        className="w-3 h-3 opacity-0"
       />
       <Handle
         type="source"
         position={Position.Right}
-        className="w-3 h-3 bg-amber-400 border-2 border-white"
+        className="w-3 h-3 opacity-0"
       />
 
       <div className="p-10 flex flex-col h-full">

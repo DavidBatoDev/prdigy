@@ -7,7 +7,6 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
-  ArrowLeft,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -199,14 +198,28 @@ function RoadmapBuilderPage() {
       description: epicInput?.description || "",
       priority: epicInput?.priority || "medium",
       status: epicInput?.status || "backlog",
-      position: epics.length,
+      position: epicInput?.position ?? epics.length,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       progress: 0,
       features: [],
+      // Spread any other input properties (like tags/labels)
+      ...epicInput,
     };
 
-    setEpics([...epics, newEpic]);
+    // If implementing insert logic
+    if (newEpic.position < epics.length) {
+      // We need to shift epics at or after this position
+      const updatedEpics = epics.map((e) => {
+        if (e.position >= newEpic.position!) {
+          return { ...e, position: e.position + 1 };
+        }
+        return e;
+      });
+      setEpics([...updatedEpics, newEpic]);
+    } else {
+      setEpics([...epics, newEpic]);
+    }
   };
 
   const handleUpdateEpic = (updatedEpic: RoadmapEpic) => {
@@ -280,33 +293,34 @@ function RoadmapBuilderPage() {
   };
 
   const handleDeleteFeature = (featureId: string) => {
-    // Placeholder for feature deletion
-    console.log("Delete feature:", featureId);
+    // Find epic containing feature
+    const epic = epics.find((e) =>
+      e.features?.some((f) => f.id === featureId),
+    );
+    if (!epic) return;
+
+    setEpics(
+      epics.map((e) =>
+        e.id === epic.id
+          ? {
+              ...e,
+              features: e.features?.filter((f) => f.id !== featureId),
+              updated_at: new Date().toISOString(),
+            }
+          : e,
+      ),
+    );
   };
 
   return (
     <div className="min-h-screen bg-[#f6f7f8] relative overflow-hidden">
-      {/* Header matching Figma design */}
-      <div className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-gray-200 z-50 flex items-center px-6">
-        <button
-          onClick={() => window.history.back()}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          title="Go back"
-        >
-          <ArrowLeft className="w-5 h-5 text-gray-700" />
-        </button>
-        <h1 className="ml-4 text-lg font-semibold text-gray-900">
-          {formData.title || "Untitled Project"}
-        </h1>
-      </div>
-
       {/* Local style to hide scrollbar UI while preserving scroll */}
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
       {/* Builder Console always visible */}
-      <div className="fixed top-16 left-0 right-0 bottom-0 flex">
+      <div className="fixed top-0 left-0 right-0 bottom-0 flex">
         {/* Left: Chat Sidebar (collapsible) */}
         <motion.div
           id="roadmap-chat-panel"
@@ -350,6 +364,7 @@ function RoadmapBuilderPage() {
         {/* Right: Roadmap Canvas */}
         <div className="flex-1">
           <RoadmapCanvas
+            projectTitle={formData.title || "Untitled Project"}
             roadmap={{
               id: "roadmap-main",
               project_id: "project-main",

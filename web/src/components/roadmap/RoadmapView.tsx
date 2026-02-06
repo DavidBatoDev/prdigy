@@ -357,13 +357,16 @@ export const RoadmapView = ({
           type: "simplebezier",
         }}
       >
-        <Controls />
+        <Controls position="top-right" />
         <MiniMap
+          position="bottom-right"
+          nodeStrokeWidth={3}
           nodeColor={(node) => {
             if (node.type === "epicWidget") return "#9ca3af";
             if (node.type === "featureWidget") return "#f59e0b";
             return "#6b7280";
           }}
+          maskColor="rgba(0, 0, 0, 0.1)"
           className="bg-white border border-gray-300 rounded-lg"
         />
       </ReactFlow>
