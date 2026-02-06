@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import {
   ReactFlow,
-  Background,
   Controls,
   MiniMap,
   type Node,
@@ -17,7 +16,6 @@ import type { Roadmap, RoadmapEpic, RoadmapFeature } from "@/types/roadmap";
 interface RoadmapViewProps {
   roadmap: Roadmap;
   epics: RoadmapEpic[];
-  showGrid?: boolean;
   onUpdateEpic: (epic: RoadmapEpic) => void;
   onDeleteEpic: (epicId: string) => void;
   onUpdateFeature: (feature: RoadmapFeature) => void;
@@ -167,7 +165,6 @@ const getLayoutedElements = (
 
 export const RoadmapView = ({
   epics,
-  showGrid = true,
   onUpdateEpic,
   onDeleteEpic,
   onUpdateFeature,
@@ -330,7 +327,7 @@ export const RoadmapView = ({
   }, []);
 
   return (
-    <div className="w-full h-full bg-white relative">
+    <div className="w-full h-full bg-[#F5F5F5] relative">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -360,14 +357,6 @@ export const RoadmapView = ({
           type: "simplebezier",
         }}
       >
-        {showGrid && (
-          <Background
-            color="#94a3b8"
-            gap={16}
-            size={1}
-            variant="dots"
-          />
-        )}
         <Controls />
         <MiniMap
           nodeColor={(node) => {

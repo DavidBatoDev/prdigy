@@ -85,7 +85,7 @@ export const EpicWidget = memo(({ data }: NodeProps<EpicWidgetNode>) => {
             e.stopPropagation();
             onAddEpicBelow(epic.id);
           }}
-          className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-primary text-white rounded-full flex items-center justify-center hover:bg-primary/90 transition-all duration-200 ease-out shadow-md z-10 opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 cursor-pointer"
+          className="cursor-pointer absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-primary text-white rounded-full flex items-center justify-center hover:bg-primary/90 transition-all duration-200 ease-out shadow-md z-10 opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 cursor-pointer"
           title="Add Epic Below"
         >
           <Plus className="w-4 h-4" />
@@ -156,7 +156,7 @@ export const EpicWidget = memo(({ data }: NodeProps<EpicWidgetNode>) => {
             ref={descriptionRef}
             className="relative mb-3 grow overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            <div className="text-xs text-gray-600 whitespace-pre-line leading-relaxed">
+            <div className="text-md text-gray-600 whitespace-pre-line leading-relaxed">
               {epic.description}
             </div>
             {hasOverflow && (

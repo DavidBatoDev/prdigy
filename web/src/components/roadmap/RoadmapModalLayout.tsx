@@ -5,6 +5,7 @@ import {
   type ReactNode,
   type FormEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import { X, Plus, Calendar, Paperclip } from "lucide-react";
 
 interface RoadmapModalLayoutProps {
@@ -21,6 +22,7 @@ interface RoadmapModalLayoutProps {
   commentPlaceholder?: string;
   rightPanelTabs?: { id: string; label: string; content: ReactNode }[];
   defaultRightPanelTabId?: string;
+  autoFocusTitle?: boolean;
 }
 
 export const RoadmapModalLayout = ({
@@ -37,6 +39,7 @@ export const RoadmapModalLayout = ({
   commentPlaceholder = "Write a comment...",
   rightPanelTabs,
   defaultRightPanelTabId,
+  autoFocusTitle,
 }: RoadmapModalLayoutProps) => {
   if (!isOpen) return null;
 
@@ -82,8 +85,10 @@ export const RoadmapModalLayout = ({
     setActiveTabId(defaultRightPanelTabId ?? tabs[0]?.id ?? "");
   }, [isOpen, defaultRightPanelTabId, tabIdsSignature]);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+  if (!isOpen) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-60 flex items-center justify-center">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
@@ -101,6 +106,7 @@ export const RoadmapModalLayout = ({
               />
               <input
                 type="text"
+                autoFocus={autoFocusTitle}
                 value={title}
                 onChange={(e) => onTitleChange(e.target.value)}
                 placeholder={titlePlaceholder}
@@ -178,6 +184,7 @@ export const RoadmapModalLayout = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

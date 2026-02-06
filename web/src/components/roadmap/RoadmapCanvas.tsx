@@ -4,7 +4,6 @@ import {
   Plus,
   Settings,
   Download,
-  Grid3x3,
 } from "lucide-react";
 import {
   DndContext,
@@ -148,7 +147,6 @@ const RoadmapCanvas = ({
   const [selectedEpic, setSelectedEpic] = useState<string | null>(null);
   const [openEpicTabs, setOpenEpicTabs] = useState<string[]>([]); // Track opened epic tabs
   const [selectedFeature, setSelectedFeature] = useState<string | null>(null);
-  const [showGrid, setShowGrid] = useState(true);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [sidePanelOpen, setSidePanelOpen] = useState(false);
   const [targetFeatureForTask, setTargetFeatureForTask] = useState<
@@ -407,7 +405,7 @@ const RoadmapCanvas = ({
   return (
     <div className="relative h-full bg-white flex flex-col">
       {/* View Mode Tabs - Figma Design */}
-      <div className="bg-white border-b border-gray-200 flex items-center px-6 overflow-x-auto">
+      <div className="bg-gray-100 border-b border-gray-200 flex items-center px-6 overflow-x-auto">
         <button
           onClick={() => {
             setViewMode("roadmap");
@@ -476,26 +474,6 @@ const RoadmapCanvas = ({
             className="absolute right-4 top-4 z-40 bg-white rounded-lg shadow-lg border border-gray-200"
           >
             <div className="flex items-center gap-1 p-1">
-              {/* Grid Toggle Button */}
-              <button
-                onClick={() => setShowGrid(!showGrid)}
-                className={`p-1.5 rounded transition-colors ${
-                  showGrid
-                    ? "bg-blue-50 hover:bg-blue-100"
-                    : "hover:bg-gray-100"
-                }`}
-                title={showGrid ? "Hide Grid" : "Show Grid"}
-              >
-                <Grid3x3
-                  className={`w-3.5 h-3.5 ${
-                    showGrid ? "text-blue-600" : "text-gray-600"
-                  }`}
-                />
-              </button>
-
-              {/* Divider */}
-              <div className="w-px h-5 bg-gray-200" />
-
               {/* Edit Brief Button */}
               {onEditBrief && (
                 <button
@@ -549,7 +527,6 @@ const RoadmapCanvas = ({
           <RoadmapView
             roadmap={roadmap}
             epics={epics}
-            showGrid={showGrid}
             onUpdateEpic={onUpdateEpic}
             onDeleteEpic={handleDeleteEpic}
             onUpdateFeature={onUpdateFeature}

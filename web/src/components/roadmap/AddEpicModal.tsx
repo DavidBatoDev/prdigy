@@ -277,13 +277,14 @@ export const AddEpicModal = ({
       onClose={onClose}
       title={title}
       onTitleChange={setTitle}
-      titlePlaceholder="Epic title"
+      titlePlaceholder="Title"
       onSubmit={handleSubmit}
       body={body}
       footer={footer}
       canComment={Boolean(user)}
       rightPanelTabs={rightPanelTabs}
       defaultRightPanelTabId="features"
+      autoFocusTitle={true}
     />
   );
 };
