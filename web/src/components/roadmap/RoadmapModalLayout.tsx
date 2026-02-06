@@ -143,7 +143,7 @@ export const RoadmapModalLayout = ({
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto px-12 pb-8">
+          <div className="flex-1 overflow-y-auto px-12 pb-8 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {body}
             {footer}
           </div>

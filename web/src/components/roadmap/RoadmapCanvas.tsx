@@ -500,7 +500,7 @@ const RoadmapCanvas = ({
         )}
         {viewMode === "roadmap" && epics.length === 0 ? (
           // Empty state - no epics
-          <div className="flex flex-col items-center justify-center h-full">
+          <div className="flex flex-col bg-[#F9F9F9] items-center justify-center h-full">
             <div className="text-center max-w-md">
               <div className="mb-4">
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
@@ -712,6 +712,7 @@ const RoadmapCanvas = ({
                     ?.description,
                   priority: epics.find((e) => e.id === editingEpicId)?.priority,
                   tags: epics.find((e) => e.id === editingEpicId)?.tags,
+                  labels: epics.find((e) => e.id === editingEpicId)?.labels, // ✅ Add labels
                   features: epics.find((e) => e.id === editingEpicId)?.features,
                 }
               : undefined

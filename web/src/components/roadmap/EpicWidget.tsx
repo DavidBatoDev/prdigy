@@ -156,24 +156,35 @@ export const EpicWidget = memo(({ data }: NodeProps<EpicWidgetNode>) => {
             ref={descriptionRef}
             className="relative mb-3 grow overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            <div className="text-md text-gray-600 whitespace-pre-line leading-relaxed">
-              {epic.description}
-            </div>
+            <div
+              className="text-sm text-gray-600 leading-relaxed prose prose-sm max-w-none"
+              dangerouslySetInnerHTML={{ __html: epic.description }}
+            />
             {hasOverflow && (
               <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-linear-to-t from-white to-white/0" />
             )}
           </div>
         )}
 
-        {/* Tags */}
-        {(epic.tags && epic.tags.length > 0) || epic.priority ? (
+        {/* Labels */}
+        {((epic.labels && epic.labels.length > 0) || (epic.tags && epic.tags.length > 0)) && (
           <div className="flex flex-wrap items-center gap-2 mb-3 shrink-0">
-            {epic.priority && (
-              <span className="px-2 py-1 text-xs font-semibold rounded-full border border-purple-100 bg-purple-50 text-purple-700">
-                Priority: {epic.priority.replace(/_/g, " ")}
+            {/* Display labels if available */}
+            {epic.labels?.map((label) => (
+              <span
+                key={label.id}
+                className="px-2 py-1 text-xs font-medium rounded-full border"
+                style={{
+                  backgroundColor: label.color,
+                  color: getContrastColor(label.color),
+                  borderColor: adjustColorBrightness(label.color, -20),
+                }}
+              >
+                {label.name}
               </span>
-            )}
-            {epic.tags?.map((tag) => (
+            ))}
+            {/* Fallback to tags if no labels */}
+            {!epic.labels && epic.tags?.map((tag) => (
               <span
                 key={tag}
                 className="px-2 py-1 text-xs font-medium bg-blue-50 text-blue-700 rounded-full border border-blue-100"
@@ -182,7 +193,7 @@ export const EpicWidget = memo(({ data }: NodeProps<EpicWidgetNode>) => {
               </span>
             ))}
           </div>
-        ) : null}
+        )}
 
         {/* Progress Bar */}
         {epic.progress !== undefined && (
@@ -214,3 +225,35 @@ export const EpicWidget = memo(({ data }: NodeProps<EpicWidgetNode>) => {
 });
 
 EpicWidget.displayName = "EpicWidget";
+
+// Helper function to determine text color based on background
+function getContrastColor(hexColor: string): string {
+  // Convert hex to RGB
+  const r = parseInt(hexColor.slice(1, 3), 16);
+  const g = parseInt(hexColor.slice(3, 5), 16);
+  const b = parseInt(hexColor.slice(5, 7), 16);
+
+  // Calculate luminance
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+  // Return black or white based on luminance
+  return luminance > 0.5 ? "#000000" : "#FFFFFF";
+}
+
+// Helper function to adjust color brightness
+function adjustColorBrightness(hexColor: string, percent: number): string {
+  const r = parseInt(hexColor.slice(1, 3), 16);
+  const g = parseInt(hexColor.slice(3, 5), 16);
+  const b = parseInt(hexColor.slice(5, 7), 16);
+
+  const adjust = (value: number) => {
+    const adjusted = value + (value * percent) / 100;
+    return Math.max(0, Math.min(255, Math.round(adjusted)));
+  };
+
+  const newR = adjust(r).toString(16).padStart(2, "0");
+  const newG = adjust(g).toString(16).padStart(2, "0");
+  const newB = adjust(b).toString(16).padStart(2, "0");
+
+  return `#${newR}${newG}${newB}`;
+}

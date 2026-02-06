@@ -3,6 +3,10 @@ import { Plus } from "lucide-react";
 import type { EpicPriority, RoadmapFeature } from "@/types/roadmap";
 import { useUser } from "@/auth";
 import { RoadmapModalLayout } from "./RoadmapModalLayout";
+import { RichTextEditor } from "@/components/common/RichTextEditor";
+import { LabelSelector } from "@/components/common/LabelSelector";
+import type { Label } from "@/types/label";
+import { LABEL_COLORS } from "@/types/label";
 
 interface AddEpicModalProps {
   isOpen: boolean;
@@ -12,6 +16,7 @@ interface AddEpicModalProps {
     description: string;
     priority: EpicPriority;
     tags: string[];
+    labels?: Label[]; // Add labels field
   }) => void;
   onAddFeature?: () => void;
   initialData?: {
@@ -19,6 +24,7 @@ interface AddEpicModalProps {
     description?: string;
     priority?: EpicPriority;
     tags?: string[];
+    labels?: Label[]; // Add labels field
     features?: RoadmapFeature[];
   };
   titleText?: string;
@@ -38,66 +44,58 @@ export const AddEpicModal = ({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState<EpicPriority>("medium");
-  const [tagsInput, setTagsInput] = useState("");
+  const [labels, setLabels] = useState<Label[]>([]);
 
   useEffect(() => {
     if (isOpen) {
       setTitle(initialData?.title ?? "");
       setDescription(initialData?.description ?? "");
       setPriority(initialData?.priority ?? "medium");
-      setTagsInput(initialData?.tags?.join(", ") ?? "");
+      
+      // Use labels if available, otherwise convert tags for backward compatibility
+      if (initialData?.labels) {
+        setLabels(initialData.labels);
+      } else if (initialData?.tags) {
+        // Convert legacy tags to labels
+        const existingLabels: Label[] = initialData.tags.map((tag, idx) => ({
+          id: `label-${idx}`,
+          name: tag,
+          color: LABEL_COLORS[idx % LABEL_COLORS.length],
+        }));
+        setLabels(existingLabels);
+      } else {
+        setLabels([]);
+      }
     }
   }, [isOpen, initialData]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    const tags = tagsInput
-      .split(",")
-      .map((tag) => tag.trim())
-      .filter((tag) => tag.length > 0);
+    
+    // Submit both labels and tags for backward compatibility
+    const tags = labels.map((label) => label.name);
 
     onSubmit({
       title,
       description,
       priority,
       tags,
+      labels, // Include full label objects with colors
     });
   };
 
   if (!isOpen) return null;
-
-  const tags = tagsInput
-    .split(",")
-    .map((tag) => tag.trim())
-    .filter((tag) => tag.length > 0);
 
   const body = (
     <>
       {/* Labels */}
       <div className="mb-6">
         <h3 className="text-sm font-semibold text-gray-900 mb-2">Labels</h3>
-        <div className="flex items-center gap-2 flex-wrap">
-          {tags.map((tag, idx) => (
-            <span
-              key={idx}
-              className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-md text-sm"
-            >
-              {tag}
-            </span>
-          ))}
-          <button
-            type="button"
-            className="inline-flex items-center gap-1 px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
-            onClick={() => {
-              const newTag = prompt("Enter tag name:");
-              if (newTag) {
-                setTagsInput(tagsInput ? `${tagsInput}, ${newTag}` : newTag);
-              }
-            }}
-          >
-            Add tag
-          </button>
-        </div>
+        <LabelSelector
+          selectedLabels={labels}
+          onLabelsChange={setLabels}
+          availableLabels={[]}
+        />
       </div>
 
       {/* Priority */}
@@ -121,12 +119,24 @@ export const AddEpicModal = ({
         <h3 className="text-sm font-semibold text-gray-900 mb-2">
           Description
         </h3>
-        <textarea
+        <RichTextEditor
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={setDescription}
           placeholder="Add a more detailed description..."
-          rows={6}
-          className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+          tools={[
+            "textFormat",
+            "bold",
+            "italic",
+            "more",
+            "separator",
+            "bulletList",
+            "numberedList",
+            "separator",
+            "link",
+            "image",
+          ]}
+          minHeight="200px"
+          maxHeight="300px"
         />
       </div>
     </>

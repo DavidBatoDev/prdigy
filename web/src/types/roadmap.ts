@@ -85,7 +85,8 @@ export interface RoadmapEpic {
   start_date?: string;
   due_date?: string;
   completed_date?: string;
-  tags?: string[];
+  tags?: string[]; // Legacy: kept for backward compatibility
+  labels?: Array<{ id: string; name: string; color: string }>; // New: label objects with colors
   created_at: string;
   updated_at: string;
   // Computed fields
