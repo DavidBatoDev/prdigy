@@ -67,31 +67,32 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
   }, [feature.description]);
 
   return (
-    <motion.div
-      className="relative bg-white border-2 border-amber-300 rounded-4xl shadow-md hover:shadow-lg transition-all w-[500px] max-h-[320px] flex flex-col cursor-pointer hover:border-amber-400"
-      onClick={() => onClick?.(feature)}
-      initial={{ opacity: 0, y: 12, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.25, ease: "easeOut" }}
-    >
-      {/* Deliverable indicator */}
-      {feature.is_deliverable && (
-        <div className="absolute -top-2 -right-2 w-6 h-6 bg-amber-500 text-white rounded-full flex items-center justify-center text-xs font-bold shadow">
-          ★
-        </div>
-      )}
+    <>
+      <motion.div
+        className="relative bg-white border-2 border-amber-300 rounded-4xl shadow-md hover:shadow-lg transition-all w-[500px] max-h-[320px] flex flex-col cursor-pointer hover:border-amber-400"
+        onClick={() => onClick?.(feature)}
+        initial={{ opacity: 0, y: 12, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.25, ease: "easeOut" }}
+      >
+        {/* Deliverable indicator */}
+        {feature.is_deliverable && (
+          <div className="absolute -top-2 -right-2 w-6 h-6 bg-amber-500 text-white rounded-full flex items-center justify-center text-xs font-bold shadow">
+            ★
+          </div>
+        )}
 
-      {/* Invisible handles for edge connections */}
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="w-3 h-3 opacity-0"
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-        className="w-3 h-3 opacity-0"
-      />
+        {/* Invisible handles for edge connections */}
+        <Handle
+          type="target"
+          position={Position.Left}
+          className="w-3 h-3 opacity-0"
+        />
+        <Handle
+          type="source"
+          position={Position.Right}
+          className="w-3 h-3 opacity-0"
+        />
 
       <div className="p-10 flex flex-col h-full">
         {/* Header */}
@@ -134,13 +135,12 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
 
         {/* Description */}
         {feature.description && (
-          <div className="relative mb-2">
-            <p
-              ref={descriptionRef}
-              className="text-xs text-gray-600 max-h-[88px] overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            >
-              {feature.description}
-            </p>
+          <div className="relative mb-2 grow overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div
+              ref={descriptionRef as any}
+              className="text-xs text-gray-600 prose prose-sm max-w-none [&>p]:mb-1 [&>ul]:list-disc [&>ul]:pl-4 [&>ol]:list-decimal [&>ol]:pl-4"
+              dangerouslySetInnerHTML={{ __html: feature.description }}
+            />
             {hasOverflow && (
               <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-white to-white/0" />
             )}
@@ -200,6 +200,21 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
         )}
       </div>
     </motion.div>
+
+    {/* Connecting line and Task Count Node - only show if there are tasks */}
+    {taskCount > 0 && (
+      <>
+        {/* Connecting line from feature to task count */}
+        <div className="absolute top-1/2 -translate-y-1/2 left-[500px] w-10 h-0.5 bg-emerald-400" />
+
+        {/* Task Count Node - positioned to the right */}
+        <div className="absolute top-1/2 -translate-y-1/2 left-[540px] w-16 h-16 bg-emerald-500 rounded-full flex flex-col items-center justify-center shadow-md border-2 border-white">
+          <span className="text-xl font-bold text-white">{taskCount}</span>
+          <span className="text-[9px] text-white/90 font-medium">TASKS</span>
+        </div>
+      </>
+    )}
+  </>
   );
 });
 

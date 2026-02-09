@@ -124,34 +124,16 @@ export interface RoadmapTask {
   id: string;
   feature_id: string;
   title: string;
-  description?: string;
-  assignee_id?: string;
-  reporter_id?: string;
   status: TaskStatus;
   priority: TaskPriority;
   position: number;
-  estimated_hours?: number;
-  actual_hours?: number;
   due_date?: string;
   completed_at?: string;
-  labels?: string[];
-  checklist?: ChecklistItem[];
-  background_color?: string;
   created_at: string;
   updated_at: string;
-  // Populated fields
-  assignee?: {
-    id: string;
-    display_name?: string;
-    avatar_url?: string;
-  };
 }
 
-export interface ChecklistItem {
-  id: string;
-  text: string;
-  completed: boolean;
-}
+
 
 export interface TaskComment {
   id: string;

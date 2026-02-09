@@ -181,7 +181,7 @@ export const RoadmapView = ({
 
   const DEFAULT_VIEWPORT_X = -50;
   const DEFAULT_VIEWPORT_Y = 0;
-  const MAX_ZOOM = 1.2;
+  const MAX_ZOOM = 1.0;
   const MIN_ZOOM = 0.4;
 
   // Helper function to get edge color based on status

@@ -7,6 +7,7 @@ import type {
 } from "@/types/roadmap";
 import { useUser } from "@/auth";
 import { RoadmapModalLayout } from "./RoadmapModalLayout";
+import { RichTextEditor } from "@/components/common/RichTextEditor";
 
 interface AddFeatureModalProps {
   isOpen: boolean;
@@ -137,12 +138,24 @@ export const AddFeatureModal = ({
         <h3 className="text-sm font-semibold text-gray-900 mb-2">
           Description
         </h3>
-        <textarea
+        <RichTextEditor
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={setDescription}
           placeholder="Add a more detailed description..."
-          rows={6}
-          className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+          tools={[
+            "textFormat",
+            "bold",
+            "italic",
+            "more",
+            "separator",
+            "bulletList",
+            "numberedList",
+            "separator",
+            "link",
+            "image",
+          ]}
+          minHeight="200px"
+          maxHeight="300px"
         />
       </div>
     </>
@@ -185,11 +198,6 @@ export const AddFeatureModal = ({
                       {task.status?.replace("_", " ") ?? ""}
                     </span>
                   </div>
-                  {task.description ? (
-                    <p className="mt-1 text-xs text-gray-600 line-clamp-2">
-                      {task.description}
-                    </p>
-                  ) : null}
                 </div>
               ))}
             </div>
