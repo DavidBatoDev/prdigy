@@ -12,24 +12,24 @@ const app = express();
 app.use(morgan("dev"));
 
 // 2. Security Middlewares
-app.use(helmet()); 
+app.use(helmet());
 app.use(
   cors({
     origin: process.env.CLIENT_URL || "http://localhost:3000",
     credentials: true,
-  })
+  }),
 );
 
 // 3. Performance & Rate Limiting
-app.use(compression()); 
+app.use(compression());
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, 
-  max: 100, 
-  standardHeaders: true, 
-  legacyHeaders: false, 
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
   message: "Too many requests from this IP, please try again after 15 minutes",
 });
-app.use("/api/", limiter); 
+app.use("/api/", limiter);
 
 // 4. Request Parsing
 app.use(express.json());
@@ -46,6 +46,7 @@ app.use("/api/projects", require("./routes/projects"));
 app.use("/api/payments", require("./routes/payments"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/users", require("./routes/users"));
+app.use("/api/guests", require("./routes/guests"));
 
 // Error handling middleware
 app.use((err, req, res, next) => {
