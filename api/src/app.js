@@ -49,7 +49,7 @@ app.use("/api/users", require("./routes/users"));
 app.use("/api/guests", require("./routes/guests"));
 
 // Roadmap Routes
-app.use("/api", require("./routes/roadmaps"));
+app.use("/api/roadmaps", require("./routes/roadmaps"));
 app.use("/api", require("./routes/milestones"));
 app.use("/api", require("./routes/epics"));
 app.use("/api", require("./routes/features"));

@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LogIn,
+  Loader2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -21,6 +22,7 @@ import { callGeminiAPI } from "@/lib/gemini";
 import { useUser } from "@/stores/authStore";
 import { getOrCreateGuestUser } from "@/lib/guestAuth";
 import { Link } from "@tanstack/react-router";
+import { createRoadmap } from "@/api";
 // Milestone type is now RoadmapMilestone from @/types/roadmap
 import type {
   RoadmapMilestone,
@@ -54,6 +56,8 @@ function RoadmapBuilderPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const [roadmapId, setRoadmapId] = useState<string | null>(null);
+  const [isCreatingRoadmap, setIsCreatingRoadmap] = useState(false);
 
   // Initialize user (authenticated or guest)
   useEffect(() => {
@@ -182,11 +186,57 @@ function RoadmapBuilderPage() {
     setFormData((prev) => ({ ...prev, ...updates }));
   };
 
-  const nextStep = () => {
+  const nextStep = async () => {
     if (briefStep < 2) {
       setBriefStep(briefStep + 1);
     } else {
+      // Create roadmap when finishing the brief
+      await handleCreateRoadmap();
       setIsBriefOpen(false);
+    }
+  };
+
+  const handleCreateRoadmap = async () => {
+    if (!currentUserId || roadmapId) return; // Already created or no user
+
+    setIsCreatingRoadmap(true);
+    try {
+      const roadmap = await createRoadmap({
+        name: formData.title || "Untitled Roadmap",
+        description: formData.description,
+        project_id: null, // Guest roadmaps don't have projects
+        status: "draft",
+        settings: {
+          category: formData.category,
+          problemSolving: formData.problemSolving,
+          projectState: formData.projectState,
+          skills: [...formData.skills, ...formData.customSkills],
+          duration: formData.duration,
+        },
+      });
+
+      setRoadmapId(roadmap.id);
+      console.log("Roadmap created:", roadmap);
+
+      // Add success message to chat
+      const successMessage: Message = {
+        id: Date.now().toString(),
+        role: "assistant",
+        content: `Great! I've created your roadmap "${roadmap.name}". Now let's start building out the milestones and epics. What would you like to focus on first?`,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, successMessage]);
+    } catch (error) {
+      console.error("Failed to create roadmap:", error);
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        role: "assistant",
+        content: "Sorry, I couldn't create the roadmap. Please try again.",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsCreatingRoadmap(false);
     }
   };
 
@@ -195,9 +245,14 @@ function RoadmapBuilderPage() {
   };
 
   const handleAddMilestone = () => {
+    if (!roadmapId) {
+      console.warn("No roadmap ID available");
+      return;
+    }
+
     const newMilestone: RoadmapMilestone = {
       id: `m${Date.now()}`,
-      roadmap_id: "default", // TODO: Use actual roadmap ID
+      roadmap_id: roadmapId,
       title: "New Milestone",
       target_date: new Date().toISOString(),
       status: "not_started",
@@ -206,6 +261,7 @@ function RoadmapBuilderPage() {
       updated_at: new Date().toISOString(),
     };
     setMilestones((prev) => [...prev, newMilestone]);
+    // TODO: Create milestone via API
   };
 
   const handleUpdateMilestone = (updated: RoadmapMilestone) => {
@@ -223,9 +279,14 @@ function RoadmapBuilderPage() {
     _milestoneId?: string,
     epicInput?: Partial<RoadmapEpic>,
   ) => {
+    if (!roadmapId) {
+      console.warn("No roadmap ID available");
+      return;
+    }
+
     const newEpic: RoadmapEpic = {
       id: `epic-${Date.now()}`,
-      roadmap_id: currentUserId || "roadmap-main", // Use actual user ID or fallback
+      roadmap_id: roadmapId,
       title: epicInput?.title?.trim() || `New Epic`,
       description: epicInput?.description || "",
       priority: epicInput?.priority || "medium",
@@ -252,6 +313,7 @@ function RoadmapBuilderPage() {
     } else {
       setEpics([...epics, newEpic]);
     }
+    // TODO: Create epic via API
   };
 
   const handleUpdateEpic = (updatedEpic: RoadmapEpic) => {
@@ -287,7 +349,7 @@ function RoadmapBuilderPage() {
 
     const newFeature = {
       id: `feature-${Date.now()}`,
-      roadmap_id: currentUserId || "roadmap-main", // Use actual user ID or fallback
+      roadmap_id: roadmapId || "temp-roadmap",
       epic_id: epicId,
       title: data.title,
       description: data.description,
@@ -344,9 +406,10 @@ function RoadmapBuilderPage() {
 
   return (
     <div className="min-h-screen bg-[#f6f7f8] relative overflow-hidden">
+
       {/* Guest User Banner */}
       {isGuest && !isLoadingUser && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-primary/90 to-primary text-white px-4 py-2 text-sm flex items-center justify-between shadow-md">
+        <div className="fixed top-0 left-0 right-0 z-50 bg-linear-to-r from-primary/90 to-primary text-white px-4 py-2 text-sm flex items-center justify-between shadow-md">
           <div className="flex items-center gap-2">
             <span className="font-medium"> Guest Mode</span>
             <span className="opacity-90">
@@ -642,9 +705,13 @@ function RoadmapBuilderPage() {
                   ) : (
                     <button
                       onClick={nextStep}
-                      className="px-4 py-2 text-sm bg-linear-to-r from-[#e91e63] to-[#ff1744] text-white rounded-md font-semibold shadow-sm hover:shadow-lg hover:brightness-105 transition-all"
+                      disabled={isCreatingRoadmap}
+                      className="px-4 py-2 text-sm bg-linear-to-r from-[#e91e63] to-[#ff1744] text-white rounded-md font-semibold shadow-sm hover:shadow-lg hover:brightness-105 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
                     >
-                      Build Roadmap
+                      {isCreatingRoadmap && (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      )}
+                      {isCreatingRoadmap ? "Creating..." : "Save Project Brief"}
                     </button>
                   )}
                 </div>
