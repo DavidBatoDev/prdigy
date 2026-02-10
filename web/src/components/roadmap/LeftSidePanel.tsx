@@ -9,12 +9,14 @@ interface LeftSidePanelProps {
   messages: Message[];
   onSendMessage: (message: string) => void;
   isGenerating?: boolean;
+  isGuest?: boolean;
 }
 
 export function LeftSidePanel({
   messages,
   onSendMessage,
   isGenerating = false,
+  isGuest = false,
 }: LeftSidePanelProps) {
   const [activeTab, setActiveTab] = useState<"assistant" | "notes">(
     "assistant",
@@ -25,7 +27,11 @@ export function LeftSidePanel({
       {/* Logo and Brand Header */}
       <div className="px-6 py-4 border-b border-gray-200">
         <div className="flex items-center gap-3 mb-2">
-          <img src="/prodigylogos/light/logovector.svg" alt="Prodigi" className="h-6" />
+          <img
+            src="/prodigylogos/light/logovector.svg"
+            alt="Prodigi"
+            className="h-6"
+          />
           <h2 className="text-lg font-semibold text-gray-900">Prodigi</h2>
         </div>
         <p className="text-sm text-gray-600">
@@ -67,13 +73,17 @@ export function LeftSidePanel({
           isGenerating={isGenerating}
         />
       ) : (
-        <NotesPanel />
+        <NotesPanel isGuest={isGuest} />
       )}
     </div>
   );
 }
 
-function NotesPanel() {
+interface NotesPanelProps {
+  isGuest?: boolean;
+}
+
+function NotesPanel({ isGuest = false }: NotesPanelProps) {
   const [notes, setNotes] = useState("");
 
   return (
@@ -98,7 +108,11 @@ function NotesPanel() {
 
       {/* Footer info */}
       <div className="px-6 py-3 border-t border-gray-200 text-xs text-gray-500">
-        <p>Auto-saved locally</p>
+        <p>
+          {isGuest
+            ? "Auto-saved locally (Guest Mode - Sign in to save permanently)"
+            : "Auto-saved locally"}
+        </p>
       </div>
     </div>
   );

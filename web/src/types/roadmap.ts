@@ -42,7 +42,7 @@ export type TaskPriority = "urgent" | "high" | "medium" | "low";
 
 export interface Roadmap {
   id: string;
-  project_id: string;
+  project_id: string | null; // Nullable for guest users without projects
   name: string;
   description?: string;
   owner_id: string;

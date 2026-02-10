@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Logo from "/prodigylogos/light/logovector.svg";
 import {
   X,
@@ -7,6 +7,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  LogIn,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -17,6 +18,9 @@ import {
 } from "@/components/roadmap/LeftSidePanel";
 import { RoadmapCanvas } from "@/components/roadmap/RoadmapCanvas";
 import { callGeminiAPI } from "@/lib/gemini";
+import { useUser } from "@/stores/authStore";
+import { getOrCreateGuestUser } from "@/lib/guestAuth";
+import { Link } from "@tanstack/react-router";
 // Milestone type is now RoadmapMilestone from @/types/roadmap
 import type {
   RoadmapMilestone,
@@ -45,6 +49,34 @@ interface FormData {
 }
 
 function RoadmapBuilderPage() {
+  // Auth state
+  const authenticatedUser = useUser();
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
+
+  // Initialize user (authenticated or guest)
+  useEffect(() => {
+    const initializeUser = async () => {
+      setIsLoadingUser(true);
+
+      if (authenticatedUser) {
+        // User is authenticated
+        setCurrentUserId(authenticatedUser.id);
+        setIsGuest(false);
+      } else {
+        // Get or create guest user
+        const guestId = await getOrCreateGuestUser();
+        setCurrentUserId(guestId);
+        setIsGuest(true);
+      }
+
+      setIsLoadingUser(false);
+    };
+
+    initializeUser();
+  }, [authenticatedUser]);
+
   // Modal state for Project Brief (Steps 1-2)
   const [isBriefOpen, setIsBriefOpen] = useState(true);
   const [briefStep, setBriefStep] = useState(1);
@@ -193,7 +225,7 @@ function RoadmapBuilderPage() {
   ) => {
     const newEpic: RoadmapEpic = {
       id: `epic-${Date.now()}`,
-      roadmap_id: "roadmap-main",
+      roadmap_id: currentUserId || "roadmap-main", // Use actual user ID or fallback
       title: epicInput?.title?.trim() || `New Epic`,
       description: epicInput?.description || "",
       priority: epicInput?.priority || "medium",
@@ -255,7 +287,7 @@ function RoadmapBuilderPage() {
 
     const newFeature = {
       id: `feature-${Date.now()}`,
-      roadmap_id: "roadmap-main",
+      roadmap_id: currentUserId || "roadmap-main", // Use actual user ID or fallback
       epic_id: epicId,
       title: data.title,
       description: data.description,
@@ -294,9 +326,7 @@ function RoadmapBuilderPage() {
 
   const handleDeleteFeature = (featureId: string) => {
     // Find epic containing feature
-    const epic = epics.find((e) =>
-      e.features?.some((f) => f.id === featureId),
-    );
+    const epic = epics.find((e) => e.features?.some((f) => f.id === featureId));
     if (!epic) return;
 
     setEpics(
@@ -314,13 +344,35 @@ function RoadmapBuilderPage() {
 
   return (
     <div className="min-h-screen bg-[#f6f7f8] relative overflow-hidden">
+      {/* Guest User Banner */}
+      {isGuest && !isLoadingUser && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-primary/90 to-primary text-white px-4 py-2 text-sm flex items-center justify-between shadow-md">
+          <div className="flex items-center gap-2">
+            <span className="font-medium"> Guest Mode</span>
+            <span className="opacity-90">
+              Your roadmap will be saved for 30 days. Sign in to save
+              permanently.
+            </span>
+          </div>
+          <Link
+            to="/auth/signup"
+            className="flex items-center gap-2 px-4 py-1.5 bg-white text-primary rounded-md hover:bg-gray-50 transition-colors font-medium"
+          >
+            <LogIn className="w-4 h-4" />
+            Sign In
+          </Link>
+        </div>
+      )}
+
       {/* Local style to hide scrollbar UI while preserving scroll */}
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
       {/* Builder Console always visible */}
-      <div className="fixed top-0 left-0 right-0 bottom-0 flex">
+      <div
+        className={`fixed ${isGuest && !isLoadingUser ? "top-12" : "top-0"} left-0 right-0 bottom-0 flex`}
+      >
         {/* Left: Chat Sidebar (collapsible) */}
         <motion.div
           id="roadmap-chat-panel"
@@ -335,6 +387,7 @@ function RoadmapBuilderPage() {
               messages={messages}
               onSendMessage={handleSendMessage}
               isGenerating={isGenerating}
+              isGuest={isGuest}
             />
           ) : (
             <div className="h-full w-full flex items-center justify-center">
@@ -366,12 +419,12 @@ function RoadmapBuilderPage() {
           <RoadmapCanvas
             projectTitle={formData.title || "Untitled Project"}
             roadmap={{
-              id: "roadmap-main",
-              project_id: "project-main",
+              id: currentUserId || "roadmap-main", // Use actual user ID as roadmap ID
+              project_id: null, // Guest users don't have projects yet
               name: formData.title || "Project Roadmap",
               description: formData.description,
-              owner_id: "user-main",
-              status: "active",
+              owner_id: currentUserId || "user-main", // Use actual user ID
+              status: "draft", // Guest roadmaps start as drafts
               start_date: new Date().toISOString(),
               end_date: new Date(
                 Date.now() + 90 * 24 * 60 * 60 * 1000,
