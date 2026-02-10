@@ -133,8 +133,6 @@ export interface RoadmapTask {
   updated_at: string;
 }
 
-
-
 export interface TaskComment {
   id: string;
   task_id: string;

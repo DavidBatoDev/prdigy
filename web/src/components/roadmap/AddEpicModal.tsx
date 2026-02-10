@@ -226,11 +226,6 @@ export const AddEpicModal = ({
                               {task.status?.replace("_", " ") ?? ""}
                             </span>
                           </div>
-                          {task.description ? (
-                            <p className="mt-0.5 text-gray-600 line-clamp-1">
-                              {task.description}
-                            </p>
-                          ) : null}
                         </div>
                       ))}
                     </div>
