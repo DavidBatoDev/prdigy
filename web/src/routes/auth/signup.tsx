@@ -26,6 +26,11 @@ import EllipseBottomRight from "/svgs/ellipse/ellipse-bottom-right.svg";
 import EllipseCenterLeft from "/svgs/ellipse/ellipse-center-left.svg";
 
 export const Route = createFileRoute("/auth/signup")({
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      redirect: (search.redirect as string) || undefined,
+    };
+  },
   beforeLoad: () => {
     const { isAuthenticated, isLoading } = useAuthStore.getState();
 
@@ -46,6 +51,14 @@ function RouteComponent() {
   const signUp = useAuthStore((state) => state.signUp);
   const navigate = useNavigate();
   const toast = useToast();
+  const search = Route.useSearch();
+
+  // Store redirect URL in sessionStorage when component mounts
+  useState(() => {
+    if (search.redirect) {
+      sessionStorage.setItem("signup_redirect", search.redirect);
+    }
+  });
 
   // Persist step state to survive component remounts
   const [step, setStepState] = useState(() => {
@@ -136,6 +149,7 @@ function RouteComponent() {
     sessionStorage.removeItem("signup_confirmPassword");
     sessionStorage.removeItem("signup_acceptedTerms");
     sessionStorage.removeItem("signup_sentCode");
+    sessionStorage.removeItem("signup_redirect");
   };
 
   // Timeout for email requests (prevents a slow edge function from hanging the signup flow)
@@ -360,10 +374,32 @@ function RouteComponent() {
 
         toast.success("Email verified successfully!");
 
+        // Wait for migration to complete (happens automatically in authStore)
+        // The migration is triggered by the signInWithPassword above
+        await new Promise((resolve) => {
+          const checkMigration = setInterval(() => {
+            const currentStatus = useAuthStore.getState().migrationStatus;
+            if (currentStatus === "completed" || currentStatus === "error" || currentStatus === "idle") {
+              clearInterval(checkMigration);
+              resolve(undefined);
+            }
+          }, 100);
+          
+          // Timeout after 10 seconds
+          setTimeout(() => {
+            clearInterval(checkMigration);
+            resolve(undefined);
+          }, 10000);
+        });
+
+        // Get the stored redirect URL or default to onboarding
+        const redirectUrl = sessionStorage.getItem("signup_redirect") || "/onboarding";
+
         // Clear all signup data after successful verification
         clearSignupData();
 
-        navigate({ to: "/onboarding" });
+        // Redirect to appropriate page
+        navigate({ to: redirectUrl });
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Verification failed");
       } finally {

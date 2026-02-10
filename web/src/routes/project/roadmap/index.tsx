@@ -356,6 +356,7 @@ function RoadmapBuilderPage() {
           </div>
           <Link
             to="/auth/signup"
+            search={{ redirect: window.location.pathname }}
             className="flex items-center gap-2 px-4 py-1.5 bg-white text-primary rounded-md hover:bg-gray-50 transition-colors font-medium"
           >
             <LogIn className="w-4 h-4" />
