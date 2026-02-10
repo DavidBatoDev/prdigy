@@ -48,6 +48,14 @@ app.use("/api/admin", require("./routes/admin"));
 app.use("/api/users", require("./routes/users"));
 app.use("/api/guests", require("./routes/guests"));
 
+// Roadmap Routes
+app.use("/api", require("./routes/roadmaps"));
+app.use("/api", require("./routes/milestones"));
+app.use("/api", require("./routes/epics"));
+app.use("/api", require("./routes/features"));
+app.use("/api", require("./routes/tasks"));
+app.use("/api", require("./routes/task-extras"));
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
