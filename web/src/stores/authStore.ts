@@ -6,7 +6,6 @@
 import { create } from "zustand";
 import { supabase } from "../lib/supabase";
 import type { Profile, Session, User } from "../types";
-import { migrateGuestData } from "../lib/migrateGuestData";
 
 interface AuthState {
   user: User | null;
@@ -14,7 +13,6 @@ interface AuthState {
   profile: Profile | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  migrationStatus: "idle" | "migrating" | "completed" | "error";
 }
 
 interface AuthActions {
@@ -34,7 +32,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   profile: null,
   isLoading: true,
   isAuthenticated: false,
-  migrationStatus: "idle",
 
   // Initialize auth - call this once when app starts
   initialize: async () => {
@@ -77,36 +74,17 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     set({ profile, isAuthenticated: !!profile });
   },
 
-
-
   // Sign in with email and password
   signIn: async (email: string, password: string) => {
     try {
-      const { error, data } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       if (error) throw error;
-      
-      // Migrate guest data if available
-      if (data.user) {
-        set({ migrationStatus: "migrating" });
-        try {
-          const result = await migrateGuestData();
-          if (result.success) {
-            set({ migrationStatus: "completed" });
-            console.log(`Migrated ${result.migratedRoadmaps} roadmap(s) from guest session`);
-          } else {
-            set({ migrationStatus: "error" });
-            console.error("Migration errors:", result.errors);
-          }
-        } catch (migrationError) {
-          set({ migrationStatus: "error" });
-          console.error("Migration exception:", migrationError);
-        }
-      }
-      
+
       // Auth state will be updated by onAuthStateChange listener
+      // Migration will be handled by MigrationHandler component
     } catch (error) {
       throw error;
     }
@@ -120,24 +98,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         password,
       });
       if (result.error) throw result.error;
-      
-      // Migrate guest data if available
-      if (result.data.user) {
-        set({ migrationStatus: "migrating" });
-        try {
-          const migrationResult = await migrateGuestData();
-          if (migrationResult.success) {
-            set({ migrationStatus: "completed" });
-            console.log(`Migrated ${migrationResult.migratedRoadmaps} roadmap(s) from guest session`);
-          } else {
-            set({ migrationStatus: "error" });
-            console.error("Migration errors:", migrationResult.errors);
-          }
-        } catch (migrationError) {
-          set({ migrationStatus: "error" });
-          console.error("Migration exception:", migrationError);
-        }
-      }
+
+      // Auth state will be updated by onAuthStateChange listener
+      // Migration will be handled by MigrationHandler component
     } catch (error) {
       throw error;
     }

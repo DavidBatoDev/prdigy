@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "../../stores/authStore";
 import { supabase } from "../../lib/supabase";
 import { Button } from "../../ui/button";
@@ -21,6 +22,7 @@ import {
 } from "@mui/material";
 import { MuiTelInput } from "mui-tel-input";
 import { useToast } from "../../hooks/useToast";
+import { profileKeys } from "../../queries/profile";
 import DecorativeRightSide from "/svgs/patterns/decorative-right-side.svg";
 import EllipseBottomRight from "/svgs/ellipse/ellipse-bottom-right.svg";
 import EllipseCenterLeft from "/svgs/ellipse/ellipse-center-left.svg";
@@ -51,6 +53,7 @@ function RouteComponent() {
   const signUp = useAuthStore((state) => state.signUp);
   const navigate = useNavigate();
   const toast = useToast();
+  const queryClient = useQueryClient();
   const search = Route.useSearch();
 
   // Store redirect URL in sessionStorage when component mounts
@@ -370,30 +373,23 @@ function RouteComponent() {
             .from("profiles")
             .update({ is_email_verified: true })
             .eq("id", authData.user.id);
+
+          // Invalidate and refetch profile query to ensure updated data is loaded
+          await queryClient.invalidateQueries({
+            queryKey: profileKeys.byUser(authData.user.id),
+          });
+
+          // Wait for profile query to refetch and update
+          await queryClient.refetchQueries({
+            queryKey: profileKeys.byUser(authData.user.id),
+          });
         }
 
         toast.success("Email verified successfully!");
 
-        // Wait for migration to complete (happens automatically in authStore)
-        // The migration is triggered by the signInWithPassword above
-        await new Promise((resolve) => {
-          const checkMigration = setInterval(() => {
-            const currentStatus = useAuthStore.getState().migrationStatus;
-            if (currentStatus === "completed" || currentStatus === "error" || currentStatus === "idle") {
-              clearInterval(checkMigration);
-              resolve(undefined);
-            }
-          }, 100);
-          
-          // Timeout after 10 seconds
-          setTimeout(() => {
-            clearInterval(checkMigration);
-            resolve(undefined);
-          }, 10000);
-        });
-
         // Get the stored redirect URL or default to onboarding
-        const redirectUrl = sessionStorage.getItem("signup_redirect") || "/onboarding";
+        const redirectUrl =
+          sessionStorage.getItem("signup_redirect") || "/onboarding";
 
         // Clear all signup data after successful verification
         clearSignupData();
@@ -457,6 +453,13 @@ function RouteComponent() {
     } finally {
       setIsResending(false);
     }
+  };
+
+  const handleBackToStep1 = () => {
+    // Simply go back to step 1 - form data is already preserved in state
+    setStep(1);
+    // Clear the verification code
+    setVerificationCode("");
   };
 
   if (_success) {
@@ -1005,14 +1008,24 @@ function RouteComponent() {
                       >
                         {isLoading ? "Verifying..." : "Verify Code"}
                       </Button>
-                      <button
-                        type="button"
-                        onClick={handleResendCode}
-                        disabled={isResending}
-                        className="text-sm font-normal text-[#020202] transition-colors hover:text-[#ff9900] disabled:opacity-50"
-                      >
-                        {isResending ? "Resending..." : "Resend Code"}
-                      </button>
+                      <div className="flex items-center gap-4">
+                        <button
+                          type="button"
+                          onClick={handleBackToStep1}
+                          className="text-sm font-normal text-[#020202] transition-colors hover:text-[#ff9900]"
+                        >
+                          ← Back to Step 1
+                        </button>
+                        <span className="text-[#d4d4d4]">|</span>
+                        <button
+                          type="button"
+                          onClick={handleResendCode}
+                          disabled={isResending}
+                          className="text-sm font-normal text-[#020202] transition-colors hover:text-[#ff9900] disabled:opacity-50"
+                        >
+                          {isResending ? "Resending..." : "Resend Code"}
+                        </button>
+                      </div>
                     </div>
                   </motion.div>
                 )}

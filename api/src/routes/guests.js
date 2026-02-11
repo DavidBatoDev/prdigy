@@ -186,33 +186,11 @@ router.post(
       if (guestRoadmaps && guestRoadmaps.length > 0) {
         for (const roadmap of guestRoadmaps) {
           try {
-            let projectId = roadmap.project_id;
-
-            // If roadmap doesn't have a project, create one
-            if (!projectId) {
-              const { data: newProjectId, error: projectError } =
-                await supabaseAdmin.rpc("get_or_create_default_project", {
-                  user_id_param: authenticatedUserId,
-                  roadmap_name: roadmap.name || "My Project",
-                });
-
-              if (projectError) {
-                errors.push(
-                  `Failed to create project for roadmap ${roadmap.id}: ${projectError.message}`,
-                );
-                continue;
-              }
-
-              projectId = newProjectId;
-              createdProjects++;
-            }
-
-            // Update roadmap ownership
+            // Update roadmap ownership (keep project_id as-is, can be null)
             const { error: updateError } = await supabaseAdmin
               .from("roadmaps")
               .update({
                 owner_id: authenticatedUserId,
-                project_id: projectId,
                 updated_at: new Date().toISOString(),
               })
               .eq("id", roadmap.id);
