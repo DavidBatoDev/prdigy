@@ -1,22 +1,13 @@
-import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Check, CornerDownLeft, Loader2 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { X, Loader2 } from "lucide-react";
 import Logo from "/prodigylogos/light/logovector.svg";
-
-type ProjectState = "idea" | "sketches" | "design" | "codebase";
-
-interface FormData {
-  title: string;
-  category: string;
-  description: string;
-  problemSolving: string;
-  projectState: ProjectState;
-  skills: string[];
-  customSkills: string[];
-  duration: string;
-}
+import {
+  Step1,
+  Step2,
+  StepIndicator,
+  type FormData,
+  type ProjectState,
+} from "@/components/project-brief";
 
 interface ProjectBriefModalProps {
   isOpen: boolean;
@@ -29,6 +20,9 @@ interface ProjectBriefModalProps {
   onSubmit: () => Promise<void>;
   isSubmitting: boolean;
 }
+
+// Re-export types for backward compatibility
+export type { FormData, ProjectState };
 
 export function ProjectBriefModal({
   isOpen,
@@ -137,6 +131,7 @@ export function ProjectBriefModal({
                     step={1}
                     currentStep={currentStep}
                     label="Vision & Scope"
+                    totalSteps={2}
                   />
                   <div className="w-20 h-1 bg-gray-200 rounded-full mx-2 overflow-hidden mt-[-18px]">
                     <motion.div
@@ -150,6 +145,7 @@ export function ProjectBriefModal({
                     step={2}
                     currentStep={currentStep}
                     label="Skills & Duration"
+                    totalSteps={2}
                   />
                 </div>
               </div>
@@ -211,6 +207,7 @@ export function ProjectBriefModal({
                           <Step1
                             formData={formData}
                             updateFormData={onUpdateFormData}
+                            compact={true}
                           />
                         </motion.div>
                       )}
@@ -225,6 +222,7 @@ export function ProjectBriefModal({
                           <Step2
                             formData={formData}
                             updateFormData={onUpdateFormData}
+                            compact={true}
                           />
                         </motion.div>
                       )}
@@ -269,463 +267,3 @@ export function ProjectBriefModal({
     </AnimatePresence>
   );
 }
-
-function StepIndicator({
-  step,
-  currentStep,
-  label,
-}: {
-  step: number;
-  currentStep: number;
-  label: string;
-}) {
-  const isActive = step === currentStep;
-  const isCompleted = step < currentStep;
-
-  let bgClass = "bg-gray-200";
-  let textClass = "text-gray-400";
-  let shadowClass = "";
-  let labelClass = "text-gray-400";
-  let glowGradient = "from-gray-300 to-gray-200";
-
-  if (isActive || isCompleted) {
-    if (step === 1) {
-      bgClass = "bg-[#ff9933]";
-      textClass = "text-white";
-      shadowClass = isActive ? "shadow-[0_0_20px_rgba(255,153,51,0.4)]" : "";
-      labelClass = isActive ? "text-[#ff9933] font-semibold" : "text-[#ff9933]";
-      glowGradient = "from-[#ff9933] to-[#ffb366]";
-    } else {
-      bgClass = "bg-[#e91e63]";
-      textClass = "text-white";
-      shadowClass = isActive ? "shadow-[0_0_20px_rgba(233,30,99,0.4)]" : "";
-      labelClass = isActive ? "text-[#e91e63] font-semibold" : "text-[#e91e63]";
-      glowGradient = "from-[#e91e63] to-[#ff5a8a]";
-    }
-  }
-
-  return (
-    <div className="flex flex-col items-center">
-      <div className="relative">
-        {/* Glow ring */}
-        <motion.div
-          className={`absolute -inset-2 rounded-full blur-md opacity-60 bg-linear-to-r ${glowGradient}`}
-          initial={false}
-          animate={{
-            opacity: isActive || isCompleted ? 0.7 : 0,
-            scale: isActive ? [1, 1.06, 1] : 1,
-          }}
-          transition={{
-            duration: 1.2,
-            repeat: isActive ? Infinity : 0,
-            ease: "easeInOut",
-          }}
-        />
-        <motion.div
-          className={`relative w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg transition-all duration-300 ${bgClass} ${textClass} ${shadowClass}`}
-          initial={false}
-          animate={{
-            scale: isActive ? 1.15 : 1,
-          }}
-          transition={{
-            type: "spring",
-            stiffness: 260,
-            damping: 20,
-          }}
-        >
-          <motion.div
-            initial={false}
-            animate={{
-              scale: isCompleted ? [1, 1.2, 1] : 1,
-              opacity: isCompleted ? [0, 1] : 1,
-            }}
-            transition={{
-              duration: 0.4,
-              ease: "easeOut",
-            }}
-          >
-            {isCompleted ? <Check className="w-6 h-6" /> : <span>{step}</span>}
-          </motion.div>
-        </motion.div>
-      </div>
-      <p
-        className={`mt-2 text-xs transition-colors duration-300 ${labelClass}`}
-      >
-        {label}
-      </p>
-    </div>
-  );
-}
-
-function Step1({
-  formData,
-  updateFormData,
-}: {
-  formData: FormData;
-  updateFormData: (updates: Partial<FormData>) => void;
-}) {
-  return (
-    <div className="space-y-3">
-      {/* Project Title & Category */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-semibold text-[#333438] mb-1.5">
-            Project Title*
-          </label>
-          <input
-            type="text"
-            placeholder="e.g., SaaS Dashboard for Logistics"
-            value={formData.title}
-            onChange={(e) => updateFormData({ title: e.target.value })}
-            className="w-full px-3 py-1.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff9933] focus:border-transparent shadow-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-semibold text-[#333438] mb-1.5">
-            Category
-          </label>
-          <select
-            value={formData.category}
-            onChange={(e) => updateFormData({ category: e.target.value })}
-            className="w-full px-3 py-1.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff9933] focus:border-transparent shadow-sm"
-          >
-            <option value="">Select...</option>
-            <option value="web">Web Development</option>
-            <option value="mobile">Mobile App</option>
-            <option value="design">Design</option>
-            <option value="data">Data Science</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Project Description */}
-      <div>
-        <label className="block text-sm font-semibold text-[#333438] mb-1.5">
-          Project Description*
-        </label>
-        <p className="text-xs text-[#92969f] mb-1">
-          • Describe your vision in a few sentences.
-        </p>
-        <textarea
-          placeholder="I want to build a mobile app that helps dog walkers find clients..."
-          value={formData.description}
-          onChange={(e) => updateFormData({ description: e.target.value })}
-          rows={3}
-          className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff9933] focus:border-transparent resize-none shadow-sm"
-        />
-      </div>
-
-      {/* Problem Solving */}
-      <div>
-        <label className="block text-xs text-[#92969f] mb-1.5 font-medium">
-          What is the main problem you are solving?
-        </label>
-        <input
-          type="text"
-          value={formData.problemSolving}
-          onChange={(e) => updateFormData({ problemSolving: e.target.value })}
-          className="w-full px-3 py-1.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff9933] focus:border-transparent shadow-sm"
-        />
-      </div>
-
-      {/* Current State */}
-      <div>
-        <label className="block text-sm font-semibold text-[#333438] mb-2">
-          What is the current state of the project?
-        </label>
-        <div className="grid grid-cols-2 gap-3">
-          <TileOption
-            name="projectState"
-            value="idea"
-            label="Just an idea"
-            description="I have a concept but no materials yet"
-            checked={formData.projectState === "idea"}
-            onChange={() => updateFormData({ projectState: "idea" })}
-          />
-          <TileOption
-            name="projectState"
-            value="design"
-            label="Design / Prototype ready"
-            description="I have designs but need development"
-            checked={formData.projectState === "design"}
-            onChange={() => updateFormData({ projectState: "design" })}
-          />
-          <TileOption
-            name="projectState"
-            value="sketches"
-            label="Sketches / Wireframes"
-            description="I have rough drawings or flows"
-            checked={formData.projectState === "sketches"}
-            onChange={() => updateFormData({ projectState: "sketches" })}
-          />
-          <TileOption
-            name="projectState"
-            value="codebase"
-            label="Existing Codebase"
-            description="I need to fix or rebuild an app"
-            checked={formData.projectState === "codebase"}
-            onChange={() => updateFormData({ projectState: "codebase" })}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Step2({
-  formData,
-  updateFormData,
-}: {
-  formData: FormData;
-  updateFormData: (updates: Partial<FormData>) => void;
-}) {
-  const [skillInput, setSkillInput] = useState("");
-  const [showDropdown, setShowDropdown] = useState(false);
-
-  const { data: skillsData } = useQuery({
-    queryKey: ["skills"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("skills")
-        .select("name, slug")
-        .order("name");
-
-      if (error) throw error;
-      return data as { name: string; slug: string }[];
-    },
-  });
-
-  const generalSkills = skillsData?.map((s) => s.name) || [
-    "Graphic Design",
-    "Content Writing",
-    "Web Development",
-    "Data Entry",
-    "Digital Marketing",
-    "Project Management",
-    "Translation",
-    "Video Editing",
-    "SEO",
-    "Social Media Marketing",
-    "Virtual Assistant",
-    "Illustration",
-    "3D Modeling",
-    "Voice Over",
-    "Customer Service",
-    "Accounting",
-  ];
-
-  const filteredSkills = generalSkills.filter(
-    (skill) =>
-      skill.toLowerCase().includes(skillInput.toLowerCase()) &&
-      !formData.skills.includes(skill),
-  );
-
-  const addSkill = (skill: string) => {
-    const existingSkill = generalSkills.find(
-      (s) => s.toLowerCase() === skill.toLowerCase(),
-    );
-
-    if (existingSkill) {
-      if (!formData.skills.includes(existingSkill)) {
-        updateFormData({ skills: [...formData.skills, existingSkill] });
-      }
-    } else {
-      const isDuplicateCustom = formData.customSkills.some(
-        (s) => s.toLowerCase() === skill.toLowerCase(),
-      );
-
-      if (!isDuplicateCustom) {
-        updateFormData({ customSkills: [...formData.customSkills, skill] });
-      }
-    }
-    setSkillInput("");
-    setShowDropdown(false);
-  };
-
-  const removeSkill = (skill: string) => {
-    if (formData.skills.includes(skill)) {
-      updateFormData({ skills: formData.skills.filter((s) => s !== skill) });
-    }
-    if (formData.customSkills.includes(skill)) {
-      updateFormData({
-        customSkills: formData.customSkills.filter((s) => s !== skill),
-      });
-    }
-  };
-
-  return (
-    <div className="space-y-3">
-      {/* Skills */}
-      <div className="relative">
-        <label className="block text-sm font-semibold text-[#333438] mb-1.5">
-          What skills or tools are required?
-        </label>
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Search skills (e.g. Graphic Design, Writing)"
-            value={skillInput}
-            onChange={(e) => {
-              setSkillInput(e.target.value);
-              setShowDropdown(true);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && skillInput.trim()) {
-                e.preventDefault();
-                addSkill(skillInput.trim());
-              }
-            }}
-            onFocus={() => setShowDropdown(true)}
-            onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-            className="w-full px-3 py-1.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e91e63] focus:border-transparent mb-3 shadow-sm pr-10"
-          />
-          <div
-            className={`absolute right-3 top-2 transition-colors duration-200 pointer-events-none ${
-              skillInput.trim() ? "text-[#ff9933]" : "text-gray-300"
-            }`}
-          >
-            <CornerDownLeft className="w-4 h-4" />
-          </div>
-          {showDropdown && skillInput && filteredSkills.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
-              {filteredSkills.map((skill) => (
-                <button
-                  key={skill}
-                  onClick={() => addSkill(skill)}
-                  className="w-full text-left px-3 py-1.5 hover:bg-gray-50 text-[#333438] text-sm transition-colors"
-                >
-                  {skill}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Selected Skills */}
-        <div className="flex flex-wrap gap-1.5">
-          {[...formData.skills, ...formData.customSkills].map((skill) => (
-            <div
-              key={skill}
-              className="px-3 py-1 bg-white border border-gray-300 text-[#333438] rounded-full text-xs flex items-center gap-1.5 shadow-sm cursor-pointer hover:border-red-500 hover:text-red-500 transition-colors group"
-              onClick={() => removeSkill(skill)}
-            >
-              {skill}
-              <X className="w-3 h-3 text-gray-400 group-hover:text-red-500 transition-colors" />
-            </div>
-          ))}
-        </div>
-
-        {/* Popular Suggestions */}
-        <div className="mt-3">
-          <p className="text-[11px] text-[#92969f] mb-1.5 font-medium">
-            Popular Skills
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {generalSkills
-              .filter((skill) => !formData.skills.includes(skill))
-              .slice(0, 14)
-              .map((skill) => (
-                <button
-                  key={skill}
-                  onClick={() => addSkill(skill)}
-                  className="px-2.5 py-1 bg-white border border-gray-200 text-[#61636c] rounded-full text-[11px] hover:border-[#ff9933] hover:text-[#ff9933] transition-colors"
-                >
-                  + {skill}
-                </button>
-              ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Expected Duration */}
-      <div>
-        <label className="block text-sm font-semibold text-[#333438] mb-2.5">
-          Expected Duration
-        </label>
-        <div className="grid grid-cols-2 gap-3">
-          <TileOption
-            name="duration"
-            value="<1_month"
-            label="Less than 1 month"
-            checked={formData.duration === "<1_month"}
-            onChange={() => updateFormData({ duration: "<1_month" })}
-          />
-          <TileOption
-            name="duration"
-            value="1-3_months"
-            label="1-3 months"
-            checked={formData.duration === "1-3_months"}
-            onChange={() => updateFormData({ duration: "1-3_months" })}
-          />
-          <TileOption
-            name="duration"
-            value="3-6_months"
-            label="3-6 months"
-            checked={formData.duration === "3-6_months"}
-            onChange={() => updateFormData({ duration: "3-6_months" })}
-          />
-          <TileOption
-            name="duration"
-            value="6+_months"
-            label="More than 6 months"
-            checked={formData.duration === "6+_months"}
-            onChange={() => updateFormData({ duration: "6+_months" })}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function TileOption({
-  name,
-  value,
-  label,
-  description,
-  checked,
-  onChange,
-}: {
-  name: string;
-  value: string;
-  label: string;
-  description?: string;
-  checked: boolean;
-  onChange: () => void;
-}) {
-  return (
-    <label
-      className={`relative flex items-start p-3 rounded-lg border-2 transition-all cursor-pointer ${
-        checked
-          ? "bg-[#fff5eb] border-[#ff9933] shadow-md"
-          : "bg-white border-gray-200 hover:border-gray-300 shadow-sm"
-      }`}
-    >
-      <div className="flex items-center h-5">
-        <input
-          type="radio"
-          name={name}
-          value={value}
-          checked={checked}
-          onChange={onChange}
-          className="w-4 h-4 text-[#ff9933] focus:ring-[#ff9933]"
-        />
-      </div>
-      <div className="ml-2.5 text-sm">
-        <span
-          className={`font-semibold block ${checked ? "text-[#333438]" : "text-[#61636c]"}`}
-        >
-          {label}
-        </span>
-        {description && (
-          <span className="text-[11px] text-[#92969f] mt-0.5 block">
-            {description}
-          </span>
-        )}
-      </div>
-    </label>
-  );
-}
-
-// Export types for use in parent components
-export type { FormData, ProjectState };

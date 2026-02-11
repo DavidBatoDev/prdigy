@@ -39,6 +39,90 @@ router.get("/", verifySupabaseJwt, readLimiter, async (req, res, next) => {
 });
 
 /**
+ * GET /api/roadmaps/preview
+ * Get roadmaps with lightweight nested data for preview cards
+ */
+router.get("/preview", verifySupabaseJwt, readLimiter, async (req, res, next) => {
+  try {
+    const { data: roadmaps, error: roadmapsError } = await supabaseAdmin
+      .from("roadmaps")
+      .select("id,name,description,status,created_at,updated_at")
+      .eq("owner_id", req.user.id)
+      .order("updated_at", { ascending: false });
+
+    if (roadmapsError) throw roadmapsError;
+
+    const roadmapIds = (roadmaps || []).map((roadmap) => roadmap.id);
+    if (roadmapIds.length === 0) {
+      return res.json({ data: [] });
+    }
+
+    const { data: epics, error: epicsError } = await supabaseAdmin
+      .from("roadmap_epics")
+      .select("id,roadmap_id,title,position,status")
+      .in("roadmap_id", roadmapIds)
+      .order("position", { ascending: true });
+
+    if (epicsError) throw epicsError;
+
+    const epicIds = (epics || []).map((epic) => epic.id);
+    const { data: features, error: featuresError } = await supabaseAdmin
+      .from("roadmap_features")
+      .select("id,roadmap_id,epic_id,title,position,status")
+      .in("roadmap_id", roadmapIds)
+      .order("position", { ascending: true });
+
+    if (featuresError) throw featuresError;
+
+    const featureIds = (features || []).map((feature) => feature.id);
+    const { data: tasks, error: tasksError } = featureIds.length
+      ? await supabaseAdmin
+          .from("roadmap_tasks")
+          .select("id,feature_id,position,status")
+          .in("feature_id", featureIds)
+          .order("position", { ascending: true })
+      : { data: [], error: null };
+
+    if (tasksError) throw tasksError;
+
+    const tasksByFeature = (tasks || []).reduce((acc, task) => {
+      if (!acc[task.feature_id]) acc[task.feature_id] = [];
+      acc[task.feature_id].push(task);
+      return acc;
+    }, {});
+
+    const featuresByEpic = (features || []).reduce((acc, feature) => {
+      const featureWithTasks = {
+        ...feature,
+        tasks: tasksByFeature[feature.id] || [],
+      };
+      if (!acc[feature.epic_id]) acc[feature.epic_id] = [];
+      acc[feature.epic_id].push(featureWithTasks);
+      return acc;
+    }, {});
+
+    const epicsByRoadmap = (epics || []).reduce((acc, epic) => {
+      const epicWithFeatures = {
+        ...epic,
+        features: featuresByEpic[epic.id] || [],
+      };
+      if (!acc[epic.roadmap_id]) acc[epic.roadmap_id] = [];
+      acc[epic.roadmap_id].push(epicWithFeatures);
+      return acc;
+    }, {});
+
+    const previewData = (roadmaps || []).map((roadmap) => ({
+      ...roadmap,
+      epics: epicsByRoadmap[roadmap.id] || [],
+    }));
+
+    res.json({ data: previewData });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * GET /api/roadmaps/:id
  * Get a single roadmap by ID
  */

@@ -1,5 +1,5 @@
 import apiClient from "../axios";
-import type { Roadmap } from "../../types/roadmap";
+import type { Roadmap, RoadmapEpic, RoadmapFeature, RoadmapTask } from "../../types/roadmap";
 
 // API Response types
 interface ApiResponse<T> {
@@ -32,11 +32,38 @@ export interface FullRoadmap extends Roadmap {
   epics: any[];
 }
 
+export interface RoadmapPreview extends Roadmap {
+  epics: Array<
+    Pick<RoadmapEpic, "id" | "roadmap_id" | "title" | "position" | "status"> & {
+      features: Array<
+        Pick<
+          RoadmapFeature,
+          "id" | "roadmap_id" | "epic_id" | "title" | "position" | "status"
+        > & {
+          tasks: Array<
+            Pick<RoadmapTask, "id" | "feature_id" | "position" | "status">
+          >;
+        }
+      >;
+    }
+  >;
+}
+
 /**
  * Get all roadmaps for the current user
  */
 export const getRoadmaps = async (): Promise<Roadmap[]> => {
   const response = await apiClient.get<ApiResponse<Roadmap[]>>("/api/roadmaps");
+  return response.data.data;
+};
+
+/**
+ * Get all roadmaps with lightweight preview structure
+ */
+export const getRoadmapsPreview = async (): Promise<RoadmapPreview[]> => {
+  const response = await apiClient.get<ApiResponse<RoadmapPreview[]>>(
+    "/api/roadmaps/preview",
+  );
   return response.data.data;
 };
 

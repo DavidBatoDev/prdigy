@@ -236,3 +236,8 @@ code {
   width: 0;
   height: 0;
 }
+
+.react-flow__node.minimap-only-node {
+  opacity: 0;
+  pointer-events: none;
+}

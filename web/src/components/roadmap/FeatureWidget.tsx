@@ -10,7 +10,7 @@ import {
   List,
   Plus,
 } from "lucide-react";
-import type { RoadmapFeature } from "@/types/roadmap";
+import type { RoadmapFeature, RoadmapTask } from "@/types/roadmap";
 
 export interface FeatureWidgetData extends Record<string, unknown> {
   feature: RoadmapFeature;
@@ -19,13 +19,21 @@ export interface FeatureWidgetData extends Record<string, unknown> {
   onDelete?: (featureId: string) => void;
   onClick?: (feature: RoadmapFeature) => void;
   onAddTask?: (featureId: string) => void;
+  onSelectTask?: (task: RoadmapTask) => void;
 }
 
 type FeatureWidgetNode = Node<FeatureWidgetData>;
 
 export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
-  const { feature, showTaskCount = true, onEdit, onDelete, onClick, onAddTask } =
-    data;
+  const {
+    feature,
+    showTaskCount = true,
+    onEdit,
+    onDelete,
+    onClick,
+    onAddTask,
+    onSelectTask,
+  } = data;
   const descriptionRef = useRef<HTMLDivElement>(null);
   const [hasOverflow, setHasOverflow] = useState(false);
 
@@ -56,6 +64,22 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
         return <AlertCircle className="w-3 h-3" />;
       default:
         return null;
+    }
+  };
+
+  const getTaskClasses = (status: RoadmapTask["status"]) => {
+    switch (status) {
+      case "done":
+        return "bg-emerald-500 border-emerald-600 hover:bg-emerald-400";
+      case "in_progress":
+        return "bg-blue-500 border-blue-600 hover:bg-blue-400";
+      case "in_review":
+        return "bg-purple-500 border-purple-600 hover:bg-purple-400";
+      case "blocked":
+        return "bg-red-500 border-red-600 hover:bg-red-400";
+      case "todo":
+      default:
+        return "bg-gray-400 border-gray-500 hover:bg-gray-300";
     }
   };
 
@@ -111,136 +135,144 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
           </button>
         )}
 
-      <div className="p-10 flex flex-col h-full overflow-hidden">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1"></div>
-            <h4 className="font-semibold text-gray-900 text-sm leading-tight break-words">
-              {feature.title}
-            </h4>
+        <div className="p-10 flex flex-col h-full overflow-hidden">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1"></div>
+              <h4 className="font-semibold text-gray-900 text-sm leading-tight break-words">
+                {feature.title}
+              </h4>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {onEdit && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(feature);
+                  }}
+                  className="p-1 hover:bg-amber-100 rounded transition-colors"
+                  title="Edit feature"
+                >
+                  <Edit2 className="w-3 h-3 text-gray-600" />
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(feature.id);
+                  }}
+                  className="p-1 hover:bg-red-100 rounded transition-colors"
+                  title="Delete feature"
+                >
+                  <Trash2 className="w-3 h-3 text-red-600" />
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {onEdit && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit(feature);
-                }}
-                className="p-1 hover:bg-amber-100 rounded transition-colors"
-                title="Edit feature"
-              >
-                <Edit2 className="w-3 h-3 text-gray-600" />
-              </button>
-            )}
-            {onDelete && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(feature.id);
-                }}
-                className="p-1 hover:bg-red-100 rounded transition-colors"
-                title="Delete feature"
-              >
-                <Trash2 className="w-3 h-3 text-red-600" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Description */}
-        {feature.description && (
-          <div
-            ref={descriptionRef}
-            className="relative mb-2 grow overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          >
+          {/* Description */}
+          {feature.description && (
             <div
-              className="text-sm text-gray-600 leading-relaxed prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{ __html: feature.description }}
-            />
-            {hasOverflow && (
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-white to-white/0" />
-            )}
-          </div>
-        )}
-
-        {/* Status Badge */}
-        <div className="flex items-center gap-2 mb-2">
-          <span
-            className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded border ${getStatusColor(feature.status)}`}
-          >
-            {getStatusIcon(feature.status)}
-            {feature.status.replace(/_/g, " ")}
-          </span>
-        </div>
-
-        {/* Progress Bar */}
-        {feature.progress !== undefined && (
-          <div className="mb-2">
-            <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
-              <span>Progress</span>
-              <span className="font-medium">
-                {Math.round(feature.progress)}%
-              </span>
-            </div>
-            <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
+              ref={descriptionRef}
+              className="relative mb-2 grow overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
               <div
-                className="h-full bg-amber-500 transition-all duration-300"
-                style={{ width: `${feature.progress}%` }}
+                className="text-sm text-gray-600 leading-relaxed prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={{ __html: feature.description }}
               />
+              {hasOverflow && (
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-white to-white/0" />
+              )}
             </div>
+          )}
+
+          {/* Status Badge */}
+          <div className="flex items-center gap-2 mb-2">
+            <span
+              className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded border ${getStatusColor(feature.status)}`}
+            >
+              {getStatusIcon(feature.status)}
+              {feature.status.replace(/_/g, " ")}
+            </span>
           </div>
-        )}
 
-        {/* Task count or indicator */}
-        {showTaskCount && (
-          <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-1 text-gray-600">
-              <List className="w-3 h-3" />
-              <span>
-                {taskCount} task{taskCount !== 1 ? "s" : ""}
-              </span>
-            </div>
-            {taskCount > 0 && (
-              <span className="text-gray-500">
-                {completedTasks}/{taskCount} done
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Estimated hours */}
-        {feature.estimated_hours && (
-          <div className="mt-2 text-xs text-gray-500 text-right">
-            ~{feature.estimated_hours}h
-          </div>
-        )}
-      </div>
-    </motion.div>
-
-    {taskCount > 0 && (
-      <>
-        {/* Connecting line from feature to tasks */}
-        <div className="absolute top-1/2 -translate-y-1/2 left-[500px] w-10 h-0.5 bg-emerald-400" />
-
-        {/* Task Bars Grid - positioned to the right */}
-        <div className="absolute top-1/2 -translate-y-1/2 left-[540px]">
-          <div className="grid grid-flow-col grid-rows-3 gap-2 auto-cols-max">
-            {feature.tasks?.slice(0, 9).map((task) => (
-              <div
-                key={task.id}
-                className="bg-emerald-500 text-white px-3 py-2 rounded-md shadow-sm border border-emerald-600 w-[180px] h-[32px] flex items-center"
-              >
-                <p className="text-xs font-medium truncate w-full">{task.title}</p>
+          {/* Progress Bar */}
+          {feature.progress !== undefined && (
+            <div className="mb-2">
+              <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                <span>Progress</span>
+                <span className="font-medium">
+                  {Math.round(feature.progress)}%
+                </span>
               </div>
-            ))}
-          </div>
+              <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-amber-500 transition-all duration-300"
+                  style={{ width: `${feature.progress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Task count or indicator */}
+          {showTaskCount && (
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-1 text-gray-600">
+                <List className="w-3 h-3" />
+                <span>
+                  {taskCount} task{taskCount !== 1 ? "s" : ""}
+                </span>
+              </div>
+              {taskCount > 0 && (
+                <span className="text-gray-500">
+                  {completedTasks}/{taskCount} done
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Estimated hours */}
+          {feature.estimated_hours && (
+            <div className="mt-2 text-xs text-gray-500 text-right">
+              ~{feature.estimated_hours}h
+            </div>
+          )}
         </div>
-      </>
-    )}
-  </>
+      </motion.div>
+
+      {taskCount > 0 && (
+        <>
+          {/* Connecting line from feature to tasks */}
+          <div className="absolute top-1/2 -translate-y-1/2 left-[500px] w-10 h-0.5 bg-emerald-400" />
+
+          {/* Task Bars Grid - positioned to the right */}
+          <div className="absolute top-1/2 -translate-y-1/2 left-[540px]">
+            <div className="grid grid-flow-col grid-rows-3 gap-2 auto-cols-max">
+              {feature.tasks?.slice(0, 9).map((task) => (
+                <div
+                  key={task.id}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onSelectTask?.(task);
+                  }}
+                  className={`text-white px-3 py-2 rounded-md shadow-sm border w-[180px] h-[32px] flex items-center cursor-pointer transition-colors ${getTaskClasses(
+                    task.status,
+                  )}`}
+                >
+                  <p className="text-xs font-medium truncate w-full">
+                    {task.title}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </>
   );
 });
 

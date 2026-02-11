@@ -11,7 +11,12 @@ import {
 import "@xyflow/react/dist/style.css";
 import { EpicWidget, type EpicWidgetData } from "./EpicWidget";
 import { FeatureWidget, type FeatureWidgetData } from "./FeatureWidget";
-import type { Roadmap, RoadmapEpic, RoadmapFeature } from "@/types/roadmap";
+import type {
+  Roadmap,
+  RoadmapEpic,
+  RoadmapFeature,
+  RoadmapTask,
+} from "@/types/roadmap";
 
 interface RoadmapViewProps {
   roadmap: Roadmap;
@@ -22,6 +27,7 @@ interface RoadmapViewProps {
   onDeleteFeature: (featureId: string) => void;
   onSelectFeature?: (feature: RoadmapFeature) => void;
   onSelectEpic?: (epicId: string) => void;
+  onSelectTask?: (task: RoadmapTask) => void;
   onAddEpicBelow?: (epicId: string) => void;
   onAddFeature?: (epicId: string) => void;
   onAddTask?: (featureId: string) => void;
@@ -40,6 +46,7 @@ const getLayoutedElements = (
 
   const EPIC_X = 100;
   const FEATURE_X_OFFSET = 560; // Distance from epic to feature column
+  const NODE_WIDTH = 500;
   const BASE_EPIC_HEIGHT = 220;
   const MAX_EPIC_HEIGHT = 420;
   const DESCRIPTION_LINE_HEIGHT = 16;
@@ -124,6 +131,8 @@ const getLayoutedElements = (
 
     positionedEpicNodes.push({
       ...epicNode,
+      width: NODE_WIDTH,
+      height: epicHeight,
       position: { x: EPIC_X, y: epicY },
     });
 
@@ -135,6 +144,8 @@ const getLayoutedElements = (
         const height = featureHeights[index] ?? BASE_FEATURE_HEIGHT;
         positionedFeatureNodes.push({
           ...featureNode,
+          width: NODE_WIDTH,
+          height,
           position: { x: EPIC_X + FEATURE_X_OFFSET, y: featureTopY },
         });
         featureTopY += height + featureSpacing;
@@ -154,6 +165,8 @@ const getLayoutedElements = (
   orphanFeatureNodes.forEach((node) => {
     positionedFeatureNodes.push({
       ...node,
+      width: NODE_WIDTH,
+      height: BASE_FEATURE_HEIGHT,
       position: { x: EPIC_X + FEATURE_X_OFFSET, y: currentY },
     });
     currentY += BASE_FEATURE_SPACING;
@@ -172,6 +185,7 @@ export const RoadmapView = ({
   onDeleteFeature,
   onSelectFeature,
   onSelectEpic,
+  onSelectTask,
   onAddEpicBelow,
   onAddFeature,
   onAddTask,
@@ -247,6 +261,7 @@ export const RoadmapView = ({
           onDelete: onDeleteFeature,
           onClick: onSelectFeature,
           onAddTask,
+          onSelectTask,
         },
         position: { x: 0, y: 0 }, // Will be set by dagre
       }),
@@ -290,7 +305,65 @@ export const RoadmapView = ({
 
     const allEdges = [...epicEdges, ...featureEdges];
 
-    return getLayoutedElements(allNodes, allEdges, epics);
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+      allNodes,
+      allEdges,
+      epics,
+    );
+
+    const TASK_WIDTH = 180;
+    const TASK_HEIGHT = 32;
+    const TASK_GAP = 8;
+    const TASKS_PER_COLUMN = 3;
+    const TASKS_X_OFFSET = 540;
+
+    const featureNodeById = new Map(
+      layoutedNodes
+        .filter((node) => node.type === "featureWidget")
+        .map((node) => [node.id, node]),
+    );
+
+    const taskMiniNodes: Node[] = allFeatures.flatMap((feature) => {
+      const featureNode = featureNodeById.get(feature.id);
+      const tasks = feature.tasks?.slice(0, 9) ?? [];
+      if (!featureNode || tasks.length === 0) return [];
+
+      const featureHeight = featureNode.height ?? 0;
+      const gridHeight =
+        TASKS_PER_COLUMN * TASK_HEIGHT + (TASKS_PER_COLUMN - 1) * TASK_GAP;
+      const startY =
+        featureNode.position.y + featureHeight / 2 - gridHeight / 2;
+
+      return tasks.map((task, index) => {
+        const row = index % TASKS_PER_COLUMN;
+        const col = Math.floor(index / TASKS_PER_COLUMN);
+
+        return {
+          id: `task-mini-${task.id}`,
+          type: "default",
+          data: { minimapType: "task", status: task.status },
+          position: {
+            x:
+              featureNode.position.x +
+              TASKS_X_OFFSET +
+              col * (TASK_WIDTH + TASK_GAP),
+            y: startY + row * (TASK_HEIGHT + TASK_GAP),
+          },
+          width: TASK_WIDTH,
+          height: TASK_HEIGHT,
+          className: "minimap-only-node",
+          draggable: false,
+          selectable: false,
+          connectable: false,
+          focusable: false,
+        } as Node;
+      });
+    });
+
+    return {
+      nodes: [...layoutedNodes, ...taskMiniNodes],
+      edges: layoutedEdges,
+    };
   }, [
     epics,
     onUpdateEpic,
@@ -301,6 +374,7 @@ export const RoadmapView = ({
     onEditFeature,
     onNavigateToEpic,
     onAddTask,
+    onSelectTask,
     getEdgeColor,
   ]);
 
@@ -384,14 +458,51 @@ export const RoadmapView = ({
         <Controls position="top-right" />
         <MiniMap
           position="bottom-right"
-          nodeStrokeWidth={3}
-          nodeColor={(node) => {
+          nodeStrokeWidth={1.5}
+          nodeStrokeColor={(node) => {
+            if (node.data?.minimapType === "task") {
+              switch (node.data?.status) {
+                case "done":
+                  return "#047857";
+                case "in_progress":
+                  return "#1d4ed8";
+                case "in_review":
+                  return "#7e22ce";
+                case "blocked":
+                  return "#b91c1c";
+                case "todo":
+                default:
+                  return "#6b7280";
+              }
+            }
             if (node.type === "epicWidget") return "#9ca3af";
             if (node.type === "featureWidget") return "#f59e0b";
-            return "#6b7280";
+            return "#9ca3af";
           }}
-          maskColor="rgba(0, 0, 0, 0.1)"
-          className="bg-white border border-gray-300 rounded-lg"
+          nodeColor={(node) => {
+            if (node.data?.minimapType === "task") {
+              switch (node.data?.status) {
+                case "done":
+                  return "#10b981";
+                case "in_progress":
+                  return "#3b82f6";
+                case "in_review":
+                  return "#a855f7";
+                case "blocked":
+                  return "#ef4444";
+                case "todo":
+                default:
+                  return "#9ca3af";
+              }
+            }
+            if (node.type === "epicWidget") return "#f8fafc";
+            if (node.type === "featureWidget") return "#fff7ed";
+            return "#e5e7eb";
+          }}
+          nodeBorderRadius={6}
+          maskColor="rgba(0, 0, 0, 0.04)"
+          className="bg-gray-50 border border-gray-300 rounded-lg"
+          style={{ width: 200, height: 140 }}
         />
       </ReactFlow>
       <div className="absolute bottom-4 right-4 bg-white/90 border border-gray-200 rounded-md px-2 py-1 text-xs text-gray-700 shadow-sm">

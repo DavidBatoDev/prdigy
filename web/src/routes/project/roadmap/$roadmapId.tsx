@@ -617,7 +617,7 @@ function RoadmapViewPage() {
     <div className="min-h-screen bg-[#f6f7f8] relative overflow-hidden">
       {/* Guest User Banner */}
       {isGuest && !isLoadingUser && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-linear-to-r from-primary/90 to-primary text-white px-4 py-2 text-sm flex items-center justify-between shadow-md">
+        <div className="relative z-50 bg-linear-to-r from-primary/90 to-primary text-white px-4 py-2 text-sm flex items-center justify-between shadow-md">
           <div className="flex items-center gap-2">
             <span className="font-medium">🎯 Guest Mode</span>
             <span className="opacity-90">

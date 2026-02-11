@@ -1,28 +1,19 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, LogIn } from "lucide-react";
-import { motion } from "framer-motion";
-import {
-  LeftSidePanel,
-  type Message,
-} from "@/components/roadmap/LeftSidePanel";
-import { RoadmapCanvas } from "@/components/roadmap/RoadmapCanvas";
-import { callGeminiAPI } from "@/lib/gemini";
+import { LogIn, Check, Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useUser } from "@/stores/authStore";
 import { getOrCreateGuestUser } from "@/lib/guestAuth";
 import { Link } from "@tanstack/react-router";
-import { roadmapService, taskService } from "@/services/roadmap.service";
+import { roadmapService } from "@/services/roadmap.service";
 import {
-  ProjectBriefModal,
+  Step1,
+  Step2,
+  StepIndicator,
   type FormData,
-} from "@/components/roadmap/ProjectBriefModal";
-// Milestone type is now RoadmapMilestone from @/types/roadmap
-import type {
-  RoadmapMilestone,
-  RoadmapEpic,
-  RoadmapFeature,
-  RoadmapTask,
-} from "@/types/roadmap";
+} from "@/components/project-brief";
+import Header from "@/components/layout/Header";
+import Logo from "/prodigylogos/light/logovector.svg";
 
 export const Route = createFileRoute("/project/roadmap/")({
   component: RoadmapBuilderPage,
@@ -37,7 +28,6 @@ function RoadmapBuilderPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
-  const [roadmapId, setRoadmapId] = useState<string | null>(null);
   const [isCreatingRoadmap, setIsCreatingRoadmap] = useState(false);
 
   // Initialize user (authenticated or guest)
@@ -62,10 +52,8 @@ function RoadmapBuilderPage() {
     initializeUser();
   }, [authenticatedUser]);
 
-  // Modal state for Project Brief (Steps 1-2)
-  const [isBriefOpen, setIsBriefOpen] = useState(true);
-  const [briefStep, setBriefStep] = useState(1);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  // Form state for  (Steps 1-2)
+  const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<FormData>({
     title: "",
     category: "",
@@ -77,103 +65,20 @@ function RoadmapBuilderPage() {
     duration: "1-3_months",
   });
 
-  // Builder state
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      role: "assistant",
-      content:
-        "Hi! I'll help you build a roadmap for your project. Based on your inputs, I'll suggest milestones and timelines. Feel free to ask questions or request changes!",
-      timestamp: new Date(),
-    },
-  ]);
-  const [_milestones, setMilestones] = useState<RoadmapMilestone[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [epics, setEpics] = useState<RoadmapEpic[]>([]);
-  const [roadmapMilestones, setRoadmapMilestones] = useState<
-    RoadmapMilestone[]
-  >([]);
-
-  const buildProjectBrief = (data: FormData) => {
-    const lines: string[] = [];
-    if (data.title) lines.push(`Title: ${data.title}`);
-    if (data.category) lines.push(`Category: ${data.category}`);
-    if (data.description) lines.push(`Description: ${data.description}`);
-    if (data.problemSolving) {
-      lines.push(`Problem: ${data.problemSolving}`);
-    }
-    if (data.projectState) lines.push(`Project state: ${data.projectState}`);
-
-    const skills = [...data.skills, ...data.customSkills].filter(Boolean);
-    if (skills.length > 0) lines.push(`Skills: ${skills.join(", ")}`);
-    if (data.duration) lines.push(`Duration: ${data.duration}`);
-
-    return lines.join("\n");
-  };
-
-  const handleSendMessage = async (message: string) => {
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content: message,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setIsGenerating(true);
-
-    try {
-      // Convert messages to the format expected by Gemini API
-      const conversationHistory = messages.map((msg) => ({
-        role: msg.role,
-        content: msg.content,
-      }));
-
-      // Add the new user message
-      conversationHistory.push({
-        role: "user",
-        content: message,
-      });
-
-      const projectBrief = buildProjectBrief(formData);
-
-      // Call Gemini API
-      const aiResponse = await callGeminiAPI(conversationHistory, projectBrief);
-
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: aiResponse,
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [...prev, aiMessage]);
-    } catch (error) {
-      console.error("Error getting response from Gemini:", error);
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content:
-          "Sorry, I encountered an error while processing your request. Please try again.",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
   const updateFormData = (updates: Partial<FormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }));
   };
 
-  const handleModalSubmit = async () => {
-    await handleCreateRoadmap();
-    setIsBriefOpen(false);
+  const nextStep = () => {
+    if (currentStep < 2) setCurrentStep(currentStep + 1);
   };
 
-  const handleCreateRoadmap = async () => {
-    if (!currentUserId || roadmapId) return; // Already created or no user
+  const prevStep = () => {
+    if (currentStep > 1) setCurrentStep(currentStep - 1);
+  };
+
+  const handleSubmit = async () => {
+    if (!currentUserId) return;
 
     setIsCreatingRoadmap(true);
     try {
@@ -190,7 +95,6 @@ function RoadmapBuilderPage() {
         },
       });
 
-      setRoadmapId(roadmap.id);
       console.log("Roadmap created:", roadmap);
 
       // Navigate to the dynamic roadmap route
@@ -200,320 +104,23 @@ function RoadmapBuilderPage() {
       });
     } catch (error) {
       console.error("Failed to create roadmap:", error);
-      const errorMessage: Message = {
-        id: Date.now().toString(),
-        role: "assistant",
-        content: "Sorry, I couldn't create the roadmap. Please try again.",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      // Could add toast notification here
     } finally {
       setIsCreatingRoadmap(false);
     }
   };
 
-  const handleAddMilestone = () => {
-    if (!roadmapId) {
-      console.warn("No roadmap ID available - opening project brief");
-      setIsBriefOpen(true);
-      return;
-    }
-
-    const newMilestone: RoadmapMilestone = {
-      id: `m${Date.now()}`,
-      roadmap_id: roadmapId,
-      title: "New Milestone",
-      target_date: new Date().toISOString(),
-      status: "not_started",
-      position: roadmapMilestones.length,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    setMilestones((prev) => [...prev, newMilestone]);
-    // TODO: Create milestone via API
-  };
-
-  const handleUpdateMilestone = (updated: RoadmapMilestone) => {
-    setRoadmapMilestones((prev) =>
-      prev.map((m) => (m.id === updated.id ? updated : m)),
-    );
-  };
-
-  const handleDeleteMilestone = (id: string) => {
-    setMilestones((prev) => prev.filter((m) => m.id !== id));
-  };
-
-  // Epic CRUD handlers
-  const handleAddEpic = (
-    _milestoneId?: string,
-    epicInput?: Partial<RoadmapEpic>,
-  ) => {
-    if (!roadmapId) {
-      console.warn("No roadmap ID available - opening project brief");
-      setIsBriefOpen(true);
-      return;
-    }
-
-    const newEpic: RoadmapEpic = {
-      id: `epic-${Date.now()}`,
-      roadmap_id: roadmapId,
-      title: epicInput?.title?.trim() || `New Epic`,
-      description: epicInput?.description || "",
-      priority: epicInput?.priority || "medium",
-      status: epicInput?.status || "backlog",
-      position: epicInput?.position ?? epics.length,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      progress: 0,
-      features: [],
-      // Spread any other input properties (like tags/labels)
-      ...epicInput,
-    };
-
-    // If implementing insert logic
-    if (newEpic.position < epics.length) {
-      // We need to shift epics at or after this position
-      const updatedEpics = epics.map((e) => {
-        if (e.position >= newEpic.position!) {
-          return { ...e, position: e.position + 1 };
-        }
-        return e;
-      });
-      setEpics([...updatedEpics, newEpic]);
-    } else {
-      setEpics([...epics, newEpic]);
-    }
-    // TODO: Create epic via API
-  };
-
-  const handleUpdateEpic = (updatedEpic: RoadmapEpic) => {
-    setEpics(
-      epics.map((e) =>
-        e.id === updatedEpic.id
-          ? { ...updatedEpic, updated_at: new Date().toISOString() }
-          : e,
-      ),
-    );
-  };
-
-  const handleDeleteEpic = (epicId: string) => {
-    setEpics(epics.filter((e) => e.id !== epicId));
-  };
-
-  const handleAddFeature = (
-    epicId: string,
-    data: {
-      title: string;
-      description: string;
-      status:
-        | "not_started"
-        | "in_progress"
-        | "in_review"
-        | "completed"
-        | "blocked";
-      is_deliverable: boolean;
-    },
-  ) => {
-    if (!roadmapId) {
-      console.warn("No roadmap ID available - opening project brief");
-      setIsBriefOpen(true);
-      return;
-    }
-
-    const epic = epics.find((e) => e.id === epicId);
-    if (!epic) return;
-
-    const newFeature = {
-      id: `feature-${Date.now()}`,
-      roadmap_id: roadmapId,
-      epic_id: epicId,
-      title: data.title,
-      description: data.description,
-      status: data.status,
-      position: epic.features?.length || 0,
-      is_deliverable: data.is_deliverable,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
-    setEpics(
-      epics.map((e) =>
-        e.id === epicId
-          ? { ...e, features: [...(e.features || []), newFeature] }
-          : e,
-      ),
-    );
-  };
-
-  const handleUpdateFeature = (feature: RoadmapFeature) => {
-    setEpics((prev) =>
-      prev.map((epic) =>
-        epic.id === feature.epic_id
-          ? {
-              ...epic,
-              features: (epic.features || []).map((f) =>
-                f.id === feature.id
-                  ? {
-                      ...feature,
-                      tasks: f.tasks || [],
-                      updated_at: new Date().toISOString(),
-                    }
-                  : f,
-              ),
-            }
-          : epic,
-      ),
-    );
-  };
-
-  const handleDeleteFeature = (featureId: string) => {
-    // Find epic containing feature
-    const epic = epics.find((e) => e.features?.some((f) => f.id === featureId));
-    if (!epic) return;
-
-    setEpics(
-      epics.map((e) =>
-        e.id === epic.id
-          ? {
-              ...e,
-              features: e.features?.filter((f) => f.id !== featureId),
-              updated_at: new Date().toISOString(),
-            }
-          : e,
-      ),
-    );
-  };
-
-  const handleAddTask = async (
-    featureId: string,
-    taskData: Partial<RoadmapTask>,
-  ) => {
-    if (!taskData.title) {
-      console.warn("Task title is required");
-      return;
-    }
-
-    const updateLocalState = (newTask: RoadmapTask) => {
-      setEpics((prevEpics) =>
-        prevEpics.map((epic) => ({
-          ...epic,
-          features: (epic.features || []).map((feature) =>
-            feature.id === featureId
-              ? {
-                  ...feature,
-                  tasks: [...(feature.tasks || []), newTask],
-                }
-              : feature,
-          ),
-        })),
-      );
-    };
-
-    if (!roadmapId) {
-      const newTask: RoadmapTask = {
-        id: `task-${Date.now()}`,
-        feature_id: featureId,
-        title: taskData.title,
-        status: taskData.status || "todo",
-        priority: taskData.priority || "medium",
-        position: taskData.position || 0,
-        due_date: taskData.due_date,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      } as RoadmapTask;
-
-      updateLocalState(newTask);
-      return;
-    }
-
-    try {
-      const newTask = await taskService.create({
-        feature_id: featureId,
-        title: taskData.title,
-        status: taskData.status || "todo",
-        priority: taskData.priority || "medium",
-        position: taskData.position,
-        due_date: taskData.due_date,
-      });
-
-      updateLocalState(newTask);
-    } catch (error) {
-      console.error("Failed to create task:", error);
-    }
-  };
-
-  const handleUpdateTask = async (task: RoadmapTask) => {
-    const updateLocalState = (updatedTask: RoadmapTask) => {
-      setEpics((prevEpics) =>
-        prevEpics.map((epic) => ({
-          ...epic,
-          features: (epic.features || []).map((feature) => ({
-            ...feature,
-            tasks: (feature.tasks || []).map((t) =>
-              t.id === updatedTask.id ? updatedTask : t,
-            ),
-          })),
-        })),
-      );
-    };
-
-    if (!roadmapId) {
-      updateLocalState({ ...task, updated_at: new Date().toISOString() });
-      return;
-    }
-
-    try {
-      const updated = await taskService.update(task.id, {
-        title: task.title,
-        status: task.status,
-        priority: task.priority,
-        position: task.position,
-        due_date: task.due_date,
-        completed_at: task.completed_at,
-      });
-
-      updateLocalState(updated);
-    } catch (error) {
-      console.error("Failed to update task:", error);
-    }
-  };
-
-  const handleDeleteTask = async (taskId: string) => {
-    const updateLocalState = () => {
-      setEpics((prevEpics) =>
-        prevEpics.map((epic) => ({
-          ...epic,
-          features: (epic.features || []).map((feature) => ({
-            ...feature,
-            tasks: (feature.tasks || []).filter((t) => t.id !== taskId),
-          })),
-        })),
-      );
-    };
-
-    if (!roadmapId) {
-      updateLocalState();
-      return;
-    }
-
-    try {
-      await taskService.delete(taskId);
-      updateLocalState();
-    } catch (error) {
-      console.error("Failed to delete task:", error);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-[#f6f7f8] relative overflow-hidden">
+      <Header />
+
       {/* Guest User Banner */}
       {isGuest && !isLoadingUser && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-linear-to-r from-primary/90 to-primary text-white px-4 py-2 text-sm flex items-center justify-between shadow-md">
+        <div className="relative z-50 bg-linear-to-r from-primary/90 to-primary text-white px-4 py-2 text-sm flex items-center justify-between shadow-md">
           <div className="flex items-center gap-2">
-            <span className="font-medium"> Guest Mode</span>
+            <span className="font-medium">🔓 Guest Mode</span>
             <span className="opacity-90">
-              Your roadmap will be saved for 30 days. Sign in to save
-              permanently.
+              Your roadmap will be saved for 30 days. Sign in to save permanently.
             </span>
           </div>
           <Link
@@ -527,109 +134,222 @@ function RoadmapBuilderPage() {
         </div>
       )}
 
-      {/* Local style to hide scrollbar UI while preserving scroll */}
-      <style>{`
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-      `}</style>
-      {/* Builder Console always visible */}
-      <div
-        className={`fixed ${isGuest && !isLoadingUser ? "top-12" : "top-0"} left-0 right-0 bottom-0 flex`}
-      >
-        {/* Left: Chat Sidebar (collapsible) */}
-        <motion.div
-          id="roadmap-chat-panel"
-          className="relative h-full border-r border-gray-200 bg-white"
-          initial={{ width: "20%" }}
-          animate={{ width: isSidebarOpen ? "20%" : "56px" }}
-          transition={{ duration: 0.25, ease: "easeInOut" }}
-          style={{ minWidth: 56 }}
+      {/* Decorative Background Elements */}
+      <div className="absolute inset-0 pointer-events-none">
+        {/* Wave SVG at bottom */}
+        <motion.svg
+          className="absolute bottom-0 left-0 w-full h-[700px] opacity-30"
+          viewBox="0 0 1440 320"
+          preserveAspectRatio="none"
+          animate={{
+            y: [0, -30, 0],
+          }}
+          transition={{
+            duration: 6,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
         >
-          {isSidebarOpen ? (
-            <LeftSidePanel
-              messages={messages}
-              onSendMessage={handleSendMessage}
-              isGenerating={isGenerating}
-              isGuest={isGuest}
-            />
-          ) : (
-            <div className="h-full w-full flex items-center justify-center">
-              <span className="rotate-90 text-[10px] tracking-[0.2em] text-gray-400 select-none">
-                CHAT
-              </span>
-            </div>
-          )}
-
-          {/* Toggle button */}
-          <button
-            type="button"
-            aria-controls="roadmap-chat-panel"
-            aria-expanded={isSidebarOpen}
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="absolute -right-3 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center hover:bg-gray-50"
-            title={isSidebarOpen ? "Collapse chat" : "Expand chat"}
-          >
-            {isSidebarOpen ? (
-              <ChevronLeft className="w-4 h-4 text-gray-600" />
-            ) : (
-              <ChevronRight className="w-4 h-4 text-gray-600" />
-            )}
-          </button>
-        </motion.div>
-
-        {/* Right: Roadmap Canvas */}
-        <div className="flex-1">
-          <RoadmapCanvas
-            projectTitle={formData.title || "Untitled Project"}
-            roadmap={{
-              id: currentUserId || "roadmap-main", // Use actual user ID as roadmap ID
-              project_id: null, // Guest users don't have projects yet
-              name: formData.title || "Project Roadmap",
-              description: formData.description,
-              owner_id: currentUserId || "user-main", // Use actual user ID
-              status: "draft", // Guest roadmaps start as drafts
-              start_date: new Date().toISOString(),
-              end_date: new Date(
-                Date.now() + 90 * 24 * 60 * 60 * 1000,
-              ).toISOString(),
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
+          <motion.path
+            d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,122.7C672,117,768,139,864,144C960,149,1056,139,1152,128C1248,117,1344,107,1392,101.3L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
+            fill={currentStep === 1 ? "#FF9933" : "#e91e63"}
+            fillOpacity="0.3"
+            animate={{
+              fill: currentStep === 1 ? "#FF9933" : "#e91e63",
             }}
-            milestones={roadmapMilestones}
-            epics={epics}
-            onUpdateRoadmap={() => {}}
-            onAddMilestone={handleAddMilestone}
-            onUpdateMilestone={handleUpdateMilestone}
-            onDeleteMilestone={handleDeleteMilestone}
-            onAddEpic={handleAddEpic}
-            onUpdateEpic={handleUpdateEpic}
-            onDeleteEpic={handleDeleteEpic}
-            onAddFeature={handleAddFeature}
-            onUpdateFeature={handleUpdateFeature}
-            onDeleteFeature={handleDeleteFeature}
-            onAddTask={handleAddTask}
-            onUpdateTask={handleUpdateTask}
-            onDeleteTask={handleDeleteTask}
-            onEditBrief={() => setIsBriefOpen(true)}
-            onExport={() => {
-              /* TODO: Export functionality */
+            transition={{
+              duration: 0.5,
+              ease: "easeInOut",
             }}
           />
+        </motion.svg>
+
+        {/* Gradient Blobs */}
+        <motion.div
+          className="absolute top-20 left-10 w-[400px] h-[400px] bg-[#ff993326] rounded-full blur-3xl opacity-40"
+          animate={{
+            scale: [1, 1.3, 1],
+            x: [0, 50, 0],
+            y: [0, -40, 0],
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        />
+        <motion.div
+          className="absolute top-40 right-20 w-[350px] h-[350px] bg-pink-200 rounded-full blur-3xl opacity-30"
+          animate={{
+            scale: [1, 1.4, 1],
+            x: [0, -40, 0],
+            y: [0, 35, 0],
+          }}
+          transition={{
+            duration: 7,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 0.5,
+          }}
+        />
+        <motion.div
+          className="absolute bottom-40 left-1/3 w-[300px] h-[300px] bg-orange-200 rounded-full blur-3xl opacity-25"
+          animate={{
+            scale: [1, 1.5, 1],
+            x: [0, 30, 0],
+            y: [0, -30, 0],
+          }}
+          transition={{
+            duration: 9,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 1,
+          }}
+        />
+      </div>
+
+      <div className="max-w-[1440px] mx-auto px-20 py-8 pb-40 relative z-10">
+        {/* Progress Stepper */}
+        <div className="flex items-center justify-center mb-14 relative">
+          <StepIndicator
+            step={1}
+            currentStep={currentStep}
+            label="Vision & Scope"
+            totalSteps={2}
+          />
+          <div className="w-32 h-1 bg-gray-200 rounded-full mx-2 overflow-hidden -mt-6">
+            <motion.div
+              className="h-full bg-linear-to-r from-[#ff9933] to-[#e91e63]"
+              initial={{ width: "0%" }}
+              animate={{ width: currentStep > 1 ? "100%" : "0%" }}
+              transition={{ duration: 0.5, ease: "easeInOut" }}
+            />
+          </div>
+          <StepIndicator
+            step={2}
+            currentStep={currentStep}
+            label="Skills & Duration"
+            totalSteps={2}
+          />
+        </div>
+
+        {/* Step Content */}
+        <div className="grid grid-cols-[400px_1fr] gap-12">
+          {/* Left Info Panel */}
+          <div className="relative">
+            <div className="sticky top-8">
+              <AnimatePresence mode="wait">
+                {currentStep === 1 && (
+                  <motion.div
+                    key="step1-info"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                  >
+                    <img src={Logo} alt="Prodigy" className="h-8 mb-6" />
+                    <h3 className="text-2xl font-bold text-[#333438] mb-3">
+                      Step 1: Vision & Scope
+                    </h3>
+                    <p className="text-[#61636c] leading-relaxed">
+                      Tell us about your project. What do you want to build? Describe
+                      your vision so we can generate an accurate roadmap.
+                    </p>
+                  </motion.div>
+                )}
+                {currentStep === 2 && (
+                  <motion.div
+                    key="step2-info"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                  >
+                    <img src={Logo} alt="Prodigy" className="h-8 mb-6" />
+                    <h3 className="text-2xl font-bold text-[#333438] mb-3">
+                      Step 2: Skills & Duration
+                    </h3>
+                    <p className="text-[#61636c] leading-relaxed">
+                      What skills are needed? How long do you expect the project to
+                      take? This helps us create a realistic timeline.
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          {/* Right Form Content */}
+          <div className="min-h-[500px] bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg border border-gray-200/50">
+            <AnimatePresence mode="wait">
+              {currentStep === 1 && (
+                <motion.div
+                  key="step1-form"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                >
+                  <Step1 formData={formData} updateFormData={updateFormData} />
+                </motion.div>
+              )}
+              {currentStep === 2 && (
+                <motion.div
+                  key="step2-form"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                >
+                  <Step2 formData={formData} updateFormData={updateFormData} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
 
-      {/* Project Brief Modal (Steps 1-2) */}
-      <ProjectBriefModal
-        isOpen={isBriefOpen}
-        onClose={() => setIsBriefOpen(false)}
-        mode="create"
-        formData={formData}
-        onUpdateFormData={updateFormData}
-        currentStep={briefStep}
-        onStepChange={setBriefStep}
-        onSubmit={handleModalSubmit}
-        isSubmitting={isCreatingRoadmap}
-      />
+      {/* Navigation Buttons - Fixed at bottom */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none pb-8 pt-4 bg-linear-to-t from-[#f6f7f8] via-[#f6f7f8]/80 to-transparent">
+        <div className="max-w-[1440px] mx-auto px-6 flex justify-between pointer-events-auto">
+          {currentStep > 1 ? (
+            <button
+              onClick={prevStep}
+              className="px-8 py-3 bg-white text-[#61636c] font-semibold rounded-lg border-2 border-gray-200 hover:border-gray-300 transition-all uppercase tracking-wide"
+            >
+              ← Back
+            </button>
+          ) : (
+            <div />
+          )}
+          {currentStep < 2 ? (
+            <button
+              onClick={nextStep}
+              className="px-8 py-3 bg-[#ff9933] text-white font-semibold rounded-lg hover:bg-[#e68829] transition-all uppercase tracking-wide shadow-lg"
+            >
+              Next →
+            </button>
+          ) : (
+            <button
+              onClick={handleSubmit}
+              disabled={isCreatingRoadmap}
+              className="px-8 py-3 bg-[#e91e63] text-white font-semibold rounded-lg hover:bg-[#c2185b] transition-all uppercase tracking-wide shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {isCreatingRoadmap ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Check className="w-5 h-5" />
+                  Create Roadmap
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

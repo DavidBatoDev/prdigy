@@ -1,8 +1,8 @@
 import { CheckCircle2, DollarSign, Loader } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { getRoadmaps } from "@/api";
-import type { Roadmap } from "@/types/roadmap";
+import { getRoadmapsPreview } from "@/api";
+import type { RoadmapPreview } from "@/api/endpoints/roadmap";
 
 interface Template {
   id: string;
@@ -10,9 +10,153 @@ interface Template {
   category: string;
   milestones: string;
   budget: string;
-  image: string;
   tag: string;
+  preview: RoadmapPreview;
 }
+
+const RoadmapMiniMap = ({ preview }: { preview: RoadmapPreview }) => {
+  const EPIC_WIDTH = 68;
+  const EPIC_HEIGHT = 40;
+  const FEATURE_WIDTH = 70;
+  const FEATURE_HEIGHT = 22;
+  const TASK_WIDTH = 42;
+  const TASK_HEIGHT = 8;
+  const GAP_Y = 8;
+  const GAP_X = 18;
+  const TASK_GAP = 4;
+  const MAX_EPICS = 3;
+  const MAX_FEATURES = 3;
+  const MAX_TASKS = 4;
+
+  const epics = [...(preview.epics || [])]
+    .sort((a, b) => a.position - b.position)
+    .slice(0, MAX_EPICS);
+
+  const groups = epics.map((epic) => {
+    const features = [...(epic.features || [])]
+      .sort((a, b) => a.position - b.position)
+      .slice(0, MAX_FEATURES);
+    const groupHeight = Math.max(
+      EPIC_HEIGHT,
+      features.length * FEATURE_HEIGHT + Math.max(0, features.length - 1) * GAP_Y,
+    );
+    return { epic, features, groupHeight };
+  });
+
+  const totalHeight =
+    groups.reduce((sum, group) => sum + group.groupHeight, 0) +
+    Math.max(0, groups.length - 1) * GAP_Y;
+
+  const viewWidth = 260;
+  const viewHeight = 150;
+  const scale = totalHeight > 0 ? Math.min(1, viewHeight / totalHeight) : 1;
+
+  let currentY = 0;
+
+  return (
+    <svg
+      viewBox={`0 0 ${viewWidth} ${viewHeight}`}
+      className="w-full h-full"
+      aria-hidden="true"
+    >
+      <rect
+        x="0"
+        y="0"
+        width={viewWidth}
+        height={viewHeight}
+        rx="10"
+        fill="rgba(255,255,255,0.75)"
+        stroke="rgba(148,163,184,0.4)"
+      />
+      <g transform={`scale(${scale})`}>
+        {groups.map((group) => {
+          const groupY = currentY;
+          const featureStartY =
+            groupY + group.groupHeight / 2 -
+            (group.features.length * FEATURE_HEIGHT +
+              Math.max(0, group.features.length - 1) * GAP_Y) /
+              2;
+
+          const epicY = groupY + group.groupHeight / 2 - EPIC_HEIGHT / 2;
+
+          currentY += group.groupHeight + GAP_Y;
+
+          return (
+            <g key={group.epic.id}>
+              <rect
+                x={16}
+                y={epicY}
+                width={EPIC_WIDTH}
+                height={EPIC_HEIGHT}
+                rx={8}
+                fill="#f8fafc"
+                stroke="#cbd5f5"
+              />
+
+              {group.features.map((feature, index) => {
+                const featureY = featureStartY + index * (FEATURE_HEIGHT + GAP_Y);
+                const tasks = (feature.tasks || []).slice(0, MAX_TASKS);
+                return (
+                  <g key={feature.id}>
+                    <path
+                      d={`M ${16 + EPIC_WIDTH} ${epicY + EPIC_HEIGHT / 2} H ${16 + EPIC_WIDTH + GAP_X}`}
+                      stroke="#cbd5f5"
+                      strokeWidth="1"
+                      fill="none"
+                    />
+                    <rect
+                      x={16 + EPIC_WIDTH + GAP_X}
+                      y={featureY}
+                      width={FEATURE_WIDTH}
+                      height={FEATURE_HEIGHT}
+                      rx={6}
+                      fill="#fff7ed"
+                      stroke="#f5b86b"
+                    />
+
+                    {tasks.map((task, taskIndex) => {
+                      const taskX =
+                        16 + EPIC_WIDTH + GAP_X + FEATURE_WIDTH + 12;
+                      const taskY = featureY + taskIndex * (TASK_HEIGHT + TASK_GAP);
+                      let taskFill = "#9ca3af";
+                      switch (task.status) {
+                        case "done":
+                          taskFill = "#10b981";
+                          break;
+                        case "in_progress":
+                          taskFill = "#3b82f6";
+                          break;
+                        case "in_review":
+                          taskFill = "#a855f7";
+                          break;
+                        case "blocked":
+                          taskFill = "#ef4444";
+                          break;
+                        default:
+                          taskFill = "#9ca3af";
+                      }
+                      return (
+                        <rect
+                          key={task.id}
+                          x={taskX}
+                          y={taskY}
+                          width={TASK_WIDTH}
+                          height={TASK_HEIGHT}
+                          rx={4}
+                          fill={taskFill}
+                        />
+                      );
+                    })}
+                  </g>
+                );
+              })}
+            </g>
+          );
+        })}
+      </g>
+    </svg>
+  );
+};
 
 export const TemplatesSection = () => {
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -26,23 +170,23 @@ export const TemplatesSection = () => {
         setError(null);
 
         // Use centralized API from apiClient with automatic auth headers
-        const roadmaps = await getRoadmaps();
+        const roadmaps = await getRoadmapsPreview();
 
         // Transform roadmaps to template format
         const transformedTemplates: Template[] = roadmaps.map(
-          (roadmap: Roadmap, index: number) => ({
+          (roadmap: RoadmapPreview, index: number) => ({
             id: roadmap.id,
             title: roadmap.name,
             category: roadmap.description || "Project Roadmap",
             milestones: "View plan",
             budget: "Custom",
-            image: `https://images.unsplash.com/photo-${1563013544 + index}?w=400&h=300&fit=crop`,
             tag:
               index === 0
                 ? "Active"
                 : roadmap.status === "completed"
                   ? "Completed"
                   : "Draft",
+            preview: roadmap,
           }),
         );
 
@@ -101,12 +245,8 @@ export const TemplatesSection = () => {
                   {template.tag}
                 </span>
               </div>
-              <div className="aspect-4/3 overflow-hidden bg-linear-to-br from-primary-light to-secondary-light">
-                <img
-                  src={template.image}
-                  alt={template.title}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                />
+              <div className="aspect-4/3 overflow-hidden bg-linear-to-br from-primary-light to-secondary-light p-4">
+                <RoadmapMiniMap preview={template.preview} />
               </div>
               <div className="p-4">
                 <h3 className="font-semibold text-gray-900 mb-1">

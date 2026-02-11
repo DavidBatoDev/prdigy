@@ -1,32 +1,24 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import Header from "@/components/layout/Header";
-import { Upload, X, CornerDownLeft, Check } from "lucide-react";
+import { Upload, Check, Loader2, MapIcon, UserCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { roadmapService } from "@/services/roadmap.service";
+import {
+  Step1 as SharedStep1,
+  Step2 as SharedStep2,
+  StepIndicator,
+  type FormData as BaseFormData,
+} from "@/components/project-brief";
 
 export const Route = createFileRoute("/client/project-posting")({
   component: ProjectPostingPage,
 });
 
-type ProjectState = "idea" | "sketches" | "design" | "codebase";
-
-interface FormData {
-  // Step 1
-  title: string;
-  category: string;
-  description: string;
-  problemSolving: string;
-  projectState: ProjectState;
-  
-  // Step 2
-  skills: string[];
-  customSkills: string[];
-  duration: string;
+// Extended FormData with Step 3 fields
+interface FormData extends BaseFormData {
+  // Step 3 additional fields
   roadmapFile: File | null;
-  
-  // Step 3
   budgetRange: string;
   fundingStatus: string;
   startDate: string;
@@ -34,7 +26,10 @@ interface FormData {
 }
 
 function ProjectPostingPage() {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isCreatingRoadmap, setIsCreatingRoadmap] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     title: "",
     category: "",
@@ -64,8 +59,52 @@ function ProjectPostingPage() {
   };
 
   const handleSubmit = () => {
-    console.log("Submitting project:", formData);
-    // TODO: Submit to API
+    console.log("Project submitted:", formData);
+    // Show success modal with options
+    setShowSuccessModal(true);
+  };
+
+  const handleGenerateRoadmap = async () => {
+    setIsCreatingRoadmap(true);
+    try {
+      // Create roadmap with all form data including Step 3 budget/timeline
+      const roadmap = await roadmapService.create({
+        name: formData.title || "Untitled Project",
+        description: formData.description,
+        status: "draft",
+        settings: {
+          category: formData.category,
+          problemSolving: formData.problemSolving,
+          projectState: formData.projectState,
+          skills: [...formData.skills, ...formData.customSkills],
+          duration: formData.duration,
+          budgetRange: formData.budgetRange,
+          fundingStatus: formData.fundingStatus,
+          startDate: formData.startDate,
+          customStartDate: formData.customStartDate,
+        },
+      });
+
+      console.log("Roadmap created from project posting:", roadmap);
+
+      // Navigate to the roadmap view
+      navigate({
+        to: "/project/roadmap/$roadmapId",
+        params: { roadmapId: roadmap.id },
+      });
+    } catch (error) {
+      console.error("Failed to create roadmap:", error);
+      // Could add error toast here
+    } finally {
+      setIsCreatingRoadmap(false);
+    }
+  };
+
+  const handleSubmitToConsultant = () => {
+    // Future implementation - for now just show a message
+    alert("Consultant matching feature coming soon! Your project details have been saved.");
+    setShowSuccessModal(false);
+    // TODO: Submit project to consultant matching system
   };
 
   return (
@@ -148,9 +187,8 @@ function ProjectPostingPage() {
       
       <div className="max-w-[1440px] mx-auto px-20 py-8 pb-40 relative z-10">
         {/* Progress Stepper */}
-        {/* Progress Stepper */}
         <div className="flex items-center justify-center mb-14 relative">
-          <StepIndicator step={1} currentStep={currentStep} label="Vision & Scope" />
+          <StepIndicator step={1} currentStep={currentStep} label="Vision & Scope" totalSteps={3} />
           <div className="w-32 h-1 bg-gray-200 rounded-full mx-2 overflow-hidden mt-[-24px]">
              <motion.div 
                className="h-full bg-linear-to-r from-[#ff9933] to-[#e91e63]"
@@ -159,7 +197,7 @@ function ProjectPostingPage() {
                transition={{ duration: 0.5, ease: "easeInOut" }}
              />
           </div>
-          <StepIndicator step={2} currentStep={currentStep} label="Skills & Duration" />
+          <StepIndicator step={2} currentStep={currentStep} label="Skills & Duration" totalSteps={3} />
           <div className="w-32 h-1 bg-gray-200 rounded-full mx-2 overflow-hidden mt-[-24px]">
             <motion.div 
                className="h-full bg-[#e91e63]"
@@ -168,7 +206,7 @@ function ProjectPostingPage() {
                transition={{ duration: 0.5, ease: "easeInOut", delay: 0.1 }}
              />
           </div>
-          <StepIndicator step={3} currentStep={currentStep} label="Budget & Timeline" />
+          <StepIndicator step={3} currentStep={currentStep} label="Budget & Timeline" totalSteps={3} />
         </div>
 
         {/* Step Content */}
@@ -240,7 +278,7 @@ function ProjectPostingPage() {
                   exit={{ opacity: 0, x: 20 }}
                   transition={{ duration: 0.4, ease: "easeOut" }}
                 >
-                  <Step1
+                  <SharedStep1
                     formData={formData}
                     updateFormData={updateFormData}
                   />
@@ -254,7 +292,7 @@ function ProjectPostingPage() {
                   exit={{ opacity: 0, x: 20 }}
                   transition={{ duration: 0.4, ease: "easeOut" }}
                 >
-                  <Step2
+                  <SharedStep2
                     formData={formData}
                     updateFormData={updateFormData}
                   />
@@ -299,430 +337,107 @@ function ProjectPostingPage() {
             ) : (
               <button
                 onClick={handleSubmit}
-                className="pointer-events-auto cursor-pointer px-8 py-3 bg-linear-to-r from-[#e91e63] to-[#ff1744] text-white rounded-lg font-semibold hover:shadow-lg transition-all uppercase"
+                className="pointer-events-auto cursor-pointer px-8 py-3 bg-linear-to-r from-[#e91e63] to-[#ff1744] text-white rounded-lg font-semibold hover:shadow-lg transition-all uppercase flex items-center gap-2"
               >
-                Submit & Match Consultant
+                <Check className="w-5 h-5" />
+                Submit Project
               </button>
             )}
           </div>
         </div>
       </div>
-    </div>
-  );
-}
 
-function StepIndicator({ step, currentStep, label }: { step: number; currentStep: number; label: string }) {
-  const isActive = step === currentStep;
-  const isCompleted = step < currentStep;
-
-  // Determine colors based on step state and position
-  let bgClass = "bg-gray-200";
-  let textClass = "text-gray-400";
-  let shadowClass = "";
-  let labelClass = "text-gray-400";
-
-  if (isActive || isCompleted) {
-    if (step === 1) {
-       bgClass = "bg-[#ff9933]";
-       textClass = "text-white";
-       shadowClass = isActive ? "shadow-[0_0_20px_rgba(255,153,51,0.4)]" : "";
-       labelClass = isActive ? "text-[#ff9933] font-semibold" : "text-[#ff9933]";
-    } else if (step === 2) {
-       bgClass = "bg-[#e91e63]";
-       textClass = "text-white";
-       shadowClass = isActive ? "shadow-[0_0_20px_rgba(233,30,99,0.4)]" : "";
-       labelClass = isActive ? "text-[#e91e63] font-semibold" : "text-[#e91e63]";
-    } else {
-       bgClass = "bg-[#8b5cf6]";
-       textClass = "text-white";
-       shadowClass = isActive ? "shadow-[0_0_20px_rgba(139,92,246,0.4)]" : "";
-       labelClass = isActive ? "text-[#8b5cf6] font-semibold" : "text-[#8b5cf6]";
-    }
-  }
-
-  return (
-    <div className="flex flex-col items-center">
-      <motion.div
-        className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg transition-all duration-300 ${bgClass} ${textClass} ${shadowClass}`}
-        initial={false}
-        animate={{
-          scale: isActive ? 1.15 : 1,
-        }}
-        transition={{
-          type: "spring",
-          stiffness: 260,
-          damping: 20
-        }}
-      >
-        <motion.div
-          initial={false}
-          animate={{
-            scale: isCompleted ? [1, 1.2, 1] : 1,
-            opacity: isCompleted ? [0, 1] : 1
-          }}
-          transition={{
-            duration: 0.4,
-            ease: "easeOut"
-          }}
-        >
-          {isCompleted ? (
-            <Check className="w-6 h-6" />
-          ) : (
-            <span>{step}</span>
-          )}
-        </motion.div>
-      </motion.div>
-      <p className={`mt-2 text-xs transition-colors duration-300 ${labelClass}`}>
-        {label}
-      </p>
-    </div>
-  );
-}
-
-function Step1({ formData, updateFormData }: { formData: FormData; updateFormData: (updates: Partial<FormData>) => void }) {
-  const [activeTab, setActiveTab] = useState<"guided" | "upload">("guided");
-
-  return (
-    <div className="space-y-4">
-      {/* Tabs */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => setActiveTab("guided")}
-          className={`px-6 py-2 rounded-lg font-semibold transition-colors ${
-            activeTab === "guided"
-              ? "bg-[#ff9933] text-white"
-              : "bg-gray-100 text-[#61636c] hover:bg-gray-200"
-          }`}
-        >
-          Guided Form
-        </button>
-        <button
-          onClick={() => setActiveTab("upload")}
-          className={`px-6 py-2 rounded-lg font-semibold transition-colors ${
-            activeTab === "upload"
-              ? "bg-[#ff9933] text-white"
-              : "bg-gray-100 text-[#61636c] hover:bg-gray-200"
-          }`}
-        >
-          Upload Document
-        </button>
-      </div>
-
-      {activeTab === "guided" ? (
-        <>
-          {/* Project Title & Category */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-[#333438] mb-2">
-                Project Title*
-              </label>
-              <input
-                type="text"
-                placeholder="e.g., SaaS Dashboard for Logistics, Food Delivery App..."
-                value={formData.title}
-                onChange={(e) => updateFormData({ title: e.target.value })}
-                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff9933] focus:border-transparent shadow-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-[#333438] mb-2">
-                Category
-              </label>
-              <select
-                value={formData.category}
-                onChange={(e) => updateFormData({ category: e.target.value })}
-                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff9933] focus:border-transparent shadow-sm"
-              >
-                <option value="">Select...</option>
-                <option value="web">Web Development</option>
-                <option value="mobile">Mobile App</option>
-                <option value="design">Design</option>
-                <option value="data">Data Science</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Project Description */}
-          <div>
-            <label className="block text-sm font-semibold text-[#333438] mb-2">
-              Project Description*
-            </label>
-            <p className="text-xs text-[#92969f] mb-2">• Describe your vision in a few sentences.</p>
-            <textarea
-              placeholder="I want to build a mobile app that helps dog walkers find clients..."
-              value={formData.description}
-              onChange={(e) => updateFormData({ description: e.target.value })}
-              rows={3}
-              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff9933] focus:border-transparent resize-none shadow-sm"
+      {/* Success Modal */}
+      <AnimatePresence>
+        {showSuccessModal && (
+          <motion.div
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowSuccessModal(false)}
             />
-          </div>
-
-          {/* Problem Solving */}
-          <div>
-            <label className="block text-sm text-[#92969f] mb-2">
-              What is the main problem you are solving?
-            </label>
-            <input
-              type="text"
-              value={formData.problemSolving}
-              onChange={(e) => updateFormData({ problemSolving: e.target.value })}
-              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff9933] focus:border-transparent shadow-sm"
-            />
-          </div>
-
-          {/* Current State */}
-          <div>
-            <label className="block text-sm font-semibold text-[#333438] mb-4">
-              What is the current state of the project?
-            </label>
-            <div className="grid grid-cols-2 gap-4">
-              <TileOption
-                name="projectState"
-                value="idea"
-                label="Just an idea"
-                description="I have a concept but no materials yet"
-                checked={formData.projectState === "idea"}
-                onChange={() => updateFormData({ projectState: "idea" })}
-              />
-              <TileOption
-                name="projectState"
-                value="design"
-                label="Design / Prototype ready"
-                description="I have designs but need development"
-                checked={formData.projectState === "design"}
-                onChange={() => updateFormData({ projectState: "design" })}
-              />
-              <TileOption
-                name="projectState"
-                value="sketches"
-                label="Sketches / Wireframes"
-                description="I have rough drawings or flows"
-                checked={formData.projectState === "sketches"}
-                onChange={() => updateFormData({ projectState: "sketches" })}
-              />
-              <TileOption
-                name="projectState"
-                value="codebase"
-                label="Existing Codebase"
-                description="I need to fix or rebuild an app"
-                checked={formData.projectState === "codebase"}
-                onChange={() => updateFormData({ projectState: "codebase" })}
-              />
-            </div>
-          </div>
-        </>
-      ) : (
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
-          <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-[#61636c] mb-2">
-            <span className="text-[#ff9933] font-semibold cursor-pointer hover:underline">Link</span> or drag and drop
-          </p>
-          <p className="text-sm text-[#92969f]">SVG, PNG, JPG or GIF (max. 3MB)</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Step2({ formData, updateFormData }: { formData: FormData; updateFormData: (updates: Partial<FormData>) => void }) {
-  const [skillInput, setSkillInput] = useState("");
-  const [showDropdown, setShowDropdown] = useState(false);
-  
-  const { data: skillsData } = useQuery({
-    queryKey: ['skills'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('skills')
-        .select('name, slug')
-        .order('name');
-      
-      if (error) throw error;
-      return data as { name: string; slug: string }[];
-    },
-  });
-  
-  const generalSkills = skillsData?.map(s => s.name) || [
-    "Graphic Design", "Content Writing", "Web Development", "Data Entry",
-    "Digital Marketing", "Project Management", "Translation", "Video Editing",
-    "SEO", "Social Media Marketing", "Virtual Assistant", "Illustration",
-    "3D Modeling", "Voice Over", "Customer Service", "Accounting",
-    "Legal Consulting", "HR & Recruiting", "Photography", "Videography"
-  ];
-
-  const filteredSkills = generalSkills.filter(skill => 
-    skill.toLowerCase().includes(skillInput.toLowerCase()) && 
-    !formData.skills.includes(skill)
-  );
-
-  const addSkill = (skill: string) => {
-    // Check if skill exists in the fetched list (case-insensitive)
-    const existingSkill = generalSkills.find(
-      (s) => s.toLowerCase() === skill.toLowerCase()
-    );
-
-    if (existingSkill) {
-      // It's an existing skill
-      if (!formData.skills.includes(existingSkill)) {
-        updateFormData({ skills: [...formData.skills, existingSkill] });
-      }
-    } else {
-      // It's a custom skill
-      // Check if it's already in customSkills (case-insensitive check to avoid duplicates)
-      const isDuplicateCustom = formData.customSkills.some(
-        (s) => s.toLowerCase() === skill.toLowerCase()
-      );
-      
-      if (!isDuplicateCustom) {
-        updateFormData({ customSkills: [...formData.customSkills, skill] });
-      }
-    }
-    setSkillInput("");
-    setShowDropdown(false);
-  };
-
-  const removeSkill = (skill: string) => {
-    // Try removing from standard skills
-    if (formData.skills.includes(skill)) {
-      updateFormData({ skills: formData.skills.filter((s) => s !== skill) });
-    }
-    // Try removing from custom skills
-    if (formData.customSkills.includes(skill)) {
-      updateFormData({ customSkills: formData.customSkills.filter((s) => s !== skill) });
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      {/* Skills */}
-      <div className="relative">
-        <label className="block text-sm font-semibold text-[#333438] mb-2">
-          What skills or tools are required?
-        </label>
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Search skills (e.g. Graphic Design, Writing)"
-            value={skillInput}
-            onChange={(e) => {
-              setSkillInput(e.target.value);
-              setShowDropdown(true);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && skillInput.trim()) {
-                e.preventDefault();
-                addSkill(skillInput.trim());
-              }
-            }}
-            onFocus={() => setShowDropdown(true)}
-            onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e91e63] focus:border-transparent mb-4 shadow-sm pr-10"
-          />
-          <div className={`absolute right-3 top-2.5 transition-colors duration-200 pointer-events-none ${
-            skillInput.trim() ? "text-[#ff9933]" : "text-gray-300"
-          }`}>
-            <CornerDownLeft className="w-5 h-5" />
-          </div>
-          {showDropdown && skillInput && filteredSkills.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
-              {filteredSkills.map((skill) => (
-                <button
-                  key={skill}
-                  onClick={() => addSkill(skill)}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-50 text-[#333438] text-sm transition-colors"
-                >
-                  {skill}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Selected Skills */}
-        <div className="flex flex-wrap gap-2">
-          {[...formData.skills, ...formData.customSkills].map((skill) => (
-            <div
-              key={skill}
-              className="px-4 py-1.5 bg-white border border-gray-300 text-[#333438] rounded-full text-sm flex items-center gap-2 shadow-sm cursor-pointer hover:border-red-500 hover:text-red-500 transition-colors group"
-              onClick={() => removeSkill(skill)}
+            <motion.div
+              className="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-8"
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
             >
-              {skill}
-              <X className="w-3 h-3 text-gray-400 group-hover:text-red-500 transition-colors" />
-            </div>
-          ))}
-        </div>
-        
-        {/* Popular Suggestions */}
-        <div className="mt-4">
-          <p className="text-xs text-[#92969f] mb-2 font-medium">Popular Skills</p>
-          <div className="flex flex-wrap gap-2">
-            {generalSkills
-              .filter(skill => !formData.skills.includes(skill))
-              .slice(0, 14)
-              .map((skill) => (
+              <div className="text-center mb-8">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Check className="w-8 h-8 text-green-600" />
+                </div>
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                  Project Submitted Successfully!
+                </h2>
+                <p className="text-gray-600">
+                  What would you like to do next with your project?
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Generate Roadmap Option */}
                 <button
-                  key={skill}
-                  onClick={() => addSkill(skill)}
-                  className="px-3 py-1 bg-white border border-gray-200 text-[#61636c] rounded-full text-xs hover:border-[#ff9933] hover:text-[#ff9933] transition-colors"
+                  onClick={handleGenerateRoadmap}
+                  disabled={isCreatingRoadmap}
+                  className="group relative p-6 bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-orange-200 rounded-xl hover:border-orange-400 hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  + {skill}
+                  <div className="flex flex-col items-center text-center">
+                    <div className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                      {isCreatingRoadmap ? (
+                        <Loader2 className="w-6 h-6 text-white animate-spin" />
+                      ) : (
+                        <MapIcon className="w-6 h-6 text-white" />
+                      )}
+                    </div>
+                    <h3 className="font-bold text-gray-900 mb-2">
+                      Generate Roadmap
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      Create an AI-powered project roadmap with timelines and milestones
+                    </p>
+                  </div>
                 </button>
-              ))}
-          </div>
-        </div>
-      </div>
 
-      {/* Expected Duration */}
-      <div>
-        <label className="block text-sm font-semibold text-[#333438] mb-4">
-          Expected Duration
-        </label>
-        <div className="grid grid-cols-2 gap-4">
-          <TileOption
-            name="duration"
-            value="<1_month"
-            label="Less than 1 month"
-            checked={formData.duration === "<1_month"}
-            onChange={() => updateFormData({ duration: "<1_month" })}
-          />
-          <TileOption
-            name="duration"
-            value="1-3_months"
-            label="1-3 months"
-            checked={formData.duration === "1-3_months"}
-            onChange={() => updateFormData({ duration: "1-3_months" })}
-          />
-          <TileOption
-            name="duration"
-            value="3-6_months"
-            label="3-6 months"
-            checked={formData.duration === "3-6_months"}
-            onChange={() => updateFormData({ duration: "3-6_months" })}
-          />
-          <TileOption
-            name="duration"
-            value="6+_months"
-            label="More than 6 months"
-            checked={formData.duration === "6+_months"}
-            onChange={() => updateFormData({ duration: "6+_months" })}
-          />
-        </div>
-      </div>
+                {/* Submit to Consultant Option */}
+                <button
+                  onClick={handleSubmitToConsultant}
+                  className="group relative p-6 bg-gradient-to-br from-pink-50 to-pink-100 border-2 border-pink-200 rounded-xl hover:border-pink-400 hover:shadow-lg transition-all"
+                >
+                  <div className="flex flex-col items-center text-center">
+                    <div className="w-12 h-12 bg-pink-500 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                      <UserCheck className="w-6 h-6 text-white" />
+                    </div>
+                    <h3 className="font-bold text-gray-900 mb-2">
+                      Find Consultant
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      Match with expert consultants to bring your project to life
+                    </p>
+                    <span className="inline-block mt-2 px-3 py-1 bg-pink-200 text-pink-700 text-xs font-semibold rounded-full">
+                      Coming Soon
+                    </span>
+                  </div>
+                </button>
+              </div>
 
-      {/* Roadmap Upload */}
-      <div>
-        <label className="block text-sm font-semibold text-[#333438] mb-2">
-          Do you have an existing Roadmap or Timeline? (Optional)
-        </label>
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-          <Upload className="w-10 h-10 text-gray-400 mx-auto mb-3" />
-          <p className="text-[#61636c] mb-1">
-            <span className="text-[#ff9933] font-semibold cursor-pointer hover:underline">Link</span> or drag and drop
-          </p>
-          <p className="text-xs text-[#92969f]">SVG, PNG, JPG or GIF (max. 3MB)</p>
-          <p className="text-xs text-[#92969f] mt-2 italic">Attach Project Schedule or Gantt Chart (PDF, Excel)</p>
-        </div>
-      </div>
+              <button
+                onClick={() => setShowSuccessModal(false)}
+                className="mt-6 w-full px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors text-sm"
+              >
+                Close
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

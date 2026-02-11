@@ -57,7 +57,7 @@ export const Header = () => {
                     Login
                   </Button>
                 </Link>
-                <Link to="/auth/signup">
+                <Link to="/auth/signup" search={{ redirect: undefined }}>
                   <Button variant="contained" colorScheme="primary">
                     Get Started
                   </Button>
@@ -111,7 +111,7 @@ export const Header = () => {
                         Login
                       </Button>
                     </Link>
-                    <Link to="/auth/signup">
+                    <Link to="/auth/signup" search={{ redirect: undefined }}>
                       <Button
                         variant="contained"
                         colorScheme="primary"
