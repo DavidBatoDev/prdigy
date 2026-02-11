@@ -2,6 +2,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useRef,
   type ReactNode,
   type FormEvent,
 } from "react";
@@ -41,6 +42,9 @@ export const RoadmapModalLayout = ({
   defaultRightPanelTabId,
   autoFocusTitle,
 }: RoadmapModalLayoutProps) => {
+  const scrollContainerRef = useRef<HTMLFormElement>(null);
+  const [isScrolled, setIsScrolled] = useState(false);
+
   if (!isOpen) return null;
 
   const tabs = useMemo(() => {
@@ -85,6 +89,21 @@ export const RoadmapModalLayout = ({
     setActiveTabId(defaultRightPanelTabId ?? tabs[0]?.id ?? "");
   }, [isOpen, defaultRightPanelTabId, tabIdsSignature]);
 
+  useEffect(() => {
+    const handleScroll = () => {
+      if (scrollContainerRef.current) {
+        // Show sticky header when scrolled more than 150px (approximate header height)
+        setIsScrolled(scrollContainerRef.current.scrollTop > 150);
+      }
+    };
+
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+      return () => container.removeEventListener('scroll', handleScroll);
+    }
+  }, []);
+
   if (!isOpen) return null;
 
   return createPortal(
@@ -95,9 +114,36 @@ export const RoadmapModalLayout = ({
       {/* Modal */}
       <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-6xl mx-4 max-h-[90vh] overflow-hidden flex">
         {/* Main Content */}
-        <form onSubmit={onSubmit} className="flex-1 flex flex-col">
+        <form 
+          ref={scrollContainerRef}
+          onSubmit={onSubmit} 
+          className="flex-1 flex flex-col overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {/* Sticky Mini Header - Shows when scrolled */}
+          <div
+            className={`sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between transition-all duration-200 ${
+              isScrolled ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full absolute pointer-events-none'
+            }`}
+          >
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <button
+                type="button"
+                className="w-5 h-5 rounded-full border-2 border-gray-300 hover:border-gray-400 transition-colors flex-shrink-0"
+                aria-label="Mark complete"
+              />
+              <h2 className="text-lg font-semibold text-gray-900 truncate">
+                {title || titlePlaceholder}
+              </h2>
+            </div>
+            {actionButtons && (
+              <div className="flex items-center gap-2 ml-4">
+                {actionButtons}
+              </div>
+            )}
+          </div>
+
           {/* Header */}
-          <div className="px-12 pt-12 pb-6">
+          <div className="px-12 pt-6 pb-6">
             <div className="flex items-center gap-3 mb-6">
               <button
                 type="button"
@@ -143,7 +189,7 @@ export const RoadmapModalLayout = ({
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto px-12 pb-8 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="px-12 pb-8">
             {body}
             {footer}
           </div>

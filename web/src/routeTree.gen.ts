@@ -20,6 +20,7 @@ import { Route as AuthSignupRouteImport } from './routes/auth/signup'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
 import { Route as ProjectRoadmapIndexRouteImport } from './routes/project/roadmap/index'
+import { Route as ProjectRoadmapRoadmapIdRouteImport } from './routes/project/roadmap/$roadmapId'
 import { Route as AuthAdminSigninRouteImport } from './routes/auth/admin/signin'
 import { Route as AuthAdminLoginRouteImport } from './routes/auth/admin/login'
 
@@ -78,6 +79,11 @@ const ProjectRoadmapIndexRoute = ProjectRoadmapIndexRouteImport.update({
   path: '/project/roadmap/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProjectRoadmapRoadmapIdRoute = ProjectRoadmapRoadmapIdRouteImport.update({
+  id: '/project/roadmap/$roadmapId',
+  path: '/project/roadmap/$roadmapId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthAdminSigninRoute = AuthAdminSigninRouteImport.update({
   id: '/auth/admin/signin',
   path: '/auth/admin/signin',
@@ -102,6 +108,7 @@ export interface FileRoutesByFullPath {
   '/client/project-posting': typeof ClientProjectPostingRoute
   '/auth/admin/login': typeof AuthAdminLoginRoute
   '/auth/admin/signin': typeof AuthAdminSigninRoute
+  '/project/roadmap/$roadmapId': typeof ProjectRoadmapRoadmapIdRoute
   '/project/roadmap': typeof ProjectRoadmapIndexRoute
 }
 export interface FileRoutesByTo {
@@ -117,6 +124,7 @@ export interface FileRoutesByTo {
   '/client/project-posting': typeof ClientProjectPostingRoute
   '/auth/admin/login': typeof AuthAdminLoginRoute
   '/auth/admin/signin': typeof AuthAdminSigninRoute
+  '/project/roadmap/$roadmapId': typeof ProjectRoadmapRoadmapIdRoute
   '/project/roadmap': typeof ProjectRoadmapIndexRoute
 }
 export interface FileRoutesById {
@@ -133,6 +141,7 @@ export interface FileRoutesById {
   '/client/project-posting': typeof ClientProjectPostingRoute
   '/auth/admin/login': typeof AuthAdminLoginRoute
   '/auth/admin/signin': typeof AuthAdminSigninRoute
+  '/project/roadmap/$roadmapId': typeof ProjectRoadmapRoadmapIdRoute
   '/project/roadmap/': typeof ProjectRoadmapIndexRoute
 }
 export interface FileRouteTypes {
@@ -150,6 +159,7 @@ export interface FileRouteTypes {
     | '/client/project-posting'
     | '/auth/admin/login'
     | '/auth/admin/signin'
+    | '/project/roadmap/$roadmapId'
     | '/project/roadmap'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -165,6 +175,7 @@ export interface FileRouteTypes {
     | '/client/project-posting'
     | '/auth/admin/login'
     | '/auth/admin/signin'
+    | '/project/roadmap/$roadmapId'
     | '/project/roadmap'
   id:
     | '__root__'
@@ -180,6 +191,7 @@ export interface FileRouteTypes {
     | '/client/project-posting'
     | '/auth/admin/login'
     | '/auth/admin/signin'
+    | '/project/roadmap/$roadmapId'
     | '/project/roadmap/'
   fileRoutesById: FileRoutesById
 }
@@ -196,6 +208,7 @@ export interface RootRouteChildren {
   ClientProjectPostingRoute: typeof ClientProjectPostingRoute
   AuthAdminLoginRoute: typeof AuthAdminLoginRoute
   AuthAdminSigninRoute: typeof AuthAdminSigninRoute
+  ProjectRoadmapRoadmapIdRoute: typeof ProjectRoadmapRoadmapIdRoute
   ProjectRoadmapIndexRoute: typeof ProjectRoadmapIndexRoute
 }
 
@@ -278,6 +291,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectRoadmapIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/project/roadmap/$roadmapId': {
+      id: '/project/roadmap/$roadmapId'
+      path: '/project/roadmap/$roadmapId'
+      fullPath: '/project/roadmap/$roadmapId'
+      preLoaderRoute: typeof ProjectRoadmapRoadmapIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/admin/signin': {
       id: '/auth/admin/signin'
       path: '/auth/admin/signin'
@@ -308,6 +328,7 @@ const rootRouteChildren: RootRouteChildren = {
   ClientProjectPostingRoute: ClientProjectPostingRoute,
   AuthAdminLoginRoute: AuthAdminLoginRoute,
   AuthAdminSigninRoute: AuthAdminSigninRoute,
+  ProjectRoadmapRoadmapIdRoute: ProjectRoadmapRoadmapIdRoute,
   ProjectRoadmapIndexRoute: ProjectRoadmapIndexRoute,
 }
 export const routeTree = rootRouteImport

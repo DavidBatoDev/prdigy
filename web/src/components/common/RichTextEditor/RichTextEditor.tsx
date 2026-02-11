@@ -102,17 +102,16 @@ export function RichTextEditor({
     [handleInput],
   );
 
-  const handlePaste = useCallback(
-    (e: React.ClipboardEvent) => {
-      e.preventDefault();
-      const text = e.clipboardData.getData("text/plain");
-      document.execCommand("insertText", false, text);
-    },
-    [],
-  );
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData("text/plain");
+    document.execCommand("insertText", false, text);
+  }, []);
 
   return (
-    <div className={`border border-gray-200 rounded-lg overflow-hidden bg-white ${className}`}>
+    <div
+      className={`border border-gray-200 rounded-lg overflow-hidden bg-white ${className}`}
+    >
       <RichTextToolbar
         tools={tools}
         onCommand={handleCommand}
@@ -123,10 +122,10 @@ export function RichTextEditor({
         contentEditable={!disabled}
         onInput={handleInput}
         onPaste={handlePaste}
-        className="px-4 py-3 outline-none overflow-y-auto prose prose-sm max-w-none"
+        className={`px-4 py-3 outline-none prose prose-sm max-w-none ${maxHeight === "none" ? "" : "overflow-y-auto"}`}
         style={{
           minHeight,
-          maxHeight,
+          maxHeight: maxHeight === "none" ? undefined : maxHeight,
         }}
         data-placeholder={placeholder}
         suppressContentEditableWarning

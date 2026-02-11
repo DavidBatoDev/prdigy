@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { Plus } from "lucide-react";
+import { useEffect, useState, useRef, type FormEvent } from "react";
+import { Plus, Edit2, ChevronDown, ChevronUp } from "lucide-react";
 import type { EpicPriority, RoadmapFeature } from "@/types/roadmap";
 import { useUser } from "@/auth";
 import { RoadmapModalLayout } from "./RoadmapModalLayout";
@@ -45,6 +45,10 @@ export const AddEpicModal = ({
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState<EpicPriority>("medium");
   const [labels, setLabels] = useState<Label[]>([]);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [showReadMore, setShowReadMore] = useState(false);
+  const descriptionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -66,8 +70,28 @@ export const AddEpicModal = ({
       } else {
         setLabels([]);
       }
+      
+      // Reset description editing state when modal opens
+      setIsEditingDescription(false);
+      setIsExpanded(false);
     }
   }, [isOpen, initialData]);
+
+  useEffect(() => {
+    // Check if content needs "Show more" button after render
+    const checkHeight = () => {
+      if (descriptionRef.current && description && !isEditingDescription) {
+        const needsShowMore = descriptionRef.current.scrollHeight > 192; // 192px = max-h-48
+        setShowReadMore(needsShowMore);
+      } else {
+        setShowReadMore(false);
+      }
+    };
+
+    // Use setTimeout to ensure DOM has updated
+    const timer = setTimeout(checkHeight, 100);
+    return () => clearTimeout(timer);
+  }, [description, isEditingDescription, isOpen]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -88,56 +112,129 @@ export const AddEpicModal = ({
 
   const body = (
     <>
-      {/* Labels */}
-      <div className="mb-6">
-        <h3 className="text-sm font-semibold text-gray-900 mb-2">Labels</h3>
-        <LabelSelector
-          selectedLabels={labels}
-          onLabelsChange={setLabels}
-          availableLabels={[]}
-        />
-      </div>
+      {/* Labels and Priority Row */}
+      <div className="flex gap-6 mb-6">
+        {/* Labels */}
+        <div className="flex-1">
+          <h3 className="text-sm font-semibold text-gray-900 mb-2">Labels</h3>
+          <LabelSelector
+            selectedLabels={labels}
+            onLabelsChange={setLabels}
+            availableLabels={[]}
+          />
+        </div>
 
-      {/* Priority */}
-      <div className="mb-6">
-        <h3 className="text-sm font-semibold text-gray-900 mb-2">Priority</h3>
-        <select
-          value={priority}
-          onChange={(e) => setPriority(e.target.value as EpicPriority)}
-          className="px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white"
-        >
-          <option value="nice_to_have">Nice to Have</option>
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
-          <option value="critical">Critical</option>
-        </select>
+        {/* Priority */}
+        <div className="w-48">
+          <h3 className="text-sm font-semibold text-gray-900 mb-2">Priority</h3>
+          <select
+            value={priority}
+            onChange={(e) => setPriority(e.target.value as EpicPriority)}
+            className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+          >
+            <option value="nice_to_have">Nice to Have</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="critical">Critical</option>
+          </select>
+        </div>
       </div>
 
       {/* Description */}
       <div className="mb-6">
-        <h3 className="text-sm font-semibold text-gray-900 mb-2">
-          Description
-        </h3>
-        <RichTextEditor
-          value={description}
-          onChange={setDescription}
-          placeholder="Add a more detailed description..."
-          tools={[
-            "textFormat",
-            "bold",
-            "italic",
-            "more",
-            "separator",
-            "bulletList",
-            "numberedList",
-            "separator",
-            "link",
-            "image",
-          ]}
-          minHeight="200px"
-          maxHeight="300px"
-        />
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-semibold text-gray-900">
+            Description
+          </h3>
+          {!isEditingDescription && description && (
+            <button
+              type="button"
+              onClick={() => setIsEditingDescription(true)}
+              className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 rounded transition-colors"
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+              Edit
+            </button>
+          )}
+        </div>
+
+        {isEditingDescription ? (
+          <div className="space-y-2">
+            <RichTextEditor
+              value={description}
+              onChange={setDescription}
+              placeholder="Add a more detailed description..."
+              tools={[
+                "textFormat",
+                "bold",
+                "italic",
+                "more",
+                "separator",
+                "bulletList",
+                "numberedList",
+                "separator",
+                "link",
+                "image",
+              ]}
+              minHeight="100px"
+              maxHeight="none"
+              autoFocus
+            />
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsEditingDescription(false)}
+                className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        ) : description ? (
+          <div className="relative">
+            <div
+              ref={descriptionRef}
+              className={`relative text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none overflow-hidden transition-[max-height] duration-300 ease-in-out ${
+                isExpanded ? "max-h-[2000px]" : "max-h-48"
+              }`}
+            >
+              <div dangerouslySetInnerHTML={{ __html: description }} />
+              
+              {/* Gradient Overlay when collapsed */}
+              {!isExpanded && showReadMore && (
+                <div className="absolute bottom-0 left-0 right-0 h-12 bg-linear-to-t from-white to-transparent pointer-events-none" />
+              )}
+            </div>
+
+            {/* Show More / Less Button */}
+            {showReadMore && (
+              <button
+                type="button"
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="mt-2 text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
+              >
+                {isExpanded ? (
+                  <>
+                    Show less <ChevronUp className="w-3 h-3" />
+                  </>
+                ) : (
+                  <>
+                    Show more <ChevronDown className="w-3 h-3" />
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsEditingDescription(true)}
+            className="w-full px-3 py-2 text-sm text-gray-500 border border-gray-300 border-dashed rounded-md hover:border-gray-400 hover:bg-gray-50 transition-colors text-left"
+          >
+            Add a description...
+          </button>
+        )}
       </div>
     </>
   );

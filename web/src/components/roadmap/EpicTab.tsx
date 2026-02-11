@@ -1,7 +1,18 @@
-import { useEffect, useRef, useState } from "react";
-import { Edit2, Trash2, Plus } from "lucide-react";
+import * as React from "react";
+import { useState, useEffect } from "react";
+import {
+  Edit2,
+  Trash2,
+  Plus,
+  X,
+  Check,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { TaskCard } from "./TaskWidget";
 import type { RoadmapEpic, RoadmapFeature, RoadmapTask } from "@/types/roadmap";
+import { RichTextEditor } from "@/components/common/RichTextEditor";
+import { AddFeatureModal } from "./AddFeatureModal";
 
 interface EpicTabProps {
   epic: RoadmapEpic;
@@ -31,7 +42,26 @@ export const EpicTab = ({
   const [descriptionDraft, setDescriptionDraft] = useState(
     epic.description || "",
   );
-  const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [showReadMore, setShowReadMore] = useState(false);
+  const contentRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (contentRef.current) {
+      setShowReadMore(contentRef.current.scrollHeight > 192); // 192px = max-h-48 (12rem)
+    }
+  }, [epic.description, isEditingDescription]);
+
+  // Feature expansion state for "Show more" functionality
+  const [expandedFeatures, setExpandedFeatures] = React.useState<Set<string>>(
+    new Set(),
+  );
+  const featureRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Feature modal state
+  const [editingFeature, setEditingFeature] =
+    React.useState<RoadmapFeature | null>(null);
+  const [isFeatureModalOpen, setIsFeatureModalOpen] = React.useState(false);
 
   useEffect(() => {
     if (!isEditingTitle) {
@@ -48,15 +78,6 @@ export const EpicTab = ({
     isEditingDescription,
   ]);
 
-  useEffect(() => {
-    if (!isEditingDescription || !descriptionRef.current) {
-      return;
-    }
-    const element = descriptionRef.current;
-    element.style.height = "auto";
-    element.style.height = `${element.scrollHeight}px`;
-  }, [descriptionDraft, isEditingDescription]);
-
   const handleSaveTitle = () => {
     const nextTitle = titleDraft.trim();
     if (nextTitle && nextTitle !== epic.title) {
@@ -71,6 +92,43 @@ export const EpicTab = ({
       onUpdateEpic({ ...epic, description: nextDescription || undefined });
     }
     setIsEditingDescription(false);
+  };
+
+  const toggleFeatureExpansion = (featureId: string) => {
+    setExpandedFeatures((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(featureId)) {
+        newSet.delete(featureId);
+      } else {
+        newSet.add(featureId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleOpenFeatureModal = (feature: RoadmapFeature) => {
+    setEditingFeature(feature);
+    setIsFeatureModalOpen(true);
+  };
+
+  const handleCloseFeatureModal = () => {
+    setIsFeatureModalOpen(false);
+    setEditingFeature(null);
+  };
+
+  const handleUpdateFeatureFromModal = (data: {
+    title: string;
+    description: string;
+    status: any;
+    is_deliverable: boolean;
+  }) => {
+    if (editingFeature) {
+      onUpdateFeature({
+        ...editingFeature,
+        ...data,
+      });
+    }
+    handleCloseFeatureModal();
   };
 
   const getStatusColor = (status: string) => {
@@ -146,36 +204,84 @@ export const EpicTab = ({
               )}
             </div>
 
-            <div className="group/description max-h-96 epic-description-scroll">
+            {/* Description Container */}
+            <div className="group/description relative">
               {isEditingDescription ? (
-                <textarea
-                  ref={descriptionRef}
-                  autoFocus
-                  value={descriptionDraft}
-                  onChange={(event) => setDescriptionDraft(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.shiftKey) {
-                      event.preventDefault();
-                      handleSaveDescription();
-                    }
-                  }}
-                  onBlur={handleSaveDescription}
-                  rows={1}
-                  className="w-full text-base text-gray-700 bg-transparent border-none px-0 py-0 leading-relaxed resize-none focus:outline-none focus:ring-0 h-auto min-h-0"
-                  placeholder="Add an epic description"
-                />
+                <div className="space-y-2">
+                  <RichTextEditor
+                    value={descriptionDraft}
+                    onChange={setDescriptionDraft}
+                    placeholder="Add an epic description"
+                    minHeight="100px"
+                    maxHeight="300px"
+                    autoFocus
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => {
+                        setDescriptionDraft(epic.description || "");
+                        setIsEditingDescription(false);
+                      }}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveDescription}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-primary rounded hover:bg-primary/90 transition-colors"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      Save
+                    </button>
+                  </div>
+                </div>
               ) : (
-                <div className="flex items-start gap-2">
-                  <p className="text-base text-gray-700 leading-relaxed whitespace-pre-wrap">
-                    {epic.description || "Add an epic description"}
-                  </p>
+                <div className="relative group/edit">
+                  <div
+                    ref={contentRef}
+                    className={`relative text-base text-gray-700 leading-relaxed prose prose-sm max-w-none overflow-hidden transition-[max-height] duration-300 ease-in-out ${
+                      isExpanded ? "max-h-[2000px]" : "max-h-48"
+                    }`}
+                  >
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html: epic.description || "Add an epic description",
+                      }}
+                    />
+
+                    {/* Gradient Overlay when collapsed */}
+                    {!isExpanded && showReadMore && (
+                      <div className="absolute bottom-0 left-0 right-0 h-12 bg-linear-to-t from-gray-50 to-transparent pointer-events-none" />
+                    )}
+                  </div>
+
+                  {/* Edit Button - Top Right */}
                   <button
                     onClick={() => setIsEditingDescription(true)}
-                    className="p-1.5 rounded hover:bg-gray-100 transition-colors mt-0.5 opacity-0 group-hover/description:opacity-100"
+                    className="absolute top-0 right-0 p-1.5 rounded hover:bg-gray-100 transition-colors opacity-0 group-hover/edit:opacity-100"
                     title="Edit epic description"
                   >
                     <Edit2 className="w-4 h-4 text-gray-600" />
                   </button>
+
+                  {/* Show More / Less Button */}
+                  {showReadMore && (
+                    <button
+                      onClick={() => setIsExpanded(!isExpanded)}
+                      className="mt-2 text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                    >
+                      {isExpanded ? (
+                        <>
+                          Show less <ChevronUp className="w-3 h-3" />
+                        </>
+                      ) : (
+                        <>
+                          Show more <ChevronDown className="w-3 h-3" />
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -257,7 +363,7 @@ export const EpicTab = ({
               >
                 {/* Feature Row */}
                 <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3 flex-1">
                       <h3 className="text-lg font-semibold text-gray-900">
                         {feature.title}
@@ -275,7 +381,7 @@ export const EpicTab = ({
                     </div>
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() => onUpdateFeature(feature)}
+                        onClick={() => handleOpenFeatureModal(feature)}
                         className="p-1.5 hover:bg-gray-200 rounded transition-colors"
                         title="Edit feature"
                       >
@@ -290,10 +396,54 @@ export const EpicTab = ({
                       </button>
                     </div>
                   </div>
+
+                  {/* Feature Description with Show More */}
                   {feature.description && (
-                    <p className="mt-2 text-sm text-gray-600">
-                      {feature.description}
-                    </p>
+                    <div className="relative">
+                      <div
+                        ref={(el) => {
+                          featureRefs.current[feature.id] = el;
+                        }}
+                        className={`relative text-sm text-gray-600 leading-relaxed prose prose-sm max-w-none overflow-hidden transition-[max-height] duration-300 ease-in-out ${
+                          expandedFeatures.has(feature.id)
+                            ? "max-h-[2000px]"
+                            : "max-h-32"
+                        }`}
+                      >
+                        <div
+                          dangerouslySetInnerHTML={{
+                            __html: feature.description,
+                          }}
+                        />
+
+                        {/* Gradient Overlay when collapsed */}
+                        {!expandedFeatures.has(feature.id) &&
+                          featureRefs.current[feature.id]?.scrollHeight &&
+                          featureRefs.current[feature.id]!.scrollHeight >
+                            128 && (
+                            <div className="absolute bottom-0 left-0 right-0 h-12 bg-linear-to-t from-gray-50 to-transparent pointer-events-none" />
+                          )}
+                      </div>
+
+                      {/* Show More / Less Button */}
+                      {featureRefs.current[feature.id]?.scrollHeight &&
+                        featureRefs.current[feature.id]!.scrollHeight > 128 && (
+                          <button
+                            onClick={() => toggleFeatureExpansion(feature.id)}
+                            className="mt-2 text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                          >
+                            {expandedFeatures.has(feature.id) ? (
+                              <>
+                                Show less <ChevronUp className="w-3 h-3" />
+                              </>
+                            ) : (
+                              <>
+                                Show more <ChevronDown className="w-3 h-3" />
+                              </>
+                            )}
+                          </button>
+                        )}
+                    </div>
                   )}
                 </div>
 
@@ -336,6 +486,17 @@ export const EpicTab = ({
           )}
         </div>
       </div>
+
+      {/* Feature Edit Modal */}
+      <AddFeatureModal
+        isOpen={isFeatureModalOpen}
+        epicTitle={epic.title}
+        initialData={editingFeature || undefined}
+        titleText="Edit Feature"
+        submitLabel="Update Feature"
+        onClose={handleCloseFeatureModal}
+        onSubmit={handleUpdateFeatureFromModal}
+      />
     </div>
   );
 };

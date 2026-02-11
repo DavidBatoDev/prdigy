@@ -33,14 +33,7 @@ router.get("/tasks", verifySupabaseJwt, readLimiter, async (req, res, next) => {
 
     const { data, error } = await supabaseAdmin
       .from("roadmap_tasks")
-      .select(
-        `
-        *,
-        assigned_to_user:profiles!roadmap_tasks_assigned_to_fkey(*),
-        comments:roadmap_task_comments(count),
-        attachments:roadmap_task_attachments(count)
-      `,
-      )
+      .select("*")
       .eq("feature_id", feature_id)
       .order("position", { ascending: true });
 
@@ -66,14 +59,7 @@ router.get(
 
       const { data, error } = await supabaseAdmin
         .from("roadmap_tasks")
-        .select(
-          `
-        *,
-        assigned_to_user:profiles!roadmap_tasks_assigned_to_fkey(*),
-        comments:roadmap_task_comments(count),
-        attachments:roadmap_task_attachments(count)
-      `,
-        )
+        .select("*")
         .eq("feature_id", featureId)
         .order("position", { ascending: true });
 
@@ -100,14 +86,7 @@ router.get(
 
       const { data: task, error: taskError } = await supabaseAdmin
         .from("roadmap_tasks")
-        .select(
-          `
-        *,
-        assigned_to_user:profiles!roadmap_tasks_assigned_to_fkey(*),
-        comments:roadmap_task_comments(*),
-        attachments:roadmap_task_attachments(*)
-      `,
-        )
+        .select("*")
         .eq("id", id)
         .single();
 
@@ -137,20 +116,8 @@ router.post(
   writeLimiter,
   async (req, res, next) => {
     try {
-      const {
-        feature_id,
-        title,
-        description,
-        priority,
-        status,
-        assigned_to,
-        estimated_hours,
-        actual_hours,
-        due_date,
-        labels,
-        checklist,
-        position,
-      } = req.body;
+      const { feature_id, title, priority, status, due_date, position } =
+        req.body;
 
       // Validate required fields
       if (!feature_id) {
@@ -193,37 +160,6 @@ router.post(
         });
       }
 
-      // Validate checklist if provided
-      if (checklist) {
-        if (!Array.isArray(checklist)) {
-          return res.status(400).json({
-            error: { message: "Checklist must be an array" },
-          });
-        }
-        for (const item of checklist) {
-          if (!item.text || typeof item.text !== "string") {
-            return res.status(400).json({
-              error: { message: "Each checklist item must have a text field" },
-            });
-          }
-          if (typeof item.completed !== "boolean") {
-            return res.status(400).json({
-              error: {
-                message:
-                  "Each checklist item must have a completed boolean field",
-              },
-            });
-          }
-        }
-      }
-
-      // Validate labels if provided
-      if (labels && !Array.isArray(labels)) {
-        return res.status(400).json({
-          error: { message: "Labels must be an array" },
-        });
-      }
-
       // Get the next position if not provided
       let taskPosition = position;
       if (taskPosition === undefined || taskPosition === null) {
@@ -242,27 +178,16 @@ router.post(
       const insertData = {
         feature_id: feature_id,
         title: title.trim(),
-        description: description || null,
         priority: priority || "medium",
         status: status || "todo",
-        assigned_to: assigned_to || null,
-        estimated_hours: estimated_hours || null,
-        actual_hours: actual_hours || null,
         due_date: due_date || null,
-        labels: labels || [],
-        checklist: checklist || null,
         position: taskPosition,
       };
 
       const { data, error } = await supabaseAdmin
         .from("roadmap_tasks")
         .insert(insertData)
-        .select(
-          `
-        *,
-        assigned_to_user:profiles!roadmap_tasks_assigned_to_fkey(*)
-      `,
-        )
+        .select("*")
         .single();
 
       if (error) throw error;
@@ -285,19 +210,7 @@ router.post(
   async (req, res, next) => {
     try {
       const { featureId } = req.params;
-      const {
-        title,
-        description,
-        priority,
-        status,
-        assigned_to,
-        estimated_hours,
-        actual_hours,
-        due_date,
-        labels,
-        checklist,
-        position,
-      } = req.body;
+      const { title, priority, status, due_date, position } = req.body;
 
       // Validate required fields
       if (!title || typeof title !== "string" || title.trim().length === 0) {
@@ -334,37 +247,6 @@ router.post(
         });
       }
 
-      // Validate checklist if provided
-      if (checklist) {
-        if (!Array.isArray(checklist)) {
-          return res.status(400).json({
-            error: { message: "Checklist must be an array" },
-          });
-        }
-        for (const item of checklist) {
-          if (!item.text || typeof item.text !== "string") {
-            return res.status(400).json({
-              error: { message: "Each checklist item must have a text field" },
-            });
-          }
-          if (typeof item.completed !== "boolean") {
-            return res.status(400).json({
-              error: {
-                message:
-                  "Each checklist item must have a completed boolean field",
-              },
-            });
-          }
-        }
-      }
-
-      // Validate labels if provided
-      if (labels && !Array.isArray(labels)) {
-        return res.status(400).json({
-          error: { message: "Labels must be an array" },
-        });
-      }
-
       // Get the next position if not provided
       let taskPosition = position;
       if (taskPosition === undefined || taskPosition === null) {
@@ -383,27 +265,16 @@ router.post(
       const insertData = {
         feature_id: featureId,
         title: title.trim(),
-        description: description || null,
         priority: priority || "medium",
         status: status || "todo",
-        assigned_to: assigned_to || null,
-        estimated_hours: estimated_hours || null,
-        actual_hours: actual_hours || null,
         due_date: due_date || null,
-        labels: labels || [],
-        checklist: checklist || null,
         position: taskPosition,
       };
 
       const { data, error } = await supabaseAdmin
         .from("roadmap_tasks")
         .insert(insertData)
-        .select(
-          `
-        *,
-        assigned_to_user:profiles!roadmap_tasks_assigned_to_fkey(*)
-      `,
-        )
+        .select("*")
         .single();
 
       if (error) throw error;
@@ -426,19 +297,8 @@ router.patch(
   async (req, res, next) => {
     try {
       const { id } = req.params;
-      const {
-        title,
-        description,
-        priority,
-        status,
-        assigned_to,
-        estimated_hours,
-        actual_hours,
-        due_date,
-        labels,
-        checklist,
-        position,
-      } = req.body;
+      const { title, priority, status, due_date, completed_at, position } =
+        req.body;
 
       // Validate title if provided
       if (title !== undefined) {
@@ -480,50 +340,13 @@ router.patch(
         }
       }
 
-      // Validate checklist if provided
-      if (checklist !== undefined && checklist !== null) {
-        if (!Array.isArray(checklist)) {
-          return res.status(400).json({
-            error: { message: "Checklist must be an array" },
-          });
-        }
-        for (const item of checklist) {
-          if (!item.text || typeof item.text !== "string") {
-            return res.status(400).json({
-              error: { message: "Each checklist item must have a text field" },
-            });
-          }
-          if (typeof item.completed !== "boolean") {
-            return res.status(400).json({
-              error: {
-                message:
-                  "Each checklist item must have a completed boolean field",
-              },
-            });
-          }
-        }
-      }
-
-      // Validate labels if provided
-      if (labels !== undefined && !Array.isArray(labels)) {
-        return res.status(400).json({
-          error: { message: "Labels must be an array" },
-        });
-      }
-
       // Build update object
       const updateData = {};
       if (title !== undefined) updateData.title = title.trim();
-      if (description !== undefined) updateData.description = description;
       if (priority !== undefined) updateData.priority = priority;
       if (status !== undefined) updateData.status = status;
-      if (assigned_to !== undefined) updateData.assigned_to = assigned_to;
-      if (estimated_hours !== undefined)
-        updateData.estimated_hours = estimated_hours;
-      if (actual_hours !== undefined) updateData.actual_hours = actual_hours;
       if (due_date !== undefined) updateData.due_date = due_date;
-      if (labels !== undefined) updateData.labels = labels;
-      if (checklist !== undefined) updateData.checklist = checklist;
+      if (completed_at !== undefined) updateData.completed_at = completed_at;
       if (position !== undefined) updateData.position = position;
 
       if (Object.keys(updateData).length === 0) {
@@ -536,12 +359,7 @@ router.patch(
         .from("roadmap_tasks")
         .update(updateData)
         .eq("id", id)
-        .select(
-          `
-        *,
-        assigned_to_user:profiles!roadmap_tasks_assigned_to_fkey(*)
-      `,
-        )
+        .select("*")
         .single();
 
       if (error) {
@@ -609,12 +427,7 @@ router.patch(
       // Fetch updated tasks
       const { data, error } = await supabaseAdmin
         .from("roadmap_tasks")
-        .select(
-          `
-        *,
-        assigned_to_user:profiles!roadmap_tasks_assigned_to_fkey(*)
-      `,
-        )
+        .select("*")
         .eq("feature_id", feature_id)
         .order("position", { ascending: true });
 
@@ -695,12 +508,7 @@ router.patch(
         .from("roadmap_tasks")
         .update({ position: newPosition })
         .eq("id", id)
-        .select(
-          `
-        *,
-        assigned_to_user:profiles!roadmap_tasks_assigned_to_fkey(*)
-      `,
-        )
+        .select("*")
         .single();
 
       if (error) throw error;
@@ -722,50 +530,12 @@ router.patch(
   writeLimiter,
   async (req, res, next) => {
     try {
-      const { id } = req.params;
-      const { user_id } = req.body;
-
-      if (!user_id) {
-        return res.status(400).json({
-          error: { message: "user_id is required" },
-        });
-      }
-
-      // Verify the user exists
-      const { data: userExists, error: userError } = await supabaseAdmin
-        .from("profiles")
-        .select("id")
-        .eq("id", user_id)
-        .single();
-
-      if (userError || !userExists) {
-        return res.status(400).json({
-          error: { message: "Invalid user_id" },
-        });
-      }
-
-      const { data, error } = await supabaseAdmin
-        .from("roadmap_tasks")
-        .update({ assigned_to: user_id })
-        .eq("id", id)
-        .select(
-          `
-        *,
-        assigned_to_user:profiles!roadmap_tasks_assigned_to_fkey(*)
-      `,
-        )
-        .single();
-
-      if (error) {
-        if (error.code === "PGRST116") {
-          return res.status(404).json({
-            error: { message: "Task not found or access denied" },
-          });
-        }
-        throw error;
-      }
-
-      res.json({ data });
+      return res.status(410).json({
+        error: {
+          message:
+            "Task assignment is not supported. The assignee field was removed from the schema.",
+        },
+      });
     } catch (error) {
       next(error);
     }
@@ -784,28 +554,12 @@ router.patch(
     try {
       const { id } = req.params;
 
-      const { data, error } = await supabaseAdmin
-        .from("roadmap_tasks")
-        .update({ assigned_to: null })
-        .eq("id", id)
-        .select(
-          `
-        *,
-        assigned_to_user:profiles!roadmap_tasks_assigned_to_fkey(*)
-      `,
-        )
-        .single();
-
-      if (error) {
-        if (error.code === "PGRST116") {
-          return res.status(404).json({
-            error: { message: "Task not found or access denied" },
-          });
-        }
-        throw error;
-      }
-
-      res.json({ data });
+      return res.status(410).json({
+        error: {
+          message:
+            "Task assignment is not supported. The assignee field was removed from the schema.",
+        },
+      });
     } catch (error) {
       next(error);
     }

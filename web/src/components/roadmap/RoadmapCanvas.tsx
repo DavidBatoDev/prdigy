@@ -1,11 +1,5 @@
 import { useState } from "react";
-import {
-  X,
-  Plus,
-  Settings,
-  Download,
-  ArrowLeft,
-} from "lucide-react";
+import { X, Plus, Settings, Download, ArrowLeft } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -28,6 +22,7 @@ import type {
   RoadmapMilestone,
   RoadmapEpic,
   RoadmapFeature,
+  RoadmapTask,
   EpicPriority,
   FeatureStatus,
 } from "@/types/roadmap";
@@ -124,6 +119,9 @@ interface RoadmapCanvasProps {
   ) => void;
   onUpdateFeature: (feature: RoadmapFeature) => void;
   onDeleteFeature: (featureId: string) => void;
+  onAddTask: (featureId: string, taskData: Partial<RoadmapTask>) => void;
+  onUpdateTask: (task: RoadmapTask) => void;
+  onDeleteTask: (taskId: string) => void;
   onEditBrief?: () => void;
   onExport?: () => void;
 }
@@ -143,6 +141,9 @@ const RoadmapCanvas = ({
   onAddFeature,
   onUpdateFeature,
   onDeleteFeature,
+  onAddTask,
+  onUpdateTask,
+  onDeleteTask,
   onEditBrief,
   onExport,
 }: RoadmapCanvasProps) => {
@@ -344,23 +345,7 @@ const RoadmapCanvas = ({
     });
   };
 
-  // CRUD for Features - now using props
-  const handleUpdateFeature = (
-    epicId: string,
-    featureId: string,
-    updates: Partial<RoadmapFeature>,
-  ) => {
-    const epic = epics.find((e) => e.id === epicId);
-    const feature = epic?.features?.find((f) => f.id === featureId);
-    if (feature) {
-      onUpdateFeature({
-        ...feature,
-        ...updates,
-        updated_at: new Date().toISOString(),
-      });
-    }
-  };
-
+  // CRUD for Features - using props
   const handleDeleteFeature = (featureId: string) => {
     const feature = epics
       .flatMap((e) => e.features || [])
@@ -386,15 +371,8 @@ const RoadmapCanvas = ({
     setDeleteConfirm(null);
   };
 
-  // CRUD for Tasks
-  const deleteTask = (epicId: string, featureId: string, taskId: string) => {
-    const epic = epics.find((e) => e.id === epicId);
-    const feature = epic?.features?.find((f) => f.id === featureId);
-    if (feature) {
-      const updatedTasks = (feature.tasks || []).filter((t) => t.id !== taskId);
-      handleUpdateFeature(epicId, featureId, { tasks: updatedTasks });
-    }
-  };
+  // CRUD for Tasks - removed local implementation, using props
+  // Tasks are now handled by parent component through onAddTask, onUpdateTask, onDeleteTask
 
   // Get selected epic and task objects
   const currentEpic = epics.find((e) => e.id === selectedEpic);
@@ -421,7 +399,7 @@ const RoadmapCanvas = ({
             {projectTitle || "Untitled Project"}
           </h1>
         </div>
-        
+
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
           {onEditBrief && (
@@ -434,7 +412,7 @@ const RoadmapCanvas = ({
               Project Brief
             </button>
           )}
-          
+
           {onExport && (
             <button
               onClick={onExport}
@@ -572,29 +550,8 @@ const RoadmapCanvas = ({
             onUpdateEpic={onUpdateEpic}
             onUpdateFeature={onUpdateFeature}
             onDeleteFeature={handleDeleteFeature}
-            onUpdateTask={(task) => {
-              // Find the feature containing this task and update it
-              const feature = currentEpic.features?.find((f) =>
-                f.tasks?.some((t) => t.id === task.id),
-              );
-              if (feature) {
-                const updatedTasks = (feature.tasks || []).map((t) =>
-                  t.id === task.id ? task : t,
-                );
-                handleUpdateFeature(currentEpic.id, feature.id, {
-                  tasks: updatedTasks,
-                });
-              }
-            }}
-            onDeleteTask={(taskId) => {
-              // Find and delete task from its feature
-              const feature = currentEpic.features?.find((f) =>
-                f.tasks?.some((t) => t.id === taskId),
-              );
-              if (feature) {
-                deleteTask(currentEpic.id, feature.id, taskId);
-              }
-            }}
+            onUpdateTask={onUpdateTask}
+            onDeleteTask={onDeleteTask}
             onSelectTask={(task) => {
               setSelectedTaskId(task.id);
               setTargetFeatureForTask(null);
@@ -641,59 +598,23 @@ const RoadmapCanvas = ({
             setSelectedTaskId(null);
             setTargetFeatureForTask(null);
           }}
-          onUpdateTask={(task) => {
-            // Find the feature containing this task and update it
-            const epic = epics.find((e) =>
-              e.features?.some((f) => f.tasks?.some((t) => t.id === task.id)),
-            );
-            const feature = epic?.features?.find((f) =>
-              f.tasks?.some((t) => t.id === task.id),
-            );
-            if (epic && feature) {
-              const updatedTasks = (feature.tasks || []).map((t) =>
-                t.id === task.id ? task : t,
-              );
-              handleUpdateFeature(epic.id, feature.id, { tasks: updatedTasks });
-            }
-          }}
+          onUpdateTask={onUpdateTask}
           onDeleteTask={(taskId) => {
-            // Find and delete task from its feature
-            const epic = epics.find((e) =>
-              e.features?.some((f) => f.tasks?.some((t) => t.id === taskId)),
-            );
-            const feature = epic?.features?.find((f) =>
-              f.tasks?.some((t) => t.id === taskId),
-            );
-            if (epic && feature) {
-              deleteTask(epic.id, feature.id, taskId);
-            }
+            onDeleteTask(taskId);
             setSidePanelOpen(false);
             setSelectedTaskId(null);
           }}
-          onCreateTask={(taskData) => {
-            // Find epic and feature, add task
-            const epic = epics.find((e) =>
-              e.features?.some((f) => f.id === targetFeatureForTask),
-            );
-            const feature = epic?.features?.find(
-              (f) => f.id === targetFeatureForTask,
-            );
-            if (epic && feature) {
-              const newTask = {
-                id: crypto.randomUUID(),
-                ...taskData,
-                feature_id: targetFeatureForTask,
-                position: (feature.tasks || []).length,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              };
-              handleUpdateFeature(epic.id, feature.id, {
-                tasks: [...(feature.tasks || []), newTask as any],
-              });
-            }
-            setSidePanelOpen(false);
-            setTargetFeatureForTask(null);
-          }}
+          onCreateTask={
+            onAddTask
+              ? (taskData) => {
+                  if (targetFeatureForTask) {
+                    onAddTask(targetFeatureForTask, taskData);
+                    setSidePanelOpen(false);
+                    setTargetFeatureForTask(null);
+                  }
+                }
+              : undefined
+          }
         />
 
         {/* Add Epic Modal */}

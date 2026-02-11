@@ -16,7 +16,10 @@ export const CTASection = () => {
           meets human expertise.
         </p>
         <div className="flex items-center justify-center gap-4">
-          <Link to="/auth/signup">
+          <Link
+            to="/auth/signup"
+            search={{ redirect: window.location.pathname }}
+          >
             <Button variant="contained" colorScheme="primary" size="lg">
               Start Your Project
             </Button>

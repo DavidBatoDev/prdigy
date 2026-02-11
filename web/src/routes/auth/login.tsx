@@ -63,7 +63,7 @@ function RouteComponent() {
         // "https://www.figma.com/api/mcp/asset/12c2df9b-9fda-4258-8e71-e26de5a4c86d",
         DecorativeRightSide,
     }),
-    []
+    [],
   );
 
   const EMAIL_FETCH_TIMEOUT_MS = 8000;
@@ -71,7 +71,7 @@ function RouteComponent() {
   async function fetchWithTimeout(
     resource: string,
     options: RequestInit = {},
-    timeout = EMAIL_FETCH_TIMEOUT_MS
+    timeout = EMAIL_FETCH_TIMEOUT_MS,
   ) {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
@@ -90,7 +90,7 @@ function RouteComponent() {
     code: string,
     targetEmail: string,
     fName: string,
-    lName: string
+    lName: string,
   ) {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -110,14 +110,14 @@ function RouteComponent() {
             lastName: lName,
             verificationCode: code,
           }),
-        }
+        },
       );
 
       if (!response.ok) {
         const text = await response.text().catch(() => null);
         console.warn("send-signup-email returned non-OK:", text);
         toast.error(
-          "Verification email could not be sent. You can resend the code."
+          "Verification email could not be sent. You can resend the code.",
         );
         return;
       }
@@ -129,7 +129,7 @@ function RouteComponent() {
       } else {
         console.error("Error sending verification email:", emailError);
         toast.error(
-          "Failed to send verification email. You can resend the code."
+          "Failed to send verification email. You can resend the code.",
         );
       }
     }
@@ -158,7 +158,7 @@ function RouteComponent() {
         const { data: profile } = await supabase
           .from("profiles")
           .select(
-            "is_email_verified, first_name, last_name, has_completed_onboarding"
+            "is_email_verified, first_name, last_name, has_completed_onboarding",
           )
           .eq("id", userId)
           .maybeSingle();
@@ -174,7 +174,7 @@ function RouteComponent() {
 
           // Send verification code and show verification UI
           const generatedCode = Math.floor(
-            100000 + Math.random() * 900000
+            100000 + Math.random() * 900000,
           ).toString();
           setSentVerificationCode(generatedCode);
           setVerificationCode("");
@@ -182,7 +182,7 @@ function RouteComponent() {
             generatedCode,
             email,
             profile.first_name || "",
-            profile.last_name || ""
+            profile.last_name || "",
           );
           setIsVerifyStep(true);
           setIsLoading(false);
@@ -200,15 +200,18 @@ function RouteComponent() {
       }
     } catch (err) {
       console.error("Login error:", err);
-      
+
       // Provide user-friendly error messages
       const error = err as any;
       let errorMessage = "Login failed";
-      
+
       if (error?.message) {
         const msg = error.message.toLowerCase();
-        
-        if (msg.includes("invalid login credentials") || msg.includes("invalid email or password")) {
+
+        if (
+          msg.includes("invalid login credentials") ||
+          msg.includes("invalid email or password")
+        ) {
           errorMessage = "Invalid email or password. Please try again.";
         } else if (msg.includes("email not confirmed")) {
           errorMessage = "Please verify your email before logging in.";
@@ -220,7 +223,7 @@ function RouteComponent() {
           errorMessage = error.message;
         }
       }
-      
+
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);
@@ -294,7 +297,7 @@ function RouteComponent() {
                   toast.error(
                     error instanceof Error
                       ? error.message
-                      : "Verification failed"
+                      : "Verification failed",
                   );
                 } finally {
                   setVerifyLoading(false);
@@ -312,7 +315,7 @@ function RouteComponent() {
                   value={verificationCode}
                   onChange={(e) =>
                     setVerificationCode(
-                      e.target.value.replace(/\D/g, "").slice(0, 6)
+                      e.target.value.replace(/\D/g, "").slice(0, 6),
                     )
                   }
                   required
@@ -339,7 +342,7 @@ function RouteComponent() {
                     setIsResending(true);
                     try {
                       const generatedCode = Math.floor(
-                        100000 + Math.random() * 900000
+                        100000 + Math.random() * 900000,
                       ).toString();
                       setSentVerificationCode(generatedCode);
                       setVerificationCode("");
@@ -347,13 +350,13 @@ function RouteComponent() {
                         generatedCode,
                         email,
                         firstName,
-                        lastName
+                        lastName,
                       );
                     } catch (error) {
                       toast.error(
                         error instanceof Error
                           ? error.message
-                          : "Failed to resend code"
+                          : "Failed to resend code",
                       );
                     } finally {
                       setIsResending(false);
@@ -411,6 +414,7 @@ function RouteComponent() {
                 Don’t have an account yet?{" "}
                 <Link
                   to="/auth/signup"
+                  search={{ redirect: window.location.pathname }}
                   className="text-[#ff9900] transition-colors hover:text-[#ff9900]/80"
                 >
                   Create new account

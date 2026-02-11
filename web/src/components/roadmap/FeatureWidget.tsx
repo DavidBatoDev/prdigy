@@ -23,7 +23,7 @@ type FeatureWidgetNode = Node<FeatureWidgetData>;
 
 export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
   const { feature, showTaskCount = true, onEdit, onDelete, onClick } = data;
-  const descriptionRef = useRef<HTMLParagraphElement>(null);
+  const descriptionRef = useRef<HTMLDivElement>(null);
   const [hasOverflow, setHasOverflow] = useState(false);
 
   const getStatusColor = (status: RoadmapFeature["status"]) => {
@@ -94,7 +94,7 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
           className="w-3 h-3 opacity-0"
         />
 
-      <div className="p-10 flex flex-col h-full">
+      <div className="p-10 flex flex-col h-full overflow-hidden">
         {/* Header */}
         <div className="flex items-start justify-between gap-2 mb-2">
           <div className="flex-1 min-w-0">
@@ -135,14 +135,16 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
 
         {/* Description */}
         {feature.description && (
-          <div className="relative mb-2 grow overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div
+            ref={descriptionRef}
+            className="relative mb-2 grow overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
             <div
-              ref={descriptionRef as any}
-              className="text-xs text-gray-600 prose prose-sm max-w-none [&>p]:mb-1 [&>ul]:list-disc [&>ul]:pl-4 [&>ol]:list-decimal [&>ol]:pl-4"
+              className="text-sm text-gray-600 leading-relaxed prose prose-sm max-w-none"
               dangerouslySetInnerHTML={{ __html: feature.description }}
             />
             {hasOverflow && (
-              <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-white to-white/0" />
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-white to-white/0" />
             )}
           </div>
         )}
