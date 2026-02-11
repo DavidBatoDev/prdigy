@@ -168,11 +168,11 @@ export const EpicTab = ({
   };
 
   return (
-    <div className="w-full h-full overflow-y-auto overflow-x-hidden bg-gray-50">
-      <div className="p-8">
+    <div className="w-full h-full flex flex-col overflow-hidden bg-gray-50">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-8">
         {/* Epic Header */}
-        <div className="mb-6 flex flex-col gap-6 lg:flex-row">
-          <div className="lg:w-[70%]">
+        <div className="mb-6 flex flex-col gap-6 lg:flex-row min-w-0">
+          <div className="lg:w-[70%] min-w-0">
             <div className="flex items-start justify-between gap-3 mb-2 group">
               {isEditingTitle ? (
                 <input
@@ -287,7 +287,7 @@ export const EpicTab = ({
             </div>
           </div>
 
-          <div className="lg:w-[30%]">
+          <div className="lg:w-[30%] shrink-0">
             <div className="flex flex-wrap items-start justify-end gap-2">
               {epic.priority && (
                 <span
@@ -359,7 +359,7 @@ export const EpicTab = ({
             features.map((feature) => (
               <div
                 key={feature.id}
-                className="bg-white rounded-xl border-2 border-yellow-400 shadow-sm overflow-hidden"
+                className="bg-white rounded-xl border-2 border-yellow-400 shadow-sm overflow-hidden min-w-0 max-w-full"
               >
                 {/* Feature Row */}
                 <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
@@ -447,38 +447,33 @@ export const EpicTab = ({
                   )}
                 </div>
 
-                {/* Tasks Grid - Horizontal Scroll */}
+                {/* Tasks Grid - Wrapping Layout */}
                 <div className="p-4">
-                  <div className="overflow-x-auto -mx-4 px-4">
-                    <div
-                      className="flex gap-4 pb-2"
-                      style={{ minWidth: "max-content" }}
-                    >
-                      {feature.tasks?.map((task) => (
-                        <div key={task.id} className="shrink-0">
-                          <TaskCard
-                            task={task}
-                            onEdit={onUpdateTask}
-                            onDelete={onDeleteTask}
-                            onClick={onSelectTask}
-                            selected={false}
-                            variant="epic"
-                          />
-                        </div>
-                      ))}
+                  <div className="flex flex-wrap gap-4">
+                    {feature.tasks?.map((task) => (
+                      <div key={task.id} className="w-60 shrink-0">
+                        <TaskCard
+                          task={task}
+                          onEdit={onUpdateTask}
+                          onDelete={onDeleteTask}
+                          onClick={onSelectTask}
+                          selected={false}
+                          variant="epic"
+                        />
+                      </div>
+                    ))}
 
-                      {/* Add Task Button */}
-                      {onAddTask && (
-                        <button
-                          onClick={() => onAddTask(feature.id)}
-                          className="shrink-0 w-60 h-[180px] border-2 border-dashed border-gray-300 rounded-4xl hover:border-primary hover:bg-primary/5 transition-all flex flex-col items-center justify-center gap-2 text-gray-500 hover:text-primary"
-                          title="Add task"
-                        >
-                          <Plus className="w-6 h-6" />
-                          <span className="text-sm font-medium">Add Task</span>
-                        </button>
-                      )}
-                    </div>
+                    {/* Add Task Button */}
+                    {onAddTask && (
+                      <button
+                        onClick={() => onAddTask(feature.id)}
+                        className="w-60 h-[180px] border-2 border-dashed border-gray-300 rounded-4xl hover:border-primary hover:bg-primary/5 transition-all flex flex-col items-center justify-center gap-2 text-gray-500 hover:text-primary shrink-0"
+                        title="Add task"
+                      >
+                        <Plus className="w-6 h-6" />
+                        <span className="text-sm font-medium">Add Task</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

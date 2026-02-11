@@ -648,25 +648,18 @@ function RoadmapViewPage() {
         <motion.div
           id="roadmap-chat-panel"
           className="relative h-full border-r border-gray-200 bg-white"
-          initial={{ width: "20%" }}
-          animate={{ width: isSidebarOpen ? "20%" : "56px" }}
+          initial={{ width: "30%" }}
+          animate={{ width: isSidebarOpen ? "30%" : "56px" }}
           transition={{ duration: 0.25, ease: "easeInOut" }}
           style={{ minWidth: 56 }}
         >
-          {isSidebarOpen ? (
-            <LeftSidePanel
-              messages={messages}
-              onSendMessage={handleSendMessage}
-              isGenerating={isGenerating}
-              isGuest={isGuest}
-            />
-          ) : (
-            <div className="h-full w-full flex items-center justify-center">
-              <span className="rotate-90 text-[10px] tracking-[0.2em] text-gray-400 select-none">
-                CHAT
-              </span>
-            </div>
-          )}
+          <LeftSidePanel
+            messages={messages}
+            onSendMessage={handleSendMessage}
+            isGenerating={isGenerating}
+            isGuest={isGuest}
+            isCollapsed={!isSidebarOpen}
+          />
 
           <button
             type="button"

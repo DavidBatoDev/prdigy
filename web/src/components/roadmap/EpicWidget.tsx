@@ -35,7 +35,8 @@ export const EpicWidget = memo(({ data }: NodeProps<EpicWidgetNode>) => {
 
   return (
     <motion.div
-      className="group relative bg-white border-2 border-gray-300 rounded-4xl shadow-md hover:shadow-lg transition-shadow w-[500px] max-h-[420px] flex flex-col"
+      className="group relative bg-white border-2 border-gray-300 rounded-4xl shadow-md hover:shadow-lg transition-shadow w-[500px] max-h-[420px] flex flex-col cursor-pointer"
+      onClick={() => onEdit?.(epic)}
       initial={{ opacity: 0, y: 12, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
@@ -84,7 +85,7 @@ export const EpicWidget = memo(({ data }: NodeProps<EpicWidgetNode>) => {
             e.stopPropagation();
             onAddEpicBelow(epic.id);
           }}
-          className="cursor-pointer absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-primary text-white rounded-full flex items-center justify-center hover:bg-primary/90 transition-all duration-200 ease-out shadow-md z-10 opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 cursor-pointer"
+          className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-primary text-white rounded-full flex items-center justify-center hover:bg-primary/90 transition-all duration-200 ease-out shadow-md z-10 opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 cursor-pointer"
           title="Add Epic Below"
         >
           <Plus className="w-4 h-4" />
@@ -166,7 +167,8 @@ export const EpicWidget = memo(({ data }: NodeProps<EpicWidgetNode>) => {
         )}
 
         {/* Labels */}
-        {((epic.labels && epic.labels.length > 0) || (epic.tags && epic.tags.length > 0)) && (
+        {((epic.labels && epic.labels.length > 0) ||
+          (epic.tags && epic.tags.length > 0)) && (
           <div className="flex flex-wrap items-center gap-2 mb-3 shrink-0">
             {/* Display labels if available */}
             {epic.labels?.map((label) => (
@@ -183,14 +185,15 @@ export const EpicWidget = memo(({ data }: NodeProps<EpicWidgetNode>) => {
               </span>
             ))}
             {/* Fallback to tags if no labels */}
-            {!epic.labels && epic.tags?.map((tag) => (
-              <span
-                key={tag}
-                className="px-2 py-1 text-xs font-medium bg-blue-50 text-blue-700 rounded-full border border-blue-100"
-              >
-                {tag}
-              </span>
-            ))}
+            {!epic.labels &&
+              epic.tags?.map((tag) => (
+                <span
+                  key={tag}
+                  className="px-2 py-1 text-xs font-medium bg-blue-50 text-blue-700 rounded-full border border-blue-100"
+                >
+                  {tag}
+                </span>
+              ))}
           </div>
         )}
 

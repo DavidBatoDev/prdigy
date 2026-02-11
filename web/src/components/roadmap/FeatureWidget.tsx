@@ -8,6 +8,7 @@ import {
   Clock,
   AlertCircle,
   List,
+  Plus,
 } from "lucide-react";
 import type { RoadmapFeature } from "@/types/roadmap";
 
@@ -17,12 +18,14 @@ export interface FeatureWidgetData extends Record<string, unknown> {
   onEdit?: (feature: RoadmapFeature) => void;
   onDelete?: (featureId: string) => void;
   onClick?: (feature: RoadmapFeature) => void;
+  onAddTask?: (featureId: string) => void;
 }
 
 type FeatureWidgetNode = Node<FeatureWidgetData>;
 
 export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
-  const { feature, showTaskCount = true, onEdit, onDelete, onClick } = data;
+  const { feature, showTaskCount = true, onEdit, onDelete, onClick, onAddTask } =
+    data;
   const descriptionRef = useRef<HTMLDivElement>(null);
   const [hasOverflow, setHasOverflow] = useState(false);
 
@@ -69,7 +72,7 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
   return (
     <>
       <motion.div
-        className="relative bg-white border-2 border-amber-300 rounded-4xl shadow-md hover:shadow-lg transition-all w-[500px] max-h-[320px] flex flex-col cursor-pointer hover:border-amber-400"
+        className="relative group bg-white border-2 border-amber-300 rounded-4xl shadow-md hover:shadow-lg transition-all w-[500px] max-h-[320px] flex flex-col cursor-pointer hover:border-amber-400"
         onClick={() => onClick?.(feature)}
         initial={{ opacity: 0, y: 12, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -93,6 +96,20 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
           position={Position.Right}
           className="w-3 h-3 opacity-0"
         />
+
+        {onAddTask && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onAddTask(feature.id);
+            }}
+            className="absolute top-1/2 -translate-y-1/2 right-[-14px] w-7 h-7 rounded-full bg-emerald-500 text-white shadow-md flex items-center justify-center hover:bg-emerald-400 transition-colors opacity-0 group-hover:opacity-100"
+            title="Add task"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        )}
 
       <div className="p-10 flex flex-col h-full overflow-hidden">
         {/* Header */}
@@ -203,16 +220,23 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
       </div>
     </motion.div>
 
-    {/* Connecting line and Task Count Node - only show if there are tasks */}
     {taskCount > 0 && (
       <>
-        {/* Connecting line from feature to task count */}
+        {/* Connecting line from feature to tasks */}
         <div className="absolute top-1/2 -translate-y-1/2 left-[500px] w-10 h-0.5 bg-emerald-400" />
 
-        {/* Task Count Node - positioned to the right */}
-        <div className="absolute top-1/2 -translate-y-1/2 left-[540px] w-16 h-16 bg-emerald-500 rounded-full flex flex-col items-center justify-center shadow-md border-2 border-white">
-          <span className="text-xl font-bold text-white">{taskCount}</span>
-          <span className="text-[9px] text-white/90 font-medium">TASKS</span>
+        {/* Task Bars Grid - positioned to the right */}
+        <div className="absolute top-1/2 -translate-y-1/2 left-[540px]">
+          <div className="grid grid-flow-col grid-rows-3 gap-2 auto-cols-max">
+            {feature.tasks?.slice(0, 9).map((task) => (
+              <div
+                key={task.id}
+                className="bg-emerald-500 text-white px-3 py-2 rounded-md shadow-sm border border-emerald-600 w-[180px] h-[32px] flex items-center"
+              >
+                <p className="text-xs font-medium truncate w-full">{task.title}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </>
     )}

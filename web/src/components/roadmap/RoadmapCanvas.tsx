@@ -525,13 +525,18 @@ const RoadmapCanvas = ({
             onUpdateFeature={onUpdateFeature}
             onDeleteFeature={handleDeleteFeature}
             onSelectFeature={(feature) => {
-              handleEpicClick(feature.epic_id);
+              handleOpenEditFeatureModal(feature.epic_id, feature.id);
             }}
             onSelectEpic={(epicId) => {
               handleOpenEditEpicModal(epicId);
             }}
             onAddEpicBelow={handleAddEpicBelow}
             onAddFeature={handleOpenAddFeatureModal}
+            onAddTask={(featureId) => {
+              setTargetFeatureForTask(featureId);
+              setSelectedTaskId(null);
+              setSidePanelOpen(true);
+            }}
             onEditFeature={handleOpenEditFeatureModal}
             onNavigateToEpic={(epicId) => {
               setSelectedEpic(epicId);

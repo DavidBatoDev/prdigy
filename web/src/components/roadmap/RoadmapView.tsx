@@ -24,6 +24,7 @@ interface RoadmapViewProps {
   onSelectEpic?: (epicId: string) => void;
   onAddEpicBelow?: (epicId: string) => void;
   onAddFeature?: (epicId: string) => void;
+  onAddTask?: (featureId: string) => void;
   onEditFeature?: (epicId: string, featureId: string) => void;
   onNavigateToEpic?: (epicId: string) => void;
 }
@@ -173,6 +174,7 @@ export const RoadmapView = ({
   onSelectEpic,
   onAddEpicBelow,
   onAddFeature,
+  onAddTask,
   onEditFeature,
   onNavigateToEpic,
 }: RoadmapViewProps) => {
@@ -244,6 +246,7 @@ export const RoadmapView = ({
           onEdit: () => onEditFeature?.(feature.epic_id, feature.id),
           onDelete: onDeleteFeature,
           onClick: onSelectFeature,
+          onAddTask,
         },
         position: { x: 0, y: 0 }, // Will be set by dagre
       }),
@@ -297,26 +300,47 @@ export const RoadmapView = ({
     onSelectFeature,
     onEditFeature,
     onNavigateToEpic,
+    onAddTask,
     getEdgeColor,
   ]);
+
+  const extraRightPadding = useMemo(() => {
+    const maxTaskCount = epics.reduce((maxCount, epic) => {
+      const epicMax = (epic.features || []).reduce((featureMax, feature) => {
+        const taskCount = feature.tasks?.length || 0;
+        return Math.max(featureMax, taskCount);
+      }, 0);
+      return Math.max(maxCount, epicMax);
+    }, 0);
+
+    if (maxTaskCount >= 60) return 2600;
+    if (maxTaskCount >= 40) return 2200;
+    if (maxTaskCount >= 20) return 1800;
+    return 1000;
+  }, [epics]);
 
   const translateExtent = useMemo((): [[number, number], [number, number]] => {
     if (!nodes.length) {
       return [
         [-1000, -400],
-        [2000, 800],
+        [2400, 800],
       ];
     }
 
+    const xPositions = nodes.map((node) => node.position.x);
     const yPositions = nodes.map((node) => node.position.y);
+
+    const NODE_WIDTH = 520;
+    const minX = Math.min(...xPositions) - 400;
+    const maxX = Math.max(...xPositions) + NODE_WIDTH + extraRightPadding;
     const minY = Math.min(...yPositions) - 240; // padding above first row
     const maxY = Math.max(...yPositions) + 720; // padding below tallest group
 
     return [
-      [-1000, minY],
-      [2000, maxY],
+      [minX, minY],
+      [maxX, maxY],
     ];
-  }, [nodes]);
+  }, [nodes, extraRightPadding]);
 
   const onNodesChange = useCallback(() => {
     // Handle node changes if needed (e.g., dragging)
