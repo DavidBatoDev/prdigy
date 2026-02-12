@@ -116,7 +116,6 @@ function RouteComponent() {
   const [sentVerificationCode, setSentVerificationCode] = useState(() =>
     getStoredValue("signup_sentCode"),
   );
-  const [_success, _setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
 
@@ -461,34 +460,6 @@ function RouteComponent() {
     // Clear the verification code
     setVerificationCode("");
   };
-
-  if (_success) {
-    return (
-      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_60%,rgba(255,153,102,0.18),rgba(255,255,255,0.75)_45%,white_65%)]" />
-        <img
-          src={assets.ellipse28}
-          alt=""
-          className="pointer-events-none absolute -left-40 top-1/2 h-[414px] w-[414px] -translate-y-1/2 opacity-70"
-        />
-        <img
-          src={assets.accent}
-          alt=""
-          className="pointer-events-none absolute right-0 top-0 h-full max-w-[50%] object-cover"
-        />
-
-        <div className="relative w-full max-w-md rounded-lg bg-white p-8 text-center shadow-xl">
-          <div className="mb-4 text-5xl text-green-500">✓</div>
-          <h2 className="mb-2 text-2xl font-bold text-black">
-            Signup Successful!
-          </h2>
-          <p className="text-[#020202]/70">
-            Check your email to confirm your account.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-white">

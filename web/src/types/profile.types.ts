@@ -45,6 +45,7 @@ export interface Profile {
   settings: ProfileSettings;
   has_completed_onboarding: boolean;
   tutorials_completed?: Record<string, any>; // JSONB field for tutorial completion tracking
+  migrated_from_guest_id: string | null; // UUID of guest profile user migrated from
   created_at: string;
   updated_at: string;
 }
@@ -90,4 +91,5 @@ export interface ProfileUpdate {
   zip_code?: string | null;
   settings?: ProfileSettings;
   has_completed_onboarding?: boolean;
+  migrated_from_guest_id?: string | null;
 }

@@ -78,7 +78,16 @@ function RoadmapBuilderPage() {
   };
 
   const handleSubmit = async () => {
-    if (!currentUserId) return;
+    if (!currentUserId && authenticatedUser) return;
+
+    if (!authenticatedUser) {
+      const guestId = await getOrCreateGuestUser();
+      if (!guestId) {
+        console.error("Failed to create guest user");
+        return;
+      }
+      setCurrentUserId(guestId);
+    }
 
     setIsCreatingRoadmap(true);
     try {

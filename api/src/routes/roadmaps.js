@@ -202,6 +202,20 @@ router.post(
         });
       }
 
+      // Update target user profile to track guest account migration
+      const { error: profileUpdateError } = await supabaseAdmin
+        .from("profiles")
+        .update({
+          migrated_from_guest_id: guestUserId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", targetUserId);
+
+      if (profileUpdateError) {
+        console.error("Failed to update profile with guest migration:", profileUpdateError);
+        // Don't fail the request, just log the error
+      }
+
       // Update all roadmaps to new owner
       const { error: updateError } = await supabaseAdmin
         .from("roadmaps")

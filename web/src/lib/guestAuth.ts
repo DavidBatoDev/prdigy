@@ -116,10 +116,27 @@ export async function getOrCreateGuestUser(): Promise<string | null> {
     return guestUserCreationPromise;
   }
 
-  // Check if we already have a cached guest user ID
+  // Validate any cached guest session/user before trusting localStorage
+  const cachedSessionId = getGuestSessionId();
   const cachedUserId = getCachedGuestUserId();
-  if (cachedUserId) {
-    return cachedUserId;
+
+  if (cachedSessionId) {
+    const userIdFromSession = await getGuestUserId(cachedSessionId);
+    if (!userIdFromSession) {
+      // Session is stale, reset localStorage so we can create a fresh guest user
+      clearGuestSession();
+    } else {
+      if (cachedUserId !== userIdFromSession) {
+        setCachedGuestUserId(userIdFromSession);
+      }
+      return userIdFromSession;
+    }
+  } else if (cachedUserId) {
+    const isValidGuest = await isGuestUser(cachedUserId);
+    if (isValidGuest) {
+      return cachedUserId;
+    }
+    clearGuestSession();
   }
 
   // Create the promise and cache it
