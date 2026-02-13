@@ -69,7 +69,7 @@ export function isGuestSession(): boolean {
  * Creates a new guest user profile in the database
  */
 export async function createGuestProfile(
-  sessionId: string
+  sessionId: string,
 ): Promise<string | null> {
   try {
     const response = await apiClient.post("/api/guests/create", {
@@ -87,11 +87,11 @@ export async function createGuestProfile(
  * Gets the guest user ID from the database by session ID
  */
 export async function getGuestUserId(
-  sessionId: string
+  sessionId: string,
 ): Promise<string | null> {
   try {
     const response = await apiClient.get(
-      `/api/guests/by-session/${encodeURIComponent(sessionId)}`
+      `/api/guests/by-session/${encodeURIComponent(sessionId)}`,
     );
 
     return response.data.data.user_id;
@@ -107,7 +107,7 @@ export async function getGuestUserId(
 /**
  * Gets or creates a guest user for the current session
  * Returns the guest user ID
- * 
+ *
  * Uses promise caching to prevent concurrent calls from creating duplicate guest users
  */
 export async function getOrCreateGuestUser(): Promise<string | null> {

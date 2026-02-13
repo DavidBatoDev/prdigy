@@ -129,7 +129,8 @@ function RoadmapBuilderPage() {
           <div className="flex items-center gap-2">
             <span className="font-medium">🔓 Guest Mode</span>
             <span className="opacity-90">
-              Your roadmap will be saved for 30 days. Sign in to save permanently.
+              Your roadmap will be saved for 30 days. Sign in to save
+              permanently.
             </span>
           </div>
           <Link
@@ -261,8 +262,9 @@ function RoadmapBuilderPage() {
                       Step 1: Vision & Scope
                     </h3>
                     <p className="text-[#61636c] leading-relaxed">
-                      Tell us about your project. What do you want to build? Describe
-                      your vision so we can generate an accurate roadmap.
+                      Tell us about your project. What do you want to build?
+                      Describe your vision so we can generate an accurate
+                      roadmap.
                     </p>
                   </motion.div>
                 )}
@@ -279,8 +281,8 @@ function RoadmapBuilderPage() {
                       Step 2: Skills & Duration
                     </h3>
                     <p className="text-[#61636c] leading-relaxed">
-                      What skills are needed? How long do you expect the project to
-                      take? This helps us create a realistic timeline.
+                      What skills are needed? How long do you expect the project
+                      to take? This helps us create a realistic timeline.
                     </p>
                   </motion.div>
                 )}

@@ -212,7 +212,10 @@ router.post(
         .eq("id", targetUserId);
 
       if (profileUpdateError) {
-        console.error("Failed to update profile with guest migration:", profileUpdateError);
+        console.error(
+          "Failed to update profile with guest migration:",
+          profileUpdateError,
+        );
         // Don't fail the request, just log the error
       }
 

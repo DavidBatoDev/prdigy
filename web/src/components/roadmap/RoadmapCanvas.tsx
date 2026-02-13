@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Plus, Settings, Download, ArrowLeft } from "lucide-react";
+import { X, Plus, Settings, Download, Share2 } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -124,6 +124,7 @@ interface RoadmapCanvasProps {
   onDeleteTask: (taskId: string) => void;
   onEditBrief?: () => void;
   onExport?: () => void;
+  onShare?: () => void;
 }
 
 const RoadmapCanvas = ({
@@ -146,6 +147,7 @@ const RoadmapCanvas = ({
   onDeleteTask,
   onEditBrief,
   onExport,
+  onShare,
 }: RoadmapCanvasProps) => {
   const [viewMode, setViewMode] = useState<ViewMode>("roadmap");
   const [selectedEpic, setSelectedEpic] = useState<string | null>(null);
@@ -388,13 +390,7 @@ const RoadmapCanvas = ({
       {/* Header */}
       <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0">
         <div className="flex items-center">
-          <button
-            onClick={() => window.history.back()}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Go back"
-          >
-            <ArrowLeft className="w-5 h-5 text-gray-700" />
-          </button>
+
           <h1 className="ml-4 text-lg font-semibold text-gray-900">
             {projectTitle || "Untitled Project"}
           </h1>
@@ -410,6 +406,17 @@ const RoadmapCanvas = ({
             >
               <Settings className="w-4 h-4" />
               Project Brief
+            </button>
+          )}
+
+          {onShare && (
+            <button
+              onClick={onShare}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors border border-gray-300"
+              title="Share Roadmap"
+            >
+              <Share2 className="w-4 h-4" />
+              Share
             </button>
           )}
 
@@ -551,6 +558,7 @@ const RoadmapCanvas = ({
                 setOpenEpicTabs([...openEpicTabs, epicId]);
               }
             }}
+            onUpdateTask={onUpdateTask}
           />
         ) : null}
 

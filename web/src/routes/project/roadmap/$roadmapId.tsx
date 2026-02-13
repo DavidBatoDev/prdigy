@@ -7,6 +7,7 @@ import {
   type Message,
 } from "@/components/roadmap/LeftSidePanel";
 import { RoadmapCanvas } from "@/components/roadmap/RoadmapCanvas";
+import { ShareRoadmapModal } from "@/components/roadmap/ShareRoadmapModal";
 import { callGeminiAPI } from "@/lib/gemini";
 import { useUser } from "@/stores/authStore";
 import { getOrCreateGuestUser } from "@/lib/guestAuth";
@@ -157,6 +158,9 @@ function RoadmapViewPage() {
     customSkills: [],
     duration: "1-3_months",
   });
+
+  // Share Modal state
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   // Builder state
   const [messages, setMessages] = useState<Message[]>([]);
@@ -702,6 +706,12 @@ function RoadmapViewPage() {
               setBriefStep(1);
               setIsBriefOpen(true);
             }}
+            onShare={() => {
+              // Only allow sharing for authenticated users
+              if (!isGuest) {
+                setIsShareModalOpen(true);
+              }
+            }}
             onExport={() => {
               /* TODO: Export functionality */
             }}
@@ -721,6 +731,16 @@ function RoadmapViewPage() {
         onSubmit={handleModalSubmit}
         isSubmitting={isUpdatingRoadmap}
       />
+
+      {/* Share Roadmap Modal */}
+      {roadmap && !isGuest && (
+        <ShareRoadmapModal
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+          roadmapId={roadmap.id}
+          roadmapName={roadmap.name}
+        />
+      )}
     </div>
   );
 }

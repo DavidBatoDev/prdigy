@@ -52,6 +52,8 @@ export interface Roadmap {
   settings?: Record<string, any>;
   created_at: string;
   updated_at: string;
+  // Sharing
+  currentUserRole?: ShareRole | 'owner'; // Current user's access level
 }
 
 export interface RoadmapMilestone {
@@ -92,6 +94,7 @@ export interface RoadmapEpic {
   // Computed fields
   progress?: number;
   features?: RoadmapFeature[];
+  comments?: Comment[]; // Comments on this epic
 }
 
 export interface MilestoneFeatureLink {
@@ -117,6 +120,7 @@ export interface RoadmapFeature {
   updated_at: string;
   // Computed fields
   progress?: number;
+  comments?: Comment[]; // Comments on this feature
   tasks?: RoadmapTask[];
 }
 
@@ -161,6 +165,44 @@ export interface TaskAttachment {
 
 // View modes for the roadmap canvas
 export type RoadmapViewMode = "milestone" | "roadmap";
+
+// Sharing Types
+export type ShareRole = 'viewer' | 'commenter' | 'editor';
+
+export interface InvitedUser {
+  email: string;
+  role: ShareRole;
+}
+
+export interface RoadmapShare {
+  id: string;
+  roadmap_id: string;
+  share_token: string;
+  created_by: string;
+  invited_emails: InvitedUser[];
+  default_role: ShareRole;
+  is_active: boolean;
+  expires_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Comment {
+  id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+  // Populated fields
+  user?: {
+    id: string;
+    display_name?: string;
+    first_name?: string;
+    last_name?: string;
+    avatar_url?: string;
+    email?: string;
+  };
+}
 
 // UI State
 export interface RoadmapCanvasState {

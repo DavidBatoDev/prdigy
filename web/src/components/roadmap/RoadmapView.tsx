@@ -33,6 +33,7 @@ interface RoadmapViewProps {
   onAddTask?: (featureId: string) => void;
   onEditFeature?: (epicId: string, featureId: string) => void;
   onNavigateToEpic?: (epicId: string) => void;
+  onUpdateTask: (task: RoadmapTask) => void;
 }
 
 // Custom layout configuration with centered epic positioning among features
@@ -191,6 +192,7 @@ export const RoadmapView = ({
   onAddTask,
   onEditFeature,
   onNavigateToEpic,
+  onUpdateTask,
 }: RoadmapViewProps) => {
   const DEFAULT_ZOOM = 0.67;
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
@@ -262,6 +264,7 @@ export const RoadmapView = ({
           onClick: onSelectFeature,
           onAddTask,
           onSelectTask,
+          onUpdateTask,
         },
         position: { x: 0, y: 0 }, // Will be set by dagre
       }),

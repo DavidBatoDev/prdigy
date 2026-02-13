@@ -8,11 +8,14 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  MessageSquare,
 } from "lucide-react";
 import { TaskCard } from "./TaskWidget";
-import type { RoadmapEpic, RoadmapFeature, RoadmapTask } from "@/types/roadmap";
+import type { RoadmapEpic, RoadmapFeature, RoadmapTask, Comment } from "@/types/roadmap";
 import { RichTextEditor } from "@/components/common/RichTextEditor";
 import { AddFeatureModal } from "./AddFeatureModal";
+import { CommentsSection } from "./CommentsSection";
+import { roadmapSharesServiceAPI } from "@/services/roadmap-shares.service";
 
 interface EpicTabProps {
   epic: RoadmapEpic;
@@ -63,6 +66,16 @@ export const EpicTab = ({
     React.useState<RoadmapFeature | null>(null);
   const [isFeatureModalOpen, setIsFeatureModalOpen] = React.useState(false);
 
+  // Comments state
+  const [comments, setComments] = React.useState<Comment[]>([]);
+  const [loadingComments, setLoadingComments] = React.useState(false);
+  const [showComments, setShowComments] = React.useState(false);
+
+  // Feature comments state (per feature)
+  const [featureComments, setFeatureComments] = React.useState<Record<string, Comment[]>>({});
+  const [loadingFeatureComments, setLoadingFeatureComments] = React.useState<Record<string, boolean>>({});
+  const [showFeatureComments, setShowFeatureComments] = React.useState<Set<string>>(new Set());
+
   useEffect(() => {
     if (!isEditingTitle) {
       setTitleDraft(epic.title);
@@ -77,6 +90,80 @@ export const EpicTab = ({
     isEditingTitle,
     isEditingDescription,
   ]);
+
+  // Load comments when showing comments section
+  useEffect(() => {
+    if (showComments && comments.length === 0) {
+      loadComments();
+    }
+  }, [showComments]);
+
+  const loadComments = async () => {
+    try {
+      setLoadingComments(true);
+      // TODO: Implement API endpoint to fetch epic comments
+      // const fetchedComments = await roadmapSharesServiceAPI.comments.getEpicComments(epic.id);
+      // setComments(fetchedComments);
+      setComments([]); // Placeholder until backend endpoint is created
+    } catch (error) {
+      console.error("Failed to load comments:", error);
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
+  const handleAddComment = async (content: string) => {
+    try {
+      const newComment = await roadmapSharesServiceAPI.comments.addEpicComment(epic.id, content);
+      setComments([...comments, newComment]);
+    } catch (error) {
+      console.error("Failed to add comment:", error);
+      throw error;
+    }
+  };
+
+  const toggleFeatureComments = (featureId: string) => {
+    setShowFeatureComments((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(featureId)) {
+        newSet.delete(featureId);
+      } else {
+        newSet.add(featureId);
+        // Load comments if not already loaded
+        if (!featureComments[featureId]) {
+          loadFeatureComments(featureId);
+        }
+      }
+      return newSet;
+    });
+  };
+
+  const loadFeatureComments = async (featureId: string) => {
+    try {
+      setLoadingFeatureComments((prev) => ({ ...prev, [featureId]: true }));
+      // TODO: Implement API endpoint to fetch feature comments
+      // const fetchedComments = await roadmapSharesServiceAPI.comments.getFeatureComments(featureId);
+      // setFeatureComments((prev) => ({ ...prev, [featureId]: fetchedComments }));
+      setFeatureComments((prev) => ({ ...prev, [featureId]: [] })); // Placeholder
+    } catch (error) {
+      console.error("Failed to load feature comments:", error);
+    } finally {
+      setLoadingFeatureComments((prev) => ({ ...prev, [featureId]: false }));
+    }
+  };
+
+  const handleAddFeatureComment = async (featureId: string, content: string) => {
+    try {
+      const newComment = await roadmapSharesServiceAPI.comments.addFeatureComment(featureId, content);
+      setFeatureComments((prev) => ({
+        ...prev,
+        [featureId]: [...(prev[featureId] || []), newComment],
+      }));
+    } catch (error) {
+      console.error("Failed to add feature comment:", error);
+      throw error;
+    }
+  };
 
   const handleSaveTitle = () => {
     const nextTitle = titleDraft.trim();
@@ -349,6 +436,28 @@ export const EpicTab = ({
           </div>
         </div>
 
+        {/* Comments Section */}
+        <div className="mb-6">
+          <button
+            onClick={() => setShowComments(!showComments)}
+            className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+          >
+            <MessageSquare className="w-4 h-4" />
+            {showComments ? "Hide Comments" : `Show Comments (${comments.length})`}
+          </button>
+          
+          {showComments && (
+            <div className="mt-4">
+              <CommentsSection
+                comments={comments}
+                onAddComment={handleAddComment}
+                isLoading={loadingComments}
+                canComment={true}
+              />
+            </div>
+          )}
+        </div>
+
         {/* Features Grid */}
         <div className="space-y-6">
           {features.length === 0 ? (
@@ -443,6 +552,30 @@ export const EpicTab = ({
                             )}
                           </button>
                         )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Feature Comments Section */}
+                <div className="px-6 pb-4 border-b border-gray-200 bg-gray-50">
+                  <button
+                    onClick={() => toggleFeatureComments(feature.id)}
+                    className="flex items-center gap-2 text-xs font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    {showFeatureComments.has(feature.id)
+                      ? "Hide Comments"
+                      : `Show Comments (${featureComments[feature.id]?.length || 0})`}
+                  </button>
+
+                  {showFeatureComments.has(feature.id) && (
+                    <div className="mt-3">
+                      <CommentsSection
+                        comments={featureComments[feature.id] || []}
+                        onAddComment={(content) => handleAddFeatureComment(feature.id, content)}
+                        isLoading={loadingFeatureComments[feature.id] || false}
+                        canComment={true}
+                      />
                     </div>
                   )}
                 </div>

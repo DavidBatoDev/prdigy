@@ -14,12 +14,14 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LandingRouteImport } from './routes/landing'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as RoadmapSharedWithMeRouteImport } from './routes/roadmap/shared-with-me'
 import { Route as ClientProjectPostingRouteImport } from './routes/client/project-posting'
 import { Route as AuthVerifyRouteImport } from './routes/auth/verify'
 import { Route as AuthSignupRouteImport } from './routes/auth/signup'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
 import { Route as ProjectRoadmapIndexRouteImport } from './routes/project/roadmap/index'
+import { Route as RoadmapSharedTokenRouteImport } from './routes/roadmap/shared/$token'
 import { Route as ProjectRoadmapRoadmapIdRouteImport } from './routes/project/roadmap/$roadmapId'
 import { Route as AuthAdminSigninRouteImport } from './routes/auth/admin/signin'
 import { Route as AuthAdminLoginRouteImport } from './routes/auth/admin/login'
@@ -47,6 +49,11 @@ const DashboardRoute = DashboardRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RoadmapSharedWithMeRoute = RoadmapSharedWithMeRouteImport.update({
+  id: '/roadmap/shared-with-me',
+  path: '/roadmap/shared-with-me',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ClientProjectPostingRoute = ClientProjectPostingRouteImport.update({
@@ -79,6 +86,11 @@ const ProjectRoadmapIndexRoute = ProjectRoadmapIndexRouteImport.update({
   path: '/project/roadmap/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RoadmapSharedTokenRoute = RoadmapSharedTokenRouteImport.update({
+  id: '/roadmap/shared/$token',
+  path: '/roadmap/shared/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProjectRoadmapRoadmapIdRoute = ProjectRoadmapRoadmapIdRouteImport.update({
   id: '/project/roadmap/$roadmapId',
   path: '/project/roadmap/$roadmapId',
@@ -106,9 +118,11 @@ export interface FileRoutesByFullPath {
   '/auth/signup': typeof AuthSignupRoute
   '/auth/verify': typeof AuthVerifyRoute
   '/client/project-posting': typeof ClientProjectPostingRoute
+  '/roadmap/shared-with-me': typeof RoadmapSharedWithMeRoute
   '/auth/admin/login': typeof AuthAdminLoginRoute
   '/auth/admin/signin': typeof AuthAdminSigninRoute
   '/project/roadmap/$roadmapId': typeof ProjectRoadmapRoadmapIdRoute
+  '/roadmap/shared/$token': typeof RoadmapSharedTokenRoute
   '/project/roadmap': typeof ProjectRoadmapIndexRoute
 }
 export interface FileRoutesByTo {
@@ -122,9 +136,11 @@ export interface FileRoutesByTo {
   '/auth/signup': typeof AuthSignupRoute
   '/auth/verify': typeof AuthVerifyRoute
   '/client/project-posting': typeof ClientProjectPostingRoute
+  '/roadmap/shared-with-me': typeof RoadmapSharedWithMeRoute
   '/auth/admin/login': typeof AuthAdminLoginRoute
   '/auth/admin/signin': typeof AuthAdminSigninRoute
   '/project/roadmap/$roadmapId': typeof ProjectRoadmapRoadmapIdRoute
+  '/roadmap/shared/$token': typeof RoadmapSharedTokenRoute
   '/project/roadmap': typeof ProjectRoadmapIndexRoute
 }
 export interface FileRoutesById {
@@ -139,9 +155,11 @@ export interface FileRoutesById {
   '/auth/signup': typeof AuthSignupRoute
   '/auth/verify': typeof AuthVerifyRoute
   '/client/project-posting': typeof ClientProjectPostingRoute
+  '/roadmap/shared-with-me': typeof RoadmapSharedWithMeRoute
   '/auth/admin/login': typeof AuthAdminLoginRoute
   '/auth/admin/signin': typeof AuthAdminSigninRoute
   '/project/roadmap/$roadmapId': typeof ProjectRoadmapRoadmapIdRoute
+  '/roadmap/shared/$token': typeof RoadmapSharedTokenRoute
   '/project/roadmap/': typeof ProjectRoadmapIndexRoute
 }
 export interface FileRouteTypes {
@@ -157,9 +175,11 @@ export interface FileRouteTypes {
     | '/auth/signup'
     | '/auth/verify'
     | '/client/project-posting'
+    | '/roadmap/shared-with-me'
     | '/auth/admin/login'
     | '/auth/admin/signin'
     | '/project/roadmap/$roadmapId'
+    | '/roadmap/shared/$token'
     | '/project/roadmap'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -173,9 +193,11 @@ export interface FileRouteTypes {
     | '/auth/signup'
     | '/auth/verify'
     | '/client/project-posting'
+    | '/roadmap/shared-with-me'
     | '/auth/admin/login'
     | '/auth/admin/signin'
     | '/project/roadmap/$roadmapId'
+    | '/roadmap/shared/$token'
     | '/project/roadmap'
   id:
     | '__root__'
@@ -189,9 +211,11 @@ export interface FileRouteTypes {
     | '/auth/signup'
     | '/auth/verify'
     | '/client/project-posting'
+    | '/roadmap/shared-with-me'
     | '/auth/admin/login'
     | '/auth/admin/signin'
     | '/project/roadmap/$roadmapId'
+    | '/roadmap/shared/$token'
     | '/project/roadmap/'
   fileRoutesById: FileRoutesById
 }
@@ -206,9 +230,11 @@ export interface RootRouteChildren {
   AuthSignupRoute: typeof AuthSignupRoute
   AuthVerifyRoute: typeof AuthVerifyRoute
   ClientProjectPostingRoute: typeof ClientProjectPostingRoute
+  RoadmapSharedWithMeRoute: typeof RoadmapSharedWithMeRoute
   AuthAdminLoginRoute: typeof AuthAdminLoginRoute
   AuthAdminSigninRoute: typeof AuthAdminSigninRoute
   ProjectRoadmapRoadmapIdRoute: typeof ProjectRoadmapRoadmapIdRoute
+  RoadmapSharedTokenRoute: typeof RoadmapSharedTokenRoute
   ProjectRoadmapIndexRoute: typeof ProjectRoadmapIndexRoute
 }
 
@@ -247,6 +273,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/roadmap/shared-with-me': {
+      id: '/roadmap/shared-with-me'
+      path: '/roadmap/shared-with-me'
+      fullPath: '/roadmap/shared-with-me'
+      preLoaderRoute: typeof RoadmapSharedWithMeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/client/project-posting': {
@@ -291,6 +324,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectRoadmapIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/roadmap/shared/$token': {
+      id: '/roadmap/shared/$token'
+      path: '/roadmap/shared/$token'
+      fullPath: '/roadmap/shared/$token'
+      preLoaderRoute: typeof RoadmapSharedTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/project/roadmap/$roadmapId': {
       id: '/project/roadmap/$roadmapId'
       path: '/project/roadmap/$roadmapId'
@@ -326,9 +366,11 @@ const rootRouteChildren: RootRouteChildren = {
   AuthSignupRoute: AuthSignupRoute,
   AuthVerifyRoute: AuthVerifyRoute,
   ClientProjectPostingRoute: ClientProjectPostingRoute,
+  RoadmapSharedWithMeRoute: RoadmapSharedWithMeRoute,
   AuthAdminLoginRoute: AuthAdminLoginRoute,
   AuthAdminSigninRoute: AuthAdminSigninRoute,
   ProjectRoadmapRoadmapIdRoute: ProjectRoadmapRoadmapIdRoute,
+  RoadmapSharedTokenRoute: RoadmapSharedTokenRoute,
   ProjectRoadmapIndexRoute: ProjectRoadmapIndexRoute,
 }
 export const routeTree = rootRouteImport

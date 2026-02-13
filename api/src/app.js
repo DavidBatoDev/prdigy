@@ -50,6 +50,7 @@ app.use("/api/guests", require("./routes/guests"));
 
 // Roadmap Routes
 app.use("/api/roadmaps", require("./routes/roadmaps"));
+app.use("/api/roadmap-shares", require("./routes/roadmap-shares"));
 app.use("/api", require("./routes/milestones"));
 app.use("/api", require("./routes/epics"));
 app.use("/api", require("./routes/features"));

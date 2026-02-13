@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { MessageSquare, FileText, Home, Map, CheckSquare, Settings } from "lucide-react";
 import { ChatPanel } from "./ChatPanel";
 import type { Message } from "./ChatPanel";
@@ -26,6 +27,7 @@ export function LeftSidePanel({
     "assistant",
   );
   const [activeNav, setActiveNav] = useState<NavItem>("roadmap");
+  const navigate = useNavigate();
 
   const navItems = [
     { id: "home" as NavItem, icon: Home, label: "Home" },
@@ -44,7 +46,13 @@ export function LeftSidePanel({
           return (
             <button
               key={item.id}
-              onClick={() => setActiveNav(item.id)}
+              onClick={() => {
+                if (item.id === "home") {
+                  navigate({ to: "/" });
+                } else {
+                  setActiveNav(item.id);
+                }
+              }}
               className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
                 isActive
                   ? "bg-primary text-white shadow-sm"
