@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X, Plus, Settings, Download, Share2 } from "lucide-react";
 import {
   DndContext,
@@ -125,6 +125,13 @@ interface RoadmapCanvasProps {
   onEditBrief?: () => void;
   onExport?: () => void;
   onShare?: () => void;
+  focusNodeId?: string | null;
+  onFocusComplete?: () => void;
+  navigateToEpicId?: string | null;
+  onNavigateToEpicHandled?: () => void;
+  navigateToFeature?: { epicId: string; featureId: string } | null;
+  onNavigateToFeatureHandled?: () => void;
+  onActiveEpicChange?: (epicId: string | null) => void;
 }
 
 const RoadmapCanvas = ({
@@ -148,6 +155,13 @@ const RoadmapCanvas = ({
   onEditBrief,
   onExport,
   onShare,
+  focusNodeId,
+  onFocusComplete,
+  navigateToEpicId,
+  onNavigateToEpicHandled,
+  navigateToFeature,
+  onNavigateToFeatureHandled,
+  onActiveEpicChange,
 }: RoadmapCanvasProps) => {
   const [viewMode, setViewMode] = useState<ViewMode>("roadmap");
   const [selectedEpic, setSelectedEpic] = useState<string | null>(null);
@@ -178,6 +192,9 @@ const RoadmapCanvas = ({
     id: string;
     label: string;
   } | null>(null);
+  const [scrollToFeatureId, setScrollToFeatureId] = useState<string | null>(
+    null,
+  );
 
   // DnD Kit sensors for epic tabs
   const sensors = useSensors(
@@ -187,15 +204,53 @@ const RoadmapCanvas = ({
     }),
   );
 
-  // Handle epic widget click - open as tab and switch to epic view
-  const handleEpicClick = (epicId: string) => {
-    setSelectedEpic(epicId);
-    setViewMode("epic");
-    // Add to tabs if not already present
-    if (!openEpicTabs.includes(epicId)) {
-      setOpenEpicTabs([...openEpicTabs, epicId]);
+  useEffect(() => {
+    if (!navigateToEpicId) {
+      return;
     }
-  };
+
+    const epicExists = epics.some((epic) => epic.id === navigateToEpicId);
+    if (!epicExists) {
+      onNavigateToEpicHandled?.();
+      return;
+    }
+
+    setSelectedEpic(navigateToEpicId);
+    setViewMode("epic");
+    setOpenEpicTabs((prevTabs) =>
+      prevTabs.includes(navigateToEpicId)
+        ? prevTabs
+        : [...prevTabs, navigateToEpicId],
+    );
+    onNavigateToEpicHandled?.();
+  }, [epics, navigateToEpicId, onNavigateToEpicHandled]);
+
+  useEffect(() => {
+    if (!navigateToFeature) {
+      return;
+    }
+
+    const targetEpic = epics.find(
+      (epic) => epic.id === navigateToFeature.epicId,
+    );
+    if (!targetEpic) {
+      onNavigateToFeatureHandled?.();
+      return;
+    }
+
+    setSelectedEpic(navigateToFeature.epicId);
+    setViewMode("epic");
+    setOpenEpicTabs((prevTabs) =>
+      prevTabs.includes(navigateToFeature.epicId)
+        ? prevTabs
+        : [...prevTabs, navigateToFeature.epicId],
+    );
+    setScrollToFeatureId(navigateToFeature.featureId);
+  }, [epics, navigateToFeature, onNavigateToFeatureHandled]);
+
+  useEffect(() => {
+    onActiveEpicChange?.(viewMode === "epic" ? selectedEpic : null);
+  }, [onActiveEpicChange, selectedEpic, viewMode]);
 
   // Handle closing an epic tab
   const handleCloseEpicTab = (epicId: string) => {
@@ -390,7 +445,6 @@ const RoadmapCanvas = ({
       {/* Header */}
       <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0">
         <div className="flex items-center">
-
           <h1 className="ml-4 text-lg font-semibold text-gray-900">
             {projectTitle || "Untitled Project"}
           </h1>
@@ -559,6 +613,8 @@ const RoadmapCanvas = ({
               }
             }}
             onUpdateTask={onUpdateTask}
+            focusNodeId={focusNodeId}
+            onFocusComplete={onFocusComplete}
           />
         ) : null}
 
@@ -579,6 +635,11 @@ const RoadmapCanvas = ({
               setTargetFeatureForTask(featureId);
               setSelectedTaskId(null);
               setSidePanelOpen(true);
+            }}
+            scrollToFeatureId={scrollToFeatureId}
+            onScrollToFeatureHandled={() => {
+              setScrollToFeatureId(null);
+              onNavigateToFeatureHandled?.();
             }}
           />
         )}

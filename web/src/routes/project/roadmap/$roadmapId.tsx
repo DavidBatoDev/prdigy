@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight, LogIn, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -143,6 +143,40 @@ function RoadmapViewPage() {
   }, [roadmapId]);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
+  const [navigateToEpicId, setNavigateToEpicId] = useState<string | null>(null);
+  const [activeEpicId, setActiveEpicId] = useState<string | null>(null);
+  const [navigateToFeature, setNavigateToFeature] = useState<{
+    epicId: string;
+    featureId: string;
+  } | null>(null);
+
+  const handleNavigateToNode = useCallback((nodeId: string) => {
+    setFocusNodeId(nodeId);
+  }, []);
+
+  const handleFocusComplete = useCallback(() => {
+    setFocusNodeId(null);
+  }, []);
+
+  const handleNavigateToEpicTab = useCallback((epicId: string) => {
+    setNavigateToEpicId(epicId);
+  }, []);
+
+  const handleNavigateToEpicHandled = useCallback(() => {
+    setNavigateToEpicId(null);
+  }, []);
+
+  const handleNavigateToFeature = useCallback(
+    (epicId: string, featureId: string) => {
+      setNavigateToFeature({ epicId, featureId });
+    },
+    [],
+  );
+
+  const handleNavigateToFeatureHandled = useCallback(() => {
+    setNavigateToFeature(null);
+  }, []);
 
   // Project Brief Modal state
   const [isBriefOpen, setIsBriefOpen] = useState(false);
@@ -661,8 +695,12 @@ function RoadmapViewPage() {
             messages={messages}
             onSendMessage={handleSendMessage}
             isGenerating={isGenerating}
-            isGuest={isGuest}
             isCollapsed={!isSidebarOpen}
+            epics={epics}
+            onSelectFeature={handleNavigateToFeature}
+            onNavigateToNode={handleNavigateToNode}
+            onNavigateToEpicTab={handleNavigateToEpicTab}
+            highlightedEpicId={activeEpicId}
           />
 
           <button
@@ -715,6 +753,13 @@ function RoadmapViewPage() {
             onExport={() => {
               /* TODO: Export functionality */
             }}
+            focusNodeId={focusNodeId}
+            onFocusComplete={handleFocusComplete}
+            navigateToEpicId={navigateToEpicId}
+            onNavigateToEpicHandled={handleNavigateToEpicHandled}
+            navigateToFeature={navigateToFeature}
+            onNavigateToFeatureHandled={handleNavigateToFeatureHandled}
+            onActiveEpicChange={setActiveEpicId}
           />
         </div>
       </div>

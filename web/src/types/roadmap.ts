@@ -53,7 +53,10 @@ export interface Roadmap {
   created_at: string;
   updated_at: string;
   // Sharing
-  currentUserRole?: ShareRole | 'owner'; // Current user's access level
+  currentUserRole?: ShareRole | "owner"; // Current user's access level
+  // Related data (populated by getFull())
+  epics?: RoadmapEpic[];
+  milestones?: RoadmapMilestone[];
 }
 
 export interface RoadmapMilestone {
@@ -167,7 +170,7 @@ export interface TaskAttachment {
 export type RoadmapViewMode = "milestone" | "roadmap";
 
 // Sharing Types
-export type ShareRole = 'viewer' | 'commenter' | 'editor';
+export type ShareRole = "viewer" | "commenter" | "editor";
 
 export interface InvitedUser {
   email: string;

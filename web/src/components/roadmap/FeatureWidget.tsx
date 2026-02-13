@@ -51,7 +51,7 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
       case "in_progress":
         return "bg-blue-100 text-blue-800 border-blue-300";
       case "in_review":
-        return "bg-purple-100 text-purple-800 border-purple-300";
+        return "bg-orange-100 text-orange-800 border-orange-300";
       case "blocked":
         return "bg-red-100 text-red-800 border-red-300";
       case "not_started":
@@ -77,16 +77,16 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
   const getTaskClasses = (status: RoadmapTask["status"]) => {
     switch (status) {
       case "done":
-        return "bg-emerald-500 border-emerald-600 hover:bg-emerald-400";
+        return "bg-white text-gray-400 border-gray-200 line-through hover:border-gray-300";
       case "in_progress":
-        return "bg-blue-500 border-blue-600 hover:bg-blue-400";
+        return "bg-white text-blue-600 border-blue-200 hover:border-blue-300";
       case "in_review":
-        return "bg-purple-500 border-purple-600 hover:bg-purple-400";
+        return "bg-white text-orange-600 border-orange-200 hover:border-orange-300";
       case "blocked":
-        return "bg-red-500 border-red-600 hover:bg-red-400";
+        return "bg-white text-red-600 border-red-200 hover:border-red-300";
       case "todo":
       default:
-        return "bg-gray-400 border-gray-500 hover:bg-gray-300";
+        return "bg-white text-gray-700 border-gray-200 hover:border-gray-300";
     }
   };
 
@@ -260,16 +260,13 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
           <div className="absolute top-1/2 -translate-y-1/2 left-[540px] border-2 border-dashed border-gray-300 rounded-xl p-2">
             <div className="grid grid-flow-col grid-rows-3 gap-2 auto-cols-max">
               {feature.tasks?.slice(0, 9).map((task) => (
-                <div
-                  key={task.id}
-                  className="relative group/task"
-                >
+                <div key={task.id} className="relative group/task">
                   <div
                     onClick={(event) => {
                       event.stopPropagation();
                       onSelectTask?.(task);
                     }}
-                    className={`text-white px-3 py-2 rounded-md shadow-sm border w-[180px] h-[32px] flex items-center cursor-pointer transition-colors ${getTaskClasses(
+                    className={`px-3 py-2 rounded-md shadow-sm border w-[180px] h-[32px] flex items-center cursor-pointer transition-colors ${getTaskClasses(
                       task.status,
                     )}`}
                   >
@@ -277,14 +274,14 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
                       {task.title}
                     </p>
                   </div>
-                  
+
                   {/* Quick Status Buttons - shown on hover */}
                   {onUpdateTask && (
                     <div className="absolute -top-3.5 -right-3 flex items-center gap-0.5 opacity-0 group-hover/task:opacity-100 transition-opacity bg-white rounded shadow-lg p-0.5 border border-gray-200">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          onUpdateTask({ ...task, status: 'todo' });
+                          onUpdateTask({ ...task, status: "todo" });
                         }}
                         className="w-5 h-5 rounded flex items-center justify-center hover:bg-gray-100 transition-colors relative group/tooltip"
                       >
@@ -296,7 +293,7 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          onUpdateTask({ ...task, status: 'in_progress' });
+                          onUpdateTask({ ...task, status: "in_progress" });
                         }}
                         className="w-5 h-5 rounded flex items-center justify-center hover:bg-gray-100 transition-colors relative group/tooltip"
                       >
@@ -308,11 +305,11 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          onUpdateTask({ ...task, status: 'in_review' });
+                          onUpdateTask({ ...task, status: "in_review" });
                         }}
                         className="w-5 h-5 rounded flex items-center justify-center hover:bg-gray-100 transition-colors relative group/tooltip"
                       >
-                        <Eye className="w-3 h-3 text-black" />
+                        <Eye className="w-3 h-3 text-orange-600" />
                         <span className="absolute bottom-full mb-1 px-2 py-1 text-xs text-white bg-gray-900 rounded whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none">
                           In Review
                         </span>
@@ -320,7 +317,7 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          onUpdateTask({ ...task, status: 'done' });
+                          onUpdateTask({ ...task, status: "done" });
                         }}
                         className="w-5 h-5 rounded flex items-center justify-center hover:bg-gray-100 transition-colors relative group/tooltip"
                       >
@@ -332,7 +329,7 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          onUpdateTask({ ...task, status: 'blocked' });
+                          onUpdateTask({ ...task, status: "blocked" });
                         }}
                         className="w-5 h-5 rounded flex items-center justify-center hover:bg-gray-100 transition-colors relative group/tooltip"
                       >

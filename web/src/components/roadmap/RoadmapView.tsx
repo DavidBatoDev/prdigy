@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ReactFlow,
   Controls,
@@ -34,6 +34,8 @@ interface RoadmapViewProps {
   onEditFeature?: (epicId: string, featureId: string) => void;
   onNavigateToEpic?: (epicId: string) => void;
   onUpdateTask: (task: RoadmapTask) => void;
+  focusNodeId?: string | null;
+  onFocusComplete?: () => void;
 }
 
 // Custom layout configuration with centered epic positioning among features
@@ -193,9 +195,13 @@ export const RoadmapView = ({
   onEditFeature,
   onNavigateToEpic,
   onUpdateTask,
+  focusNodeId,
+  onFocusComplete,
 }: RoadmapViewProps) => {
   const DEFAULT_ZOOM = 0.67;
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
+  const [reactFlowInstance, setReactFlowInstance] =
+    useState<ReactFlowInstance | null>(null);
 
   const DEFAULT_VIEWPORT_X = -50;
   const DEFAULT_VIEWPORT_Y = 0;
@@ -381,6 +387,30 @@ export const RoadmapView = ({
     getEdgeColor,
   ]);
 
+  useEffect(() => {
+    if (!focusNodeId || !reactFlowInstance) {
+      return;
+    }
+
+    const targetNode = reactFlowInstance.getNode(focusNodeId);
+    if (!targetNode) {
+      onFocusComplete?.();
+      return;
+    }
+
+    const nodeWidth = Number(targetNode.width) || 500;
+    const nodeHeight = Number(targetNode.height) || 220;
+    const centerX = targetNode.position.x + nodeWidth / 2;
+    const centerY = targetNode.position.y + nodeHeight / 2;
+
+    reactFlowInstance.setCenter(centerX, centerY, {
+      zoom: 0.8,
+      duration: 600,
+    });
+
+    onFocusComplete?.();
+  }, [focusNodeId, onFocusComplete, reactFlowInstance]);
+
   const extraRightPadding = useMemo(() => {
     const maxTaskCount = epics.reduce((maxCount, epic) => {
       const epicMax = (epic.features || []).reduce((featureMax, feature) => {
@@ -439,6 +469,7 @@ export const RoadmapView = ({
           setZoom(viewport.zoom);
         }}
         onInit={(instance: ReactFlowInstance) => {
+          setReactFlowInstance(instance);
           setZoom(instance.getZoom());
         }}
         defaultViewport={{

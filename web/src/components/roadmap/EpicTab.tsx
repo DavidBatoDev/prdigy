@@ -11,7 +11,12 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { TaskCard } from "./TaskWidget";
-import type { RoadmapEpic, RoadmapFeature, RoadmapTask, Comment } from "@/types/roadmap";
+import type {
+  RoadmapEpic,
+  RoadmapFeature,
+  RoadmapTask,
+  Comment,
+} from "@/types/roadmap";
 import { RichTextEditor } from "@/components/common/RichTextEditor";
 import { AddFeatureModal } from "./AddFeatureModal";
 import { CommentsSection } from "./CommentsSection";
@@ -26,6 +31,8 @@ interface EpicTabProps {
   onDeleteTask: (taskId: string) => void;
   onSelectTask: (task: RoadmapTask) => void;
   onAddTask?: (featureId: string) => void;
+  scrollToFeatureId?: string | null;
+  onScrollToFeatureHandled?: () => void;
 }
 
 export const EpicTab = ({
@@ -37,6 +44,8 @@ export const EpicTab = ({
   onDeleteTask,
   onSelectTask,
   onAddTask,
+  scrollToFeatureId,
+  onScrollToFeatureHandled,
 }: EpicTabProps) => {
   const features = epic.features || [];
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -60,6 +69,9 @@ export const EpicTab = ({
     new Set(),
   );
   const featureRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
+  const featureSectionRefs = React.useRef<
+    Record<string, HTMLDivElement | null>
+  >({});
 
   // Feature modal state
   const [editingFeature, setEditingFeature] =
@@ -72,9 +84,15 @@ export const EpicTab = ({
   const [showComments, setShowComments] = React.useState(false);
 
   // Feature comments state (per feature)
-  const [featureComments, setFeatureComments] = React.useState<Record<string, Comment[]>>({});
-  const [loadingFeatureComments, setLoadingFeatureComments] = React.useState<Record<string, boolean>>({});
-  const [showFeatureComments, setShowFeatureComments] = React.useState<Set<string>>(new Set());
+  const [featureComments, setFeatureComments] = React.useState<
+    Record<string, Comment[]>
+  >({});
+  const [loadingFeatureComments, setLoadingFeatureComments] = React.useState<
+    Record<string, boolean>
+  >({});
+  const [showFeatureComments, setShowFeatureComments] = React.useState<
+    Set<string>
+  >(new Set());
 
   useEffect(() => {
     if (!isEditingTitle) {
@@ -114,7 +132,10 @@ export const EpicTab = ({
 
   const handleAddComment = async (content: string) => {
     try {
-      const newComment = await roadmapSharesServiceAPI.comments.addEpicComment(epic.id, content);
+      const newComment = await roadmapSharesServiceAPI.comments.addEpicComment(
+        epic.id,
+        content,
+      );
       setComments([...comments, newComment]);
     } catch (error) {
       console.error("Failed to add comment:", error);
@@ -152,9 +173,16 @@ export const EpicTab = ({
     }
   };
 
-  const handleAddFeatureComment = async (featureId: string, content: string) => {
+  const handleAddFeatureComment = async (
+    featureId: string,
+    content: string,
+  ) => {
     try {
-      const newComment = await roadmapSharesServiceAPI.comments.addFeatureComment(featureId, content);
+      const newComment =
+        await roadmapSharesServiceAPI.comments.addFeatureComment(
+          featureId,
+          content,
+        );
       setFeatureComments((prev) => ({
         ...prev,
         [featureId]: [...(prev[featureId] || []), newComment],
@@ -230,6 +258,20 @@ export const EpicTab = ({
     };
     return colorMap[status] || "bg-gray-100 text-gray-800";
   };
+
+  useEffect(() => {
+    if (!scrollToFeatureId) {
+      return;
+    }
+
+    const targetRef = featureSectionRefs.current[scrollToFeatureId];
+    if (!targetRef) {
+      return;
+    }
+
+    targetRef.scrollIntoView({ behavior: "smooth", block: "start" });
+    onScrollToFeatureHandled?.();
+  }, [features, onScrollToFeatureHandled, scrollToFeatureId]);
 
   const getEpicPriorityColor = (priority: string) => {
     const colorMap: Record<string, string> = {
@@ -443,9 +485,11 @@ export const EpicTab = ({
             className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
           >
             <MessageSquare className="w-4 h-4" />
-            {showComments ? "Hide Comments" : `Show Comments (${comments.length})`}
+            {showComments
+              ? "Hide Comments"
+              : `Show Comments (${comments.length})`}
           </button>
-          
+
           {showComments && (
             <div className="mt-4">
               <CommentsSection
@@ -468,6 +512,9 @@ export const EpicTab = ({
             features.map((feature) => (
               <div
                 key={feature.id}
+                ref={(el) => {
+                  featureSectionRefs.current[feature.id] = el;
+                }}
                 className="bg-white rounded-xl border-2 border-yellow-400 shadow-sm overflow-hidden min-w-0 max-w-full"
               >
                 {/* Feature Row */}
@@ -572,7 +619,9 @@ export const EpicTab = ({
                     <div className="mt-3">
                       <CommentsSection
                         comments={featureComments[feature.id] || []}
-                        onAddComment={(content) => handleAddFeatureComment(feature.id, content)}
+                        onAddComment={(content) =>
+                          handleAddFeatureComment(feature.id, content)
+                        }
                         isLoading={loadingFeatureComments[feature.id] || false}
                         canComment={true}
                       />

@@ -1,8 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Loader2, AlertCircle, LogIn } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  AlertCircle,
+  LogIn,
+} from "lucide-react";
 import { motion } from "framer-motion";
-import { LeftSidePanel, type Message } from "@/components/roadmap/LeftSidePanel";
+import {
+  LeftSidePanel,
+  type Message,
+} from "@/components/roadmap/LeftSidePanel";
 import { RoadmapCanvas } from "@/components/roadmap/RoadmapCanvas";
 import { roadmapSharesServiceAPI } from "@/services/roadmap-shares.service";
 import { useUser } from "@/stores/authStore";
@@ -24,7 +33,9 @@ function SharedRoadmapPage() {
   const [roadmap, setRoadmap] = useState<Roadmap | null>(null);
   const [milestones, setMilestones] = useState<RoadmapMilestone[]>([]);
   const [epics, setEpics] = useState<RoadmapEpic[]>([]);
-  const [currentUserRole, setCurrentUserRole] = useState<ShareRole | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<ShareRole | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -34,7 +45,8 @@ function SharedRoadmapPage() {
     {
       id: "1",
       role: "assistant",
-      content: "You're viewing a shared roadmap. Depending on your access level, you may view, comment, or edit.",
+      content:
+        "You're viewing a shared roadmap. Depending on your access level, you may view, comment, or edit.",
       timestamp: new Date(),
     },
   ]);
@@ -46,15 +58,16 @@ function SharedRoadmapPage() {
         setIsLoading(true);
         setError(null);
 
-        const data = await roadmapSharesServiceAPI.sharing.getRoadmapByShareToken(token);
-        
+        const data =
+          await roadmapSharesServiceAPI.sharing.getRoadmapByShareToken(token);
+
         setRoadmap(data);
         setMilestones(data.milestones || []);
         setEpics(data.epics || []);
         setCurrentUserRole(data.currentUserRole as ShareRole);
       } catch (error: any) {
         console.error("Failed to load shared roadmap:", error);
-        
+
         if (error.statusCode === 404) {
           setError("This share link does not exist or has been disabled.");
         } else if (error.statusCode === 410) {
@@ -164,8 +177,8 @@ function SharedRoadmapPage() {
             messages={messages}
             onSendMessage={() => {}} // Disabled for shared view
             isGenerating={false}
-            isGuest={!user}
             isCollapsed={!isSidebarOpen}
+            epics={epics}
           />
 
           <button
