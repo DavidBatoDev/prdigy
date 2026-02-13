@@ -131,6 +131,12 @@ interface RoadmapCanvasProps {
   onNavigateToEpicHandled?: () => void;
   navigateToFeature?: { epicId: string; featureId: string } | null;
   onNavigateToFeatureHandled?: () => void;
+  openEpicEditorId?: string | null;
+  onOpenEpicEditorHandled?: () => void;
+  openFeatureEditor?: { epicId: string; featureId: string } | null;
+  onOpenFeatureEditorHandled?: () => void;
+  openTaskDetailId?: string | null;
+  onOpenTaskDetailHandled?: () => void;
   onActiveEpicChange?: (epicId: string | null) => void;
 }
 
@@ -161,6 +167,12 @@ const RoadmapCanvas = ({
   onNavigateToEpicHandled,
   navigateToFeature,
   onNavigateToFeatureHandled,
+  openEpicEditorId,
+  onOpenEpicEditorHandled,
+  openFeatureEditor,
+  onOpenFeatureEditorHandled,
+  openTaskDetailId,
+  onOpenTaskDetailHandled,
   onActiveEpicChange,
 }: RoadmapCanvasProps) => {
   const [viewMode, setViewMode] = useState<ViewMode>("roadmap");
@@ -363,6 +375,54 @@ const RoadmapCanvas = ({
     setEditingFeatureId(featureId);
     setIsEditFeatureModalOpen(true);
   };
+
+  useEffect(() => {
+    if (!openEpicEditorId) {
+      return;
+    }
+
+    const epicExists = epics.some((epic) => epic.id === openEpicEditorId);
+    if (epicExists) {
+      handleOpenEditEpicModal(openEpicEditorId);
+    }
+    onOpenEpicEditorHandled?.();
+  }, [epics, onOpenEpicEditorHandled, openEpicEditorId]);
+
+  useEffect(() => {
+    if (!openFeatureEditor) {
+      return;
+    }
+
+    const epic = epics.find((item) => item.id === openFeatureEditor.epicId);
+    const featureExists = epic?.features?.some(
+      (feature) => feature.id === openFeatureEditor.featureId,
+    );
+    if (featureExists) {
+      handleOpenEditFeatureModal(
+        openFeatureEditor.epicId,
+        openFeatureEditor.featureId,
+      );
+    }
+    onOpenFeatureEditorHandled?.();
+  }, [epics, onOpenFeatureEditorHandled, openFeatureEditor]);
+
+  useEffect(() => {
+    if (!openTaskDetailId) {
+      return;
+    }
+
+    const taskExists = epics
+      .flatMap((epic) => epic.features || [])
+      .flatMap((feature) => feature.tasks || [])
+      .some((task) => task.id === openTaskDetailId);
+
+    if (taskExists) {
+      setSelectedTaskId(openTaskDetailId);
+      setTargetFeatureForTask(null);
+      setSidePanelOpen(true);
+    }
+    onOpenTaskDetailHandled?.();
+  }, [epics, onOpenTaskDetailHandled, openTaskDetailId]);
 
   const handleUpdateFeatureFromModal = (data: {
     title: string;

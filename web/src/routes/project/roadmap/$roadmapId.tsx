@@ -150,6 +150,12 @@ function RoadmapViewPage() {
     epicId: string;
     featureId: string;
   } | null>(null);
+  const [openEpicEditorId, setOpenEpicEditorId] = useState<string | null>(null);
+  const [openFeatureEditor, setOpenFeatureEditor] = useState<{
+    epicId: string;
+    featureId: string;
+  } | null>(null);
+  const [openTaskDetailId, setOpenTaskDetailId] = useState<string | null>(null);
 
   const handleNavigateToNode = useCallback((nodeId: string) => {
     setFocusNodeId(nodeId);
@@ -176,6 +182,33 @@ function RoadmapViewPage() {
 
   const handleNavigateToFeatureHandled = useCallback(() => {
     setNavigateToFeature(null);
+  }, []);
+
+  const handleOpenEpicEditor = useCallback((epicId: string) => {
+    setOpenEpicEditorId(epicId);
+  }, []);
+
+  const handleOpenEpicEditorHandled = useCallback(() => {
+    setOpenEpicEditorId(null);
+  }, []);
+
+  const handleOpenFeatureEditor = useCallback(
+    (epicId: string, featureId: string) => {
+      setOpenFeatureEditor({ epicId, featureId });
+    },
+    [],
+  );
+
+  const handleOpenFeatureEditorHandled = useCallback(() => {
+    setOpenFeatureEditor(null);
+  }, []);
+
+  const handleOpenTaskDetail = useCallback((taskId: string) => {
+    setOpenTaskDetailId(taskId);
+  }, []);
+
+  const handleOpenTaskDetailHandled = useCallback(() => {
+    setOpenTaskDetailId(null);
   }, []);
 
   // Project Brief Modal state
@@ -697,7 +730,16 @@ function RoadmapViewPage() {
             isGenerating={isGenerating}
             isCollapsed={!isSidebarOpen}
             epics={epics}
-            onSelectFeature={handleNavigateToFeature}
+            onSelectFeature={(epicId, featureId) => {
+              if (activeEpicId) {
+                handleNavigateToFeature(epicId, featureId);
+                return;
+              }
+              handleNavigateToNode(featureId);
+            }}
+            onOpenEpicEditor={handleOpenEpicEditor}
+            onOpenFeatureEditor={handleOpenFeatureEditor}
+            onOpenTaskDetail={handleOpenTaskDetail}
             onNavigateToNode={handleNavigateToNode}
             onNavigateToEpicTab={handleNavigateToEpicTab}
             highlightedEpicId={activeEpicId}
@@ -759,6 +801,12 @@ function RoadmapViewPage() {
             onNavigateToEpicHandled={handleNavigateToEpicHandled}
             navigateToFeature={navigateToFeature}
             onNavigateToFeatureHandled={handleNavigateToFeatureHandled}
+            openEpicEditorId={openEpicEditorId}
+            onOpenEpicEditorHandled={handleOpenEpicEditorHandled}
+            openFeatureEditor={openFeatureEditor}
+            onOpenFeatureEditorHandled={handleOpenFeatureEditorHandled}
+            openTaskDetailId={openTaskDetailId}
+            onOpenTaskDetailHandled={handleOpenTaskDetailHandled}
             onActiveEpicChange={setActiveEpicId}
           />
         </div>

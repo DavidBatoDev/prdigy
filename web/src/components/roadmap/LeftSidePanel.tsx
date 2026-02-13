@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
-  MessageSquare,
   Home,
   Map,
   CheckSquare,
@@ -15,6 +14,7 @@ import {
   X,
   Folder,
   ExternalLink,
+  Sparkles,
 } from "lucide-react";
 import { ChatPanel } from "./ChatPanel";
 import type { Message } from "./ChatPanel";
@@ -31,6 +31,9 @@ interface LeftSidePanelProps {
   onSelectEpic?: (epicId: string) => void;
   onSelectFeature?: (epicId: string, featureId: string) => void;
   onSelectTask?: (taskId: string) => void;
+  onOpenEpicEditor?: (epicId: string) => void;
+  onOpenFeatureEditor?: (epicId: string, featureId: string) => void;
+  onOpenTaskDetail?: (taskId: string) => void;
   onNavigateToNode?: (nodeId: string) => void;
   onNavigateToEpicTab?: (epicId: string) => void;
   highlightedEpicId?: string | null;
@@ -47,6 +50,9 @@ export function LeftSidePanel({
   onSelectEpic,
   onSelectFeature,
   onSelectTask,
+  onOpenEpicEditor,
+  onOpenFeatureEditor,
+  onOpenTaskDetail,
   onNavigateToNode,
   onNavigateToEpicTab,
   highlightedEpicId,
@@ -114,12 +120,16 @@ export function LeftSidePanel({
               onClick={() => setActiveTab("assistant")}
               className={`flex-1 px-4 py-3 font-medium text-sm flex items-center justify-center gap-2 transition-colors ${
                 activeTab === "assistant"
-                  ? "text-primary border-b-2 border-primary bg-white"
+                  ? "text-transparent bg-clip-text bg-linear-to-r from-purple-600 to-pink-600 border-b-2 border-purple-600 bg-white"
                   : "text-gray-600 hover:text-gray-900"
               }`}
             >
-              <MessageSquare className="w-4 h-4" />
-              AI Assistant
+              <Sparkles
+                className={`w-4 h-4 ${
+                  activeTab === "assistant" ? "text-purple-600" : ""
+                }`}
+              />
+              Try AI
             </button>
           </div>
 
@@ -130,6 +140,9 @@ export function LeftSidePanel({
               onSelectEpic={onSelectEpic}
               onSelectFeature={onSelectFeature}
               onSelectTask={onSelectTask}
+              onOpenEpicEditor={onOpenEpicEditor}
+              onOpenFeatureEditor={onOpenFeatureEditor}
+              onOpenTaskDetail={onOpenTaskDetail}
               onNavigateToNode={onNavigateToNode}
               onNavigateToEpicTab={onNavigateToEpicTab}
               highlightedEpicId={highlightedEpicId}
@@ -152,6 +165,9 @@ interface ExplorerPanelProps {
   onSelectEpic?: (epicId: string) => void;
   onSelectFeature?: (epicId: string, featureId: string) => void;
   onSelectTask?: (taskId: string) => void;
+  onOpenEpicEditor?: (epicId: string) => void;
+  onOpenFeatureEditor?: (epicId: string, featureId: string) => void;
+  onOpenTaskDetail?: (taskId: string) => void;
   onNavigateToNode?: (nodeId: string) => void;
   onNavigateToEpicTab?: (epicId: string) => void;
   highlightedEpicId?: string | null;
@@ -172,10 +188,14 @@ function ExplorerPanel({
   onSelectEpic,
   onSelectFeature,
   onSelectTask,
+  onOpenEpicEditor,
+  onOpenFeatureEditor,
+  onOpenTaskDetail,
   onNavigateToNode,
   onNavigateToEpicTab,
   highlightedEpicId,
 }: ExplorerPanelProps) {
+  const NAVIGATION_OPEN_DELAY_MS = 700;
   const [expandedEpics, setExpandedEpics] = useState<Set<string>>(new Set());
   const [expandedFeatures, setExpandedFeatures] = useState<Set<string>>(
     new Set(),
@@ -185,6 +205,17 @@ function ExplorerPanel({
   const [showSearchPopup, setShowSearchPopup] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const hasInitializedExpansion = useRef(false);
+  const delayedOpenTimeouts = useRef<number[]>([]);
+
+  const runAfterNavigationDelay = (callback: () => void) => {
+    const timeoutId = window.setTimeout(() => {
+      callback();
+      delayedOpenTimeouts.current = delayedOpenTimeouts.current.filter(
+        (id) => id !== timeoutId,
+      );
+    }, NAVIGATION_OPEN_DELAY_MS);
+    delayedOpenTimeouts.current.push(timeoutId);
+  };
 
   // Close search popup when clicking outside
   useEffect(() => {
@@ -200,6 +231,15 @@ function ExplorerPanel({
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      delayedOpenTimeouts.current.forEach((timeoutId) => {
+        window.clearTimeout(timeoutId);
+      });
+      delayedOpenTimeouts.current = [];
     };
   }, []);
 
@@ -275,6 +315,38 @@ function ExplorerPanel({
       newExpanded.add(featureId);
     }
     setExpandedFeatures(newExpanded);
+  };
+
+  const getTaskTextClasses = (status?: string) => {
+    switch (status) {
+      case "done":
+        return "text-gray-400 line-through";
+      case "in_progress":
+        return "text-blue-600";
+      case "in_review":
+        return "text-orange-600";
+      case "blocked":
+        return "text-red-600";
+      case "todo":
+      default:
+        return "text-gray-600";
+    }
+  };
+
+  const getTaskDotClasses = (status?: string) => {
+    switch (status) {
+      case "done":
+        return "bg-gray-400";
+      case "in_progress":
+        return "bg-blue-500";
+      case "in_review":
+        return "bg-orange-500";
+      case "blocked":
+        return "bg-red-500";
+      case "todo":
+      default:
+        return "bg-gray-400";
+    }
   };
 
   const handleSearchResultClick = (result: SearchResult) => {
@@ -560,6 +632,12 @@ function ExplorerPanel({
                           event.stopPropagation();
                           onNavigateToNode?.(epic.id);
                         }}
+                        onDoubleClick={(event) => {
+                          event.stopPropagation();
+                          runAfterNavigationDelay(() => {
+                            onOpenEpicEditor?.(epic.id);
+                          });
+                        }}
                         className="truncate flex-1 text-left hover:text-primary transition-colors"
                         title="Focus in canvas"
                       >
@@ -617,7 +695,12 @@ function ExplorerPanel({
                                 onClick={(event) => {
                                   event.stopPropagation();
                                   onSelectFeature?.(epic.id, feature.id);
-                                  onNavigateToNode?.(feature.id);
+                                }}
+                                onDoubleClick={(event) => {
+                                  event.stopPropagation();
+                                  runAfterNavigationDelay(() => {
+                                    onOpenFeatureEditor?.(epic.id, feature.id);
+                                  });
                                 }}
                                 className="truncate flex-1 text-left hover:text-primary transition-colors"
                                 title="Focus in canvas"
@@ -638,15 +721,23 @@ function ExplorerPanel({
                                   <button
                                     key={task.id}
                                     onClick={() => onSelectTask?.(task.id)}
-                                    className="w-full flex items-center gap-2 px-2 py-1 text-xs text-gray-600 hover:bg-white hover:text-gray-900 rounded transition-colors"
+                                    className="w-full flex items-center gap-2 px-2 py-1 text-xs hover:bg-white rounded transition-colors"
                                   >
-                                    <div className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                                    <div
+                                      className={`w-1.5 h-1.5 rounded-full ${getTaskDotClasses(task.status)}`}
+                                    />
                                     <span
                                       onClick={(event) => {
                                         event.stopPropagation();
                                         onNavigateToNode?.(feature.id);
                                       }}
-                                      className="truncate text-left flex-1 hover:text-primary transition-colors"
+                                      onDoubleClick={(event) => {
+                                        event.stopPropagation();
+                                        runAfterNavigationDelay(() => {
+                                          onOpenTaskDetail?.(task.id);
+                                        });
+                                      }}
+                                      className={`truncate text-left flex-1 transition-colors hover:text-primary ${getTaskTextClasses(task.status)}`}
                                       title="Focus in canvas"
                                     >
                                       {task.title}

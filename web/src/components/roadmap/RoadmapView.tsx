@@ -320,57 +320,8 @@ export const RoadmapView = ({
       epics,
     );
 
-    const TASK_WIDTH = 180;
-    const TASK_HEIGHT = 32;
-    const TASK_GAP = 8;
-    const TASKS_PER_COLUMN = 3;
-    const TASKS_X_OFFSET = 540;
-
-    const featureNodeById = new Map(
-      layoutedNodes
-        .filter((node) => node.type === "featureWidget")
-        .map((node) => [node.id, node]),
-    );
-
-    const taskMiniNodes: Node[] = allFeatures.flatMap((feature) => {
-      const featureNode = featureNodeById.get(feature.id);
-      const tasks = feature.tasks?.slice(0, 9) ?? [];
-      if (!featureNode || tasks.length === 0) return [];
-
-      const featureHeight = featureNode.height ?? 0;
-      const gridHeight =
-        TASKS_PER_COLUMN * TASK_HEIGHT + (TASKS_PER_COLUMN - 1) * TASK_GAP;
-      const startY =
-        featureNode.position.y + featureHeight / 2 - gridHeight / 2;
-
-      return tasks.map((task, index) => {
-        const row = index % TASKS_PER_COLUMN;
-        const col = Math.floor(index / TASKS_PER_COLUMN);
-
-        return {
-          id: `task-mini-${task.id}`,
-          type: "default",
-          data: { minimapType: "task", status: task.status },
-          position: {
-            x:
-              featureNode.position.x +
-              TASKS_X_OFFSET +
-              col * (TASK_WIDTH + TASK_GAP),
-            y: startY + row * (TASK_HEIGHT + TASK_GAP),
-          },
-          width: TASK_WIDTH,
-          height: TASK_HEIGHT,
-          className: "minimap-only-node",
-          draggable: false,
-          selectable: false,
-          connectable: false,
-          focusable: false,
-        } as Node;
-      });
-    });
-
     return {
-      nodes: [...layoutedNodes, ...taskMiniNodes],
+      nodes: layoutedNodes,
       edges: layoutedEdges,
     };
   }, [
@@ -463,9 +414,10 @@ export const RoadmapView = ({
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        onlyRenderVisibleElements
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onMove={(_, viewport) => {
+        onMoveEnd={(_, viewport) => {
           setZoom(viewport.zoom);
         }}
         onInit={(instance: ReactFlowInstance) => {
@@ -494,41 +446,11 @@ export const RoadmapView = ({
           position="bottom-right"
           nodeStrokeWidth={1.5}
           nodeStrokeColor={(node) => {
-            if (node.data?.minimapType === "task") {
-              switch (node.data?.status) {
-                case "done":
-                  return "#047857";
-                case "in_progress":
-                  return "#1d4ed8";
-                case "in_review":
-                  return "#7e22ce";
-                case "blocked":
-                  return "#b91c1c";
-                case "todo":
-                default:
-                  return "#6b7280";
-              }
-            }
             if (node.type === "epicWidget") return "#9ca3af";
             if (node.type === "featureWidget") return "#f59e0b";
             return "#9ca3af";
           }}
           nodeColor={(node) => {
-            if (node.data?.minimapType === "task") {
-              switch (node.data?.status) {
-                case "done":
-                  return "#10b981";
-                case "in_progress":
-                  return "#3b82f6";
-                case "in_review":
-                  return "#a855f7";
-                case "blocked":
-                  return "#ef4444";
-                case "todo":
-                default:
-                  return "#9ca3af";
-              }
-            }
             if (node.type === "epicWidget") return "#f8fafc";
             if (node.type === "featureWidget") return "#fff7ed";
             return "#e5e7eb";
