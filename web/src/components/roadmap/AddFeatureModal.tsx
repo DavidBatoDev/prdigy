@@ -8,6 +8,7 @@ import type {
 import { useUser } from "@/auth";
 import { RoadmapModalLayout } from "./RoadmapModalLayout";
 import { RichTextEditor } from "@/components/common/RichTextEditor";
+import { TaskListItem } from "./TaskListItem";
 
 interface AddFeatureModalProps {
   isOpen: boolean;
@@ -16,13 +17,17 @@ interface AddFeatureModalProps {
   titleText?: string;
   submitLabel?: string;
   onClose: () => void;
-  onAddTask?: () => void;
+  onAddTask?: (featureId: string) => void | Promise<void>;
+  onUpdateTask?: (task: RoadmapTask) => void | Promise<void>;
+  onDeleteTask?: (taskId: string) => void | Promise<void>;
+  onSelectTask?: (task: RoadmapTask) => void;
   onSubmit: (data: {
     title: string;
     description: string;
     status: FeatureStatus;
     is_deliverable: boolean;
   }) => void;
+  isLoading?: boolean;
 }
 
 export const AddFeatureModal = ({
@@ -33,7 +38,11 @@ export const AddFeatureModal = ({
   submitLabel = "Create Feature",
   onClose,
   onAddTask,
+  onUpdateTask,
+  onDeleteTask,
+  onSelectTask,
   onSubmit,
+  isLoading = false,
 }: AddFeatureModalProps) => {
   const user = useUser();
   const [title, setTitle] = useState("");
@@ -127,7 +136,9 @@ export const AddFeatureModal = ({
 
         {/* Is Deliverable */}
         <div className="w-48">
-          <h3 className="text-sm font-semibold text-gray-900 mb-2">Deliverable</h3>
+          <h3 className="text-sm font-semibold text-gray-900 mb-2">
+            Deliverable
+          </h3>
           <label className="flex items-center gap-2 cursor-pointer h-[42px]">
             <input
               type="checkbox"
@@ -135,9 +146,7 @@ export const AddFeatureModal = ({
               onChange={(e) => setIsDeliverable(e.target.checked)}
               className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
             />
-            <span className="text-sm text-gray-700">
-              Milestone progress
-            </span>
+            <span className="text-sm text-gray-700">Milestone progress</span>
           </label>
         </div>
       </div>
@@ -145,9 +154,7 @@ export const AddFeatureModal = ({
       {/* Description */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-semibold text-gray-900">
-            Description
-          </h3>
+          <h3 className="text-sm font-semibold text-gray-900">Description</h3>
           {!isEditingDescription && description && (
             <button
               type="button"
@@ -201,7 +208,7 @@ export const AddFeatureModal = ({
               }`}
             >
               <div dangerouslySetInnerHTML={{ __html: description }} />
-              
+
               {/* Gradient Overlay when collapsed */}
               {!isExpanded && showReadMore && (
                 <div className="absolute bottom-0 left-0 right-0 h-12 bg-linear-to-t from-white to-transparent pointer-events-none" />
@@ -244,16 +251,24 @@ export const AddFeatureModal = ({
     <div className="flex justify-end">
       <button
         type="submit"
-        disabled={!title.trim()}
-        className="px-6 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled={!title.trim() || isLoading}
+        className="px-6 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
       >
-        {submitLabel}
+        {isLoading ? (
+          <>
+            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            Saving...
+          </>
+        ) : (
+          submitLabel
+        )}
       </button>
     </div>
   );
 
   const tasks: RoadmapTask[] =
     (initialData?.tasks as RoadmapTask[] | undefined) ?? [];
+  const featureId = initialData?.id;
 
   const rightPanelTabs = [
     {
@@ -263,21 +278,32 @@ export const AddFeatureModal = ({
         <div className="space-y-3">
           {/* Tasks List */}
           {tasks.length ? (
-            <div className="space-y-2">
+            <div className="divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white">
               {tasks.map((task) => (
-                <div
+                <TaskListItem
                   key={task.id ?? task.title}
-                  className="rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm"
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-gray-900">
-                      {task.title}
-                    </p>
-                    <span className="text-xs text-gray-500 capitalize">
-                      {task.status?.replace("_", " ") ?? ""}
-                    </span>
-                  </div>
-                </div>
+                  task={task}
+                  onDelete={onDeleteTask}
+                  onClick={onSelectTask}
+                  onToggleComplete={(taskId) => {
+                    if (!onUpdateTask) return;
+                    const taskToUpdate = tasks.find((t) => t.id === taskId);
+                    if (!taskToUpdate) return;
+                    onUpdateTask({
+                      ...taskToUpdate,
+                      status: taskToUpdate.status === "done" ? "todo" : "done",
+                    });
+                  }}
+                  onUpdateStatus={(taskId, status) => {
+                    if (!onUpdateTask) return;
+                    const taskToUpdate = tasks.find((t) => t.id === taskId);
+                    if (!taskToUpdate) return;
+                    onUpdateTask({
+                      ...taskToUpdate,
+                      status,
+                    });
+                  }}
+                />
               ))}
             </div>
           ) : (
@@ -290,14 +316,16 @@ export const AddFeatureModal = ({
           )}
 
           {/* Add Task Button */}
-          <button
-            type="button"
-            onClick={onAddTask}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg font-medium text-sm transition-colors mt-4"
-          >
-            <Plus className="w-4 h-4" />
-            Add Task
-          </button>
+          {onAddTask && featureId && (
+            <button
+              type="button"
+              onClick={() => onAddTask(featureId)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg font-medium text-sm transition-colors mt-4"
+            >
+              <Plus className="w-4 h-4" />
+              Add Task
+            </button>
+          )}
         </div>
       ),
     },

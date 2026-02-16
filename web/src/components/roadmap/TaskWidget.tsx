@@ -8,7 +8,7 @@ import {
   Clock,
   User,
 } from "lucide-react";
-import type { RoadmapTask } from "@/types/roadmap";
+import type { RoadmapTask, ChecklistItem } from "@/types/roadmap";
 
 export interface TaskWidgetData extends Record<string, unknown> {
   task: RoadmapTask;
@@ -99,7 +99,8 @@ export const TaskCard = memo(
           : "border-emerald-300 hover:border-emerald-400";
 
     const completedChecklist =
-      task.checklist?.filter((item) => item.completed).length || 0;
+      task.checklist?.filter((item: ChecklistItem) => item.completed).length ||
+      0;
     const totalChecklist = task.checklist?.length || 0;
 
     return (

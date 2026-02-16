@@ -144,6 +144,7 @@ function RoadmapViewPage() {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
+  const [focusNodeOffsetX, setFocusNodeOffsetX] = useState(0);
   const [navigateToEpicId, setNavigateToEpicId] = useState<string | null>(null);
   const [activeEpicId, setActiveEpicId] = useState<string | null>(null);
   const [navigateToFeature, setNavigateToFeature] = useState<{
@@ -157,12 +158,17 @@ function RoadmapViewPage() {
   } | null>(null);
   const [openTaskDetailId, setOpenTaskDetailId] = useState<string | null>(null);
 
-  const handleNavigateToNode = useCallback((nodeId: string) => {
-    setFocusNodeId(nodeId);
-  }, []);
+  const handleNavigateToNode = useCallback(
+    (nodeId: string, options?: { offsetX?: number }) => {
+      setFocusNodeId(nodeId);
+      setFocusNodeOffsetX(options?.offsetX ?? 0);
+    },
+    [],
+  );
 
   const handleFocusComplete = useCallback(() => {
     setFocusNodeId(null);
+    setFocusNodeOffsetX(0);
   }, []);
 
   const handleNavigateToEpicTab = useCallback((epicId: string) => {
@@ -796,6 +802,7 @@ function RoadmapViewPage() {
               /* TODO: Export functionality */
             }}
             focusNodeId={focusNodeId}
+            focusNodeOffsetX={focusNodeOffsetX}
             onFocusComplete={handleFocusComplete}
             navigateToEpicId={navigateToEpicId}
             onNavigateToEpicHandled={handleNavigateToEpicHandled}

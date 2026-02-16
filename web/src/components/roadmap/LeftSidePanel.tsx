@@ -34,12 +34,14 @@ interface LeftSidePanelProps {
   onOpenEpicEditor?: (epicId: string) => void;
   onOpenFeatureEditor?: (epicId: string, featureId: string) => void;
   onOpenTaskDetail?: (taskId: string) => void;
-  onNavigateToNode?: (nodeId: string) => void;
+  onNavigateToNode?: (nodeId: string, options?: { offsetX?: number }) => void;
   onNavigateToEpicTab?: (epicId: string) => void;
   highlightedEpicId?: string | null;
 }
 
 type NavItem = "home" | "roadmap" | "tasks" | "settings";
+
+const TASK_NAVIGATE_OFFSET_X = 620;
 
 export function LeftSidePanel({
   messages,
@@ -168,7 +170,7 @@ interface ExplorerPanelProps {
   onOpenEpicEditor?: (epicId: string) => void;
   onOpenFeatureEditor?: (epicId: string, featureId: string) => void;
   onOpenTaskDetail?: (taskId: string) => void;
-  onNavigateToNode?: (nodeId: string) => void;
+  onNavigateToNode?: (nodeId: string, options?: { offsetX?: number }) => void;
   onNavigateToEpicTab?: (epicId: string) => void;
   highlightedEpicId?: string | null;
 }
@@ -362,7 +364,9 @@ function ExplorerPanel({
     } else if (result.type === "task") {
       onSelectTask?.(result.id);
       if (result.featureId) {
-        onNavigateToNode?.(result.featureId);
+        onNavigateToNode?.(result.featureId, {
+          offsetX: TASK_NAVIGATE_OFFSET_X,
+        });
       }
     }
   };
@@ -429,7 +433,7 @@ function ExplorerPanel({
   );
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-gray-50">
+    <div className="flex flex-col h-full overflow-hidden bg-white ">
       {/* Header */}
       <div className="px-4 py-4 border-b border-gray-200 bg-white">
         <div className="flex items-center justify-between mb-2">
@@ -584,7 +588,7 @@ function ExplorerPanel({
       </div>
 
       {/* Navigation Tree */}
-      <div className="flex-1 overflow-y-auto px-3 py-3">
+      <div className="flex-1 overflow-y-auto px-3 py-3 hide-scrollbar">
         {sortedEpics.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full px-4 text-center">
             <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
@@ -611,34 +615,37 @@ function ExplorerPanel({
                 <div key={epic.id}>
                   {/* Epic */}
                   <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => {
-                        toggleEpic(epic.id);
-                        onSelectEpic?.(epic.id);
-                      }}
+                    <div
                       className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all border ${
                         isEpicHighlighted
                           ? "text-primary bg-orange-50 border-orange-200 shadow-sm"
-                          : "text-gray-900 bg-white border-gray-200 hover:bg-white hover:shadow-sm"
+                          : "text-gray-900 bg-gray-50 border-gray-200 hover:bg-white hover:shadow-sm"
                       }`}
                     >
-                      <ChevronRight
-                        className={`w-4 h-4 transition-transform ${
-                          isEpicHighlighted ? "text-primary" : "text-gray-500"
-                        } ${isEpicExpanded ? "rotate-90" : ""}`}
-                      />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleEpic(epic.id);
+                        }}
+                        className="p-0.5 hover:bg-black/5 rounded cursor-pointer"
+                      >
+                        <ChevronRight
+                          className={`w-4 h-4 transition-transform ${
+                            isEpicHighlighted ? "text-primary" : "text-gray-500"
+                          } ${isEpicExpanded ? "rotate-90" : ""}`}
+                        />
+                      </button>
                       <span
-                        onClick={(event) => {
-                          event.stopPropagation();
+                        onClick={() => {
+                          onSelectEpic?.(epic.id);
                           onNavigateToNode?.(epic.id);
                         }}
-                        onDoubleClick={(event) => {
-                          event.stopPropagation();
+                        onDoubleClick={() => {
                           runAfterNavigationDelay(() => {
                             onOpenEpicEditor?.(epic.id);
                           });
                         }}
-                        className="truncate flex-1 text-left hover:text-primary transition-colors"
+                        className="truncate flex-1 text-left hover:text-primary transition-colors cursor-pointer"
                         title="Focus in canvas"
                       >
                         {epic.title}
@@ -648,7 +655,7 @@ function ExplorerPanel({
                           {features.length}
                         </span>
                       )}
-                    </button>
+                    </div>
                     <button
                       type="button"
                       onClick={() => onNavigateToEpicTab?.(epic.id)}
@@ -673,36 +680,35 @@ function ExplorerPanel({
                         return (
                           <div key={feature.id}>
                             {/* Feature */}
-                            <button
-                              onClick={() => {
-                                if (tasks.length > 0) {
-                                  toggleFeature(feature.id);
-                                }
-                                onSelectFeature?.(epic.id, feature.id);
-                              }}
-                              className="w-full flex items-center gap-2 px-2.5 py-1.5 text-sm text-gray-700 hover:bg-white hover:shadow-sm rounded-md transition-all bg-gray-50 border border-transparent hover:border-gray-200"
-                            >
+                            <div className="w-full flex items-center gap-2 px-2.5 py-1.5 text-sm text-gray-700 hover:bg-white hover:shadow-sm rounded-md transition-all border border-transparent hover:border-gray-200">
                               {tasks.length > 0 ? (
-                                <ChevronRight
-                                  className={`w-3.5 h-3.5 text-gray-400 transition-transform ${
-                                    isFeatureExpanded ? "rotate-90" : ""
-                                  }`}
-                                />
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleFeature(feature.id);
+                                  }}
+                                  className="p-0.5 hover:bg-black/5 rounded cursor-pointer"
+                                >
+                                  <ChevronRight
+                                    className={`w-3.5 h-3.5 text-gray-400 transition-transform ${
+                                      isFeatureExpanded ? "rotate-90" : ""
+                                    }`}
+                                  />
+                                </button>
                               ) : (
-                                <div className="w-2 h-2 rounded-full bg-gray-300" />
+                                <div className="w-2 h-2 rounded-full bg-gray-300 ml-1 mr-0.5" />
                               )}
                               <span
-                                onClick={(event) => {
-                                  event.stopPropagation();
+                                onClick={() => {
                                   onSelectFeature?.(epic.id, feature.id);
+                                  onNavigateToNode?.(feature.id);
                                 }}
-                                onDoubleClick={(event) => {
-                                  event.stopPropagation();
+                                onDoubleClick={() => {
                                   runAfterNavigationDelay(() => {
                                     onOpenFeatureEditor?.(epic.id, feature.id);
                                   });
                                 }}
-                                className="truncate flex-1 text-left hover:text-primary transition-colors"
+                                className="truncate flex-1 text-left hover:text-primary transition-colors cursor-pointer"
                                 title="Focus in canvas"
                               >
                                 {feature.title}
@@ -712,7 +718,7 @@ function ExplorerPanel({
                                   {tasks.length}
                                 </span>
                               )}
-                            </button>
+                            </div>
 
                             {/* Tasks */}
                             {isFeatureExpanded && tasks.length > 0 && (
@@ -720,7 +726,12 @@ function ExplorerPanel({
                                 {tasks.map((task) => (
                                   <button
                                     key={task.id}
-                                    onClick={() => onSelectTask?.(task.id)}
+                                    onClick={() => {
+                                      onSelectTask?.(task.id);
+                                      onNavigateToNode?.(feature.id, {
+                                        offsetX: TASK_NAVIGATE_OFFSET_X,
+                                      });
+                                    }}
                                     className="w-full flex items-center gap-2 px-2 py-1 text-xs hover:bg-white rounded transition-colors"
                                   >
                                     <div
@@ -729,7 +740,9 @@ function ExplorerPanel({
                                     <span
                                       onClick={(event) => {
                                         event.stopPropagation();
-                                        onNavigateToNode?.(feature.id);
+                                        onNavigateToNode?.(feature.id, {
+                                          offsetX: TASK_NAVIGATE_OFFSET_X,
+                                        });
                                       }}
                                       onDoubleClick={(event) => {
                                         event.stopPropagation();

@@ -9,13 +9,9 @@ import {
   AlertCircle,
   List,
   Plus,
-  Circle,
-  Play,
-  Eye,
-  CheckCircle,
-  Ban,
 } from "lucide-react";
 import type { RoadmapFeature, RoadmapTask } from "@/types/roadmap";
+import { TaskListItem } from "./TaskListItem";
 
 export interface FeatureWidgetData extends Record<string, unknown> {
   feature: RoadmapFeature;
@@ -71,22 +67,6 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
         return <AlertCircle className="w-3 h-3" />;
       default:
         return null;
-    }
-  };
-
-  const getTaskClasses = (status: RoadmapTask["status"]) => {
-    switch (status) {
-      case "done":
-        return "bg-white text-gray-400 border-gray-200 line-through hover:border-gray-300";
-      case "in_progress":
-        return "bg-white text-blue-600 border-blue-200 hover:border-blue-300";
-      case "in_review":
-        return "bg-white text-orange-600 border-orange-200 hover:border-orange-300";
-      case "blocked":
-        return "bg-white text-red-600 border-red-200 hover:border-red-300";
-      case "todo":
-      default:
-        return "bg-white text-gray-700 border-gray-200 hover:border-gray-300";
     }
   };
 
@@ -256,90 +236,39 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
           {/* Connecting line from feature to tasks */}
           <div className="absolute top-1/2 -translate-y-1/2 left-[500px] w-10 h-0.5 bg-emerald-400" />
 
-          {/* Task Bars Grid - positioned to the right */}
-          <div className="absolute top-1/2 -translate-y-1/2 left-[540px] border-2 border-dashed border-gray-300 rounded-xl p-2">
-            <div className="grid grid-flow-col grid-rows-3 gap-2 auto-cols-max">
+          {/* Task List - positioned to the right */}
+          <div className="absolute top-1/2 -translate-y-1/2 left-[540px] max-h-[240px] overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-sm">
+            <div className="grid grid-flow-col grid-rows-3 gap-1.5 auto-cols-max">
               {feature.tasks?.slice(0, 9).map((task) => (
-                <div key={task.id} className="relative group/task">
-                  <div
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onSelectTask?.(task);
+                <div key={task.id} className="w-[190px]">
+                  <TaskListItem
+                    task={task}
+                    density="compact"
+                    onClick={onSelectTask}
+                    onToggleComplete={(taskId) => {
+                      if (!onUpdateTask) return;
+                      const taskToUpdate = feature.tasks?.find(
+                        (t) => t.id === taskId,
+                      );
+                      if (!taskToUpdate) return;
+                      onUpdateTask({
+                        ...taskToUpdate,
+                        status:
+                          taskToUpdate.status === "done" ? "todo" : "done",
+                      });
                     }}
-                    className={`px-3 py-2 rounded-md shadow-sm border w-[180px] h-[32px] flex items-center cursor-pointer transition-colors ${getTaskClasses(
-                      task.status,
-                    )}`}
-                  >
-                    <p className="text-xs font-medium truncate w-full">
-                      {task.title}
-                    </p>
-                  </div>
-
-                  {/* Quick Status Buttons - shown on hover */}
-                  {onUpdateTask && (
-                    <div className="absolute -top-3.5 -right-3 flex items-center gap-0.5 opacity-0 group-hover/task:opacity-100 transition-opacity bg-white rounded shadow-lg p-0.5 border border-gray-200">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onUpdateTask({ ...task, status: "todo" });
-                        }}
-                        className="w-5 h-5 rounded flex items-center justify-center hover:bg-gray-100 transition-colors relative group/tooltip"
-                      >
-                        <Circle className="w-3 h-3 text-black" />
-                        <span className="absolute bottom-full mb-1 px-2 py-1 text-xs text-white bg-gray-900 rounded whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none">
-                          To Do
-                        </span>
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onUpdateTask({ ...task, status: "in_progress" });
-                        }}
-                        className="w-5 h-5 rounded flex items-center justify-center hover:bg-gray-100 transition-colors relative group/tooltip"
-                      >
-                        <Play className="w-3 h-3 text-black fill-black" />
-                        <span className="absolute bottom-full mb-1 px-2 py-1 text-xs text-white bg-gray-900 rounded whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none">
-                          In Progress
-                        </span>
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onUpdateTask({ ...task, status: "in_review" });
-                        }}
-                        className="w-5 h-5 rounded flex items-center justify-center hover:bg-gray-100 transition-colors relative group/tooltip"
-                      >
-                        <Eye className="w-3 h-3 text-orange-600" />
-                        <span className="absolute bottom-full mb-1 px-2 py-1 text-xs text-white bg-gray-900 rounded whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none">
-                          In Review
-                        </span>
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onUpdateTask({ ...task, status: "done" });
-                        }}
-                        className="w-5 h-5 rounded flex items-center justify-center hover:bg-gray-100 transition-colors relative group/tooltip"
-                      >
-                        <CheckCircle className="w-3 h-3 text-black" />
-                        <span className="absolute bottom-full mb-1 px-2 py-1 text-xs text-white bg-gray-900 rounded whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none">
-                          Done
-                        </span>
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onUpdateTask({ ...task, status: "blocked" });
-                        }}
-                        className="w-5 h-5 rounded flex items-center justify-center hover:bg-gray-100 transition-colors relative group/tooltip"
-                      >
-                        <Ban className="w-3 h-3 text-black" />
-                        <span className="absolute bottom-full mb-1 px-2 py-1 text-xs text-white bg-gray-900 rounded whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none">
-                          Blocked
-                        </span>
-                      </button>
-                    </div>
-                  )}
+                    onUpdateStatus={(taskId, status) => {
+                      if (!onUpdateTask) return;
+                      const taskToUpdate = feature.tasks?.find(
+                        (t) => t.id === taskId,
+                      );
+                      if (!taskToUpdate) return;
+                      onUpdateTask({
+                        ...taskToUpdate,
+                        status,
+                      });
+                    }}
+                  />
                 </div>
               ))}
             </div>

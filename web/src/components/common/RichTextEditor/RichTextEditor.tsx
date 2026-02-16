@@ -177,6 +177,13 @@ export function RichTextEditor({
         [contenteditable] ol {
           margin: 1em 0;
           padding-left: 2em;
+          list-style-position: outside;
+        }
+        [contenteditable] ul {
+          list-style-type: disc;
+        }
+        [contenteditable] ol {
+          list-style-type: decimal;
         }
         [contenteditable] li {
           margin: 0.5em 0;

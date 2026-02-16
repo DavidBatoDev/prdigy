@@ -35,6 +35,7 @@ interface RoadmapViewProps {
   onNavigateToEpic?: (epicId: string) => void;
   onUpdateTask: (task: RoadmapTask) => void;
   focusNodeId?: string | null;
+  focusNodeOffsetX?: number;
   onFocusComplete?: () => void;
 }
 
@@ -48,7 +49,7 @@ const getLayoutedElements = (
   const featureNodes = nodes.filter((node) => node.type === "featureWidget");
 
   const EPIC_X = 100;
-  const FEATURE_X_OFFSET = 560; // Distance from epic to feature column
+  const FEATURE_X_OFFSET = 650; // Distance from epic to feature column
   const NODE_WIDTH = 500;
   const BASE_EPIC_HEIGHT = 220;
   const MAX_EPIC_HEIGHT = 420;
@@ -197,6 +198,7 @@ export const RoadmapView = ({
   onUpdateTask,
   focusNodeId,
   onFocusComplete,
+  focusNodeOffsetX = 0,
 }: RoadmapViewProps) => {
   const DEFAULT_ZOOM = 0.67;
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
@@ -351,7 +353,7 @@ export const RoadmapView = ({
 
     const nodeWidth = Number(targetNode.width) || 500;
     const nodeHeight = Number(targetNode.height) || 220;
-    const centerX = targetNode.position.x + nodeWidth / 2;
+    const centerX = targetNode.position.x + nodeWidth / 2 + focusNodeOffsetX;
     const centerY = targetNode.position.y + nodeHeight / 2;
 
     reactFlowInstance.setCenter(centerX, centerY, {
@@ -360,7 +362,7 @@ export const RoadmapView = ({
     });
 
     onFocusComplete?.();
-  }, [focusNodeId, onFocusComplete, reactFlowInstance]);
+  }, [focusNodeId, focusNodeOffsetX, onFocusComplete, reactFlowInstance]);
 
   const extraRightPadding = useMemo(() => {
     const maxTaskCount = epics.reduce((maxCount, epic) => {

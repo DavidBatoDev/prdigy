@@ -127,6 +127,12 @@ export interface RoadmapFeature {
   tasks?: RoadmapTask[];
 }
 
+export interface ChecklistItem {
+  id?: string;
+  title: string;
+  completed: boolean;
+}
+
 export interface RoadmapTask {
   id: string;
   feature_id: string;
@@ -138,6 +144,18 @@ export interface RoadmapTask {
   completed_at?: string;
   created_at: string;
   updated_at: string;
+  // Additional optional fields
+  description?: string;
+  checklist?: ChecklistItem[];
+  assignee?: {
+    id: string;
+    display_name?: string;
+    avatar_url?: string;
+    email?: string;
+    first_name?: string;
+    last_name?: string;
+  };
+  labels?: string[];
 }
 
 export interface TaskComment {

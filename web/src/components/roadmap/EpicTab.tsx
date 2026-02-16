@@ -10,7 +10,7 @@ import {
   ChevronUp,
   MessageSquare,
 } from "lucide-react";
-import { TaskCard } from "./TaskWidget";
+import { TaskListItem } from "./TaskListItem";
 import type {
   RoadmapEpic,
   RoadmapFeature,
@@ -25,12 +25,12 @@ import { roadmapSharesServiceAPI } from "@/services/roadmap-shares.service";
 interface EpicTabProps {
   epic: RoadmapEpic;
   onUpdateEpic: (epic: RoadmapEpic) => void;
-  onUpdateFeature: (feature: RoadmapFeature) => void;
-  onDeleteFeature: (featureId: string) => void;
-  onUpdateTask: (task: RoadmapTask) => void;
-  onDeleteTask: (taskId: string) => void;
+  onUpdateFeature: (feature: RoadmapFeature) => void | Promise<void>;
+  onDeleteFeature: (featureId: string) => void | Promise<void>;
+  onUpdateTask: (task: RoadmapTask) => void | Promise<void>;
+  onDeleteTask: (taskId: string) => void | Promise<void>;
   onSelectTask: (task: RoadmapTask) => void;
-  onAddTask?: (featureId: string) => void;
+  onAddTask?: (featureId: string) => void | Promise<void>;
   scrollToFeatureId?: string | null;
   onScrollToFeatureHandled?: () => void;
 }
@@ -77,6 +77,7 @@ export const EpicTab = ({
   const [editingFeature, setEditingFeature] =
     React.useState<RoadmapFeature | null>(null);
   const [isFeatureModalOpen, setIsFeatureModalOpen] = React.useState(false);
+  const [isFeatureLoading, setIsFeatureLoading] = React.useState(false);
 
   // Comments state
   const [comments, setComments] = React.useState<Comment[]>([]);
@@ -231,19 +232,24 @@ export const EpicTab = ({
     setEditingFeature(null);
   };
 
-  const handleUpdateFeatureFromModal = (data: {
+  const handleUpdateFeatureFromModal = async (data: {
     title: string;
     description: string;
     status: any;
     is_deliverable: boolean;
   }) => {
     if (editingFeature) {
-      onUpdateFeature({
-        ...editingFeature,
-        ...data,
-      });
+      setIsFeatureLoading(true);
+      try {
+        await onUpdateFeature({
+          ...editingFeature,
+          ...data,
+        });
+        handleCloseFeatureModal();
+      } finally {
+        setIsFeatureLoading(false);
+      }
     }
-    handleCloseFeatureModal();
   };
 
   const getStatusColor = (status: string) => {
@@ -333,6 +339,25 @@ export const EpicTab = ({
               )}
             </div>
 
+            {(epic.priority || epic.status) && (
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                {epic.priority && (
+                  <span
+                    className={`text-xs px-3 py-1 rounded-full font-semibold ${getEpicPriorityColor(epic.priority)}`}
+                  >
+                    Priority: {epic.priority.replace("_", " ")}
+                  </span>
+                )}
+                {epic.status && (
+                  <span
+                    className={`text-xs px-3 py-1 rounded-full font-semibold ${getEpicStatusColor(epic.status)}`}
+                  >
+                    Status: {epic.status.replace("_", " ")}
+                  </span>
+                )}
+              </div>
+            )}
+
             {/* Description Container */}
             <div className="group/description relative">
               {isEditingDescription ? (
@@ -369,7 +394,7 @@ export const EpicTab = ({
                 <div className="relative group/edit">
                   <div
                     ref={contentRef}
-                    className={`relative text-base text-gray-700 leading-relaxed prose prose-sm max-w-none overflow-hidden transition-[max-height] duration-300 ease-in-out ${
+                    className={`relative text-base text-gray-700 leading-relaxed prose prose-sm max-w-none overflow-hidden transition-[max-height] duration-300 ease-in-out [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:pl-6 [&_ol]:pl-6 ${
                       isExpanded ? "max-h-[2000px]" : "max-h-48"
                     }`}
                   >
@@ -418,20 +443,6 @@ export const EpicTab = ({
 
           <div className="lg:w-[30%] shrink-0">
             <div className="flex flex-wrap items-start justify-end gap-2">
-              {epic.priority && (
-                <span
-                  className={`text-xs px-3 py-1 rounded-full font-semibold ${getEpicPriorityColor(epic.priority)}`}
-                >
-                  Priority: {epic.priority.replace("_", " ")}
-                </span>
-              )}
-              {epic.status && (
-                <span
-                  className={`text-xs px-3 py-1 rounded-full font-semibold ${getEpicStatusColor(epic.status)}`}
-                >
-                  Status: {epic.status.replace("_", " ")}
-                </span>
-              )}
               {epic.tags?.map((tag) => (
                 <span
                   key={tag}
@@ -515,7 +526,7 @@ export const EpicTab = ({
                 ref={(el) => {
                   featureSectionRefs.current[feature.id] = el;
                 }}
-                className="bg-white rounded-xl border-2 border-yellow-400 shadow-sm overflow-hidden min-w-0 max-w-full"
+                className="bg-gray-100 rounded-xl border-2 border-gray-200 shadow-sm overflow-hidden min-w-0 max-w-full"
               >
                 {/* Feature Row */}
                 <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
@@ -603,8 +614,71 @@ export const EpicTab = ({
                   )}
                 </div>
 
+                {/* Tasks List */}
+                {feature.tasks && feature.tasks.length > 0 && (
+                  <div className="border-t border-gray-200">
+                    <div className="px-6 py-3 bg-gray-50">
+                      <h3 className="text-sm font-semibold text-gray-900">
+                        Tasks (
+                        {
+                          feature.tasks.filter((t) => t.status === "done")
+                            .length
+                        }
+                        /{feature.tasks.length})
+                      </h3>
+                    </div>
+                    <div className="divide-y divide-gray-100 px-4 py-2">
+                      {feature.tasks.map((task) => (
+                        <TaskListItem
+                          key={task.id}
+                          task={task}
+                          onDelete={onDeleteTask}
+                          onClick={onSelectTask}
+                          onToggleComplete={(taskId) => {
+                            const taskToUpdate = feature.tasks?.find(
+                              (t) => t.id === taskId,
+                            );
+                            if (taskToUpdate) {
+                              onUpdateTask({
+                                ...taskToUpdate,
+                                status:
+                                  taskToUpdate.status === "done"
+                                    ? "todo"
+                                    : "done",
+                              });
+                            }
+                          }}
+                          onUpdateStatus={(taskId, status) => {
+                            const taskToUpdate = feature.tasks?.find(
+                              (t) => t.id === taskId,
+                            );
+                            if (taskToUpdate) {
+                              onUpdateTask({
+                                ...taskToUpdate,
+                                status,
+                              });
+                            }
+                          }}
+                        />
+                      ))}
+                    </div>
+                    {onAddTask && (
+                      <div className="px-4 py-3">
+                        <button
+                          onClick={() => onAddTask(feature.id)}
+                          className="pl-3 inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                          title="Add task"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Add Task
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Feature Comments Section */}
-                <div className="px-6 pb-4 border-b border-gray-200 bg-gray-50">
+                <div className="px-6 py-3 border-t border-gray-200 bg-gray-50">
                   <button
                     onClick={() => toggleFeatureComments(feature.id)}
                     className="flex items-center gap-2 text-xs font-medium text-gray-600 hover:text-gray-900 transition-colors"
@@ -628,36 +702,6 @@ export const EpicTab = ({
                     </div>
                   )}
                 </div>
-
-                {/* Tasks Grid - Wrapping Layout */}
-                <div className="p-4">
-                  <div className="flex flex-wrap gap-4">
-                    {feature.tasks?.map((task) => (
-                      <div key={task.id} className="w-60 shrink-0">
-                        <TaskCard
-                          task={task}
-                          onEdit={onUpdateTask}
-                          onDelete={onDeleteTask}
-                          onClick={onSelectTask}
-                          selected={false}
-                          variant="epic"
-                        />
-                      </div>
-                    ))}
-
-                    {/* Add Task Button */}
-                    {onAddTask && (
-                      <button
-                        onClick={() => onAddTask(feature.id)}
-                        className="w-60 h-[180px] border-2 border-dashed border-gray-300 rounded-4xl hover:border-primary hover:bg-primary/5 transition-all flex flex-col items-center justify-center gap-2 text-gray-500 hover:text-primary shrink-0"
-                        title="Add task"
-                      >
-                        <Plus className="w-6 h-6" />
-                        <span className="text-sm font-medium">Add Task</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
               </div>
             ))
           )}
@@ -673,6 +717,11 @@ export const EpicTab = ({
         submitLabel="Update Feature"
         onClose={handleCloseFeatureModal}
         onSubmit={handleUpdateFeatureFromModal}
+        onAddTask={onAddTask}
+        onUpdateTask={onUpdateTask}
+        onDeleteTask={onDeleteTask}
+        onSelectTask={onSelectTask}
+        isLoading={isFeatureLoading}
       />
     </div>
   );

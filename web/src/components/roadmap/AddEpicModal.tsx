@@ -29,6 +29,7 @@ interface AddEpicModalProps {
   };
   titleText?: string;
   submitLabel?: string;
+  isLoading?: boolean;
 }
 
 export const AddEpicModal = ({
@@ -39,6 +40,7 @@ export const AddEpicModal = ({
   initialData,
   titleText: _titleText = "Add Epic",
   submitLabel = "Create Epic",
+  isLoading = false,
 }: AddEpicModalProps) => {
   const user = useUser();
   const [title, setTitle] = useState("");
@@ -243,10 +245,17 @@ export const AddEpicModal = ({
     <div className="flex justify-end">
       <button
         type="submit"
-        disabled={!title.trim()}
-        className="px-6 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled={!title.trim() || isLoading}
+        className="px-6 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
       >
-        {submitLabel}
+        {isLoading ? (
+          <>
+            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            Saving...
+          </>
+        ) : (
+          submitLabel
+        )}
       </button>
     </div>
   );
