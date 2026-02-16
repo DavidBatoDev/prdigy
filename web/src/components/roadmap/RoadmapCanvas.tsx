@@ -834,6 +834,31 @@ const RoadmapCanvas = ({
                 }
               : undefined
           }
+          onSelectFeature={
+            editingEpicId
+              ? (feature) => {
+                  if (feature.id) {
+                    handleOpenEditFeatureModal(editingEpicId, feature.id);
+                  }
+                }
+              : undefined
+          }
+          onAddTask={
+            editingEpicId
+              ? (featureId) => {
+                  setTargetFeatureForTask(featureId);
+                  setSelectedTaskId(null);
+                  setSidePanelOpen(true);
+                }
+              : undefined
+          }
+          onUpdateTask={handleTaskUpdate}
+          onDeleteTask={handleTaskDelete}
+          onSelectTask={(task) => {
+            setSelectedTaskId(task.id);
+            setTargetFeatureForTask(null);
+            setSidePanelOpen(true);
+          }}
           initialData={
             editingEpicId
               ? {

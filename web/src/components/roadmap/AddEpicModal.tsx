@@ -1,10 +1,15 @@
 import { useEffect, useState, useRef, type FormEvent } from "react";
 import { Plus, Edit2, ChevronDown, ChevronUp } from "lucide-react";
-import type { EpicPriority, RoadmapFeature } from "@/types/roadmap";
+import type {
+  EpicPriority,
+  RoadmapFeature,
+  RoadmapTask,
+} from "@/types/roadmap";
 import { useUser } from "@/auth";
 import { RoadmapModalLayout } from "./RoadmapModalLayout";
 import { RichTextEditor } from "@/components/common/RichTextEditor";
 import { LabelSelector } from "@/components/common/LabelSelector";
+import { TaskListItem } from "./TaskListItem";
 import type { Label } from "@/types/label";
 import { LABEL_COLORS } from "@/types/label";
 
@@ -19,6 +24,11 @@ interface AddEpicModalProps {
     labels?: Label[]; // Add labels field
   }) => void;
   onAddFeature?: () => void;
+  onSelectFeature?: (feature: RoadmapFeature) => void;
+  onAddTask?: (featureId: string) => void | Promise<void>;
+  onUpdateTask?: (task: RoadmapTask) => void | Promise<void>;
+  onDeleteTask?: (taskId: string) => void | Promise<void>;
+  onSelectTask?: (task: RoadmapTask) => void;
   initialData?: {
     title?: string;
     description?: string;
@@ -37,6 +47,11 @@ export const AddEpicModal = ({
   onClose,
   onSubmit,
   onAddFeature,
+  onSelectFeature,
+  onAddTask,
+  onUpdateTask,
+  onDeleteTask,
+  onSelectTask,
   initialData,
   titleText: _titleText = "Add Epic",
   submitLabel = "Create Epic",
@@ -57,7 +72,7 @@ export const AddEpicModal = ({
       setTitle(initialData?.title ?? "");
       setDescription(initialData?.description ?? "");
       setPriority(initialData?.priority ?? "medium");
-      
+
       // Use labels if available, otherwise convert tags for backward compatibility
       if (initialData?.labels) {
         setLabels(initialData.labels);
@@ -72,7 +87,7 @@ export const AddEpicModal = ({
       } else {
         setLabels([]);
       }
-      
+
       // Reset description editing state when modal opens
       setIsEditingDescription(false);
       setIsExpanded(false);
@@ -97,7 +112,7 @@ export const AddEpicModal = ({
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    
+
     // Submit both labels and tags for backward compatibility
     const tags = labels.map((label) => label.name);
 
@@ -146,9 +161,7 @@ export const AddEpicModal = ({
       {/* Description */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-semibold text-gray-900">
-            Description
-          </h3>
+          <h3 className="text-sm font-semibold text-gray-900">Description</h3>
           {!isEditingDescription && description && (
             <button
               type="button"
@@ -202,7 +215,7 @@ export const AddEpicModal = ({
               }`}
             >
               <div dangerouslySetInnerHTML={{ __html: description }} />
-              
+
               {/* Gradient Overlay when collapsed */}
               {!isExpanded && showReadMore && (
                 <div className="absolute bottom-0 left-0 right-0 h-12 bg-linear-to-t from-white to-transparent pointer-events-none" />
@@ -273,17 +286,6 @@ export const AddEpicModal = ({
     return colorMap[status ?? ""] || "bg-gray-100 text-gray-800";
   };
 
-  const getTaskStatusColor = (status?: string) => {
-    const colorMap: Record<string, string> = {
-      todo: "bg-gray-100 text-gray-800",
-      in_progress: "bg-blue-100 text-blue-800",
-      in_review: "bg-purple-100 text-purple-800",
-      done: "bg-green-100 text-green-800",
-      blocked: "bg-red-100 text-red-800",
-    };
-    return colorMap[status ?? ""] || "bg-gray-100 text-gray-800";
-  };
-
   const rightPanelTabs = [
     {
       id: "features",
@@ -295,8 +297,11 @@ export const AddEpicModal = ({
             <div className="space-y-2">
               {features.map((feature) => (
                 <div key={feature.id ?? feature.title}>
-                  {/* Feature */}
-                  <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm">
+                  {/* Feature - Now Clickable */}
+                  <div
+                    className="rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm hover:border-primary hover:shadow-md transition-all cursor-pointer"
+                    onClick={() => onSelectFeature?.(feature)}
+                  >
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-semibold text-gray-900">
                         {feature.title}
@@ -308,32 +313,68 @@ export const AddEpicModal = ({
                       </span>
                     </div>
                     {feature.description ? (
-                      <p className="mt-1 text-xs text-gray-600 line-clamp-2">
-                        {feature.description}
-                      </p>
+                      <div className="mt-1 text-xs text-gray-600 line-clamp-2 prose prose-sm max-w-none">
+                        <div
+                          dangerouslySetInnerHTML={{
+                            __html: feature.description,
+                          }}
+                        />
+                      </div>
                     ) : null}
                   </div>
 
-                  {/* Tasks (indented) */}
+                  {/* Tasks using TaskListItem */}
                   {feature.tasks && feature.tasks.length > 0 && (
-                    <div className="ml-3 mt-2 space-y-2 border-l-2 border-gray-200 pl-3">
-                      {feature.tasks.map((task) => (
-                        <div
-                          key={task.id ?? task.title}
-                          className="rounded-md border border-gray-100 bg-gray-50 px-2 py-1.5 text-xs"
+                    <div className="ml-3 mt-2 space-y-1 border-l-2 border-gray-200 pl-3">
+                      <div className="divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white">
+                        {feature.tasks.map((task) => (
+                          <TaskListItem
+                            key={task.id ?? task.title}
+                            task={task as RoadmapTask}
+                            onDelete={onDeleteTask}
+                            onClick={onSelectTask}
+                            density="compact"
+                            onToggleComplete={(taskId) => {
+                              if (!onUpdateTask) return;
+                              const taskToUpdate = feature.tasks?.find(
+                                (t) => t.id === taskId,
+                              );
+                              if (!taskToUpdate) return;
+                              onUpdateTask({
+                                ...taskToUpdate,
+                                status:
+                                  taskToUpdate.status === "done"
+                                    ? "todo"
+                                    : "done",
+                              } as RoadmapTask);
+                            }}
+                            onUpdateStatus={(taskId, status) => {
+                              if (!onUpdateTask) return;
+                              const taskToUpdate = feature.tasks?.find(
+                                (t) => t.id === taskId,
+                              );
+                              if (!taskToUpdate) return;
+                              onUpdateTask({
+                                ...taskToUpdate,
+                                status,
+                              } as RoadmapTask);
+                            }}
+                          />
+                        ))}
+                      </div>
+                      {onAddTask && feature.id && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onAddTask(feature.id!);
+                          }}
+                          className="w-full flex items-center justify-center gap-1 px-2 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-md text-xs font-medium transition-colors mt-1"
                         >
-                          <div className="flex items-center justify-between">
-                            <p className="font-medium text-gray-700">
-                              {task.title}
-                            </p>
-                            <span
-                              className={`text-xs px-1.5 py-0.5 rounded font-medium ${getTaskStatusColor(task.status)}`}
-                            >
-                              {task.status?.replace("_", " ") ?? ""}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+                          <Plus className="w-3 h-3" />
+                          Add Task
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

@@ -99,8 +99,8 @@ export const RoadmapModalLayout = ({
 
     const container = scrollContainerRef.current;
     if (container) {
-      container.addEventListener('scroll', handleScroll);
-      return () => container.removeEventListener('scroll', handleScroll);
+      container.addEventListener("scroll", handleScroll);
+      return () => container.removeEventListener("scroll", handleScroll);
     }
   }, []);
 
@@ -112,17 +112,19 @@ export const RoadmapModalLayout = ({
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-6xl mx-4 max-h-[90vh] overflow-hidden flex">
+      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-6xl mx-4 max-h-[90vh] min-h-[600px] overflow-hidden flex">
         {/* Main Content */}
-        <form 
+        <form
           ref={scrollContainerRef}
-          onSubmit={onSubmit} 
+          onSubmit={onSubmit}
           className="flex-1 flex flex-col overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {/* Sticky Mini Header - Shows when scrolled */}
           <div
             className={`sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between transition-all duration-200 ${
-              isScrolled ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full absolute pointer-events-none'
+              isScrolled
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 -translate-y-full absolute pointer-events-none"
             }`}
           >
             <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -231,6 +233,6 @@ export const RoadmapModalLayout = ({
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 };

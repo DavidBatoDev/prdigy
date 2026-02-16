@@ -61,32 +61,6 @@ export function ProjectsGrid() {
           nextUp="Visual Design"
           dueDate="Sept 3, 2025"
         />
-
-        {/* Project Card 4 */}
-        <ProjectCard
-          number={4}
-          status="Action Needed"
-          statusColor="#ff9800"
-          title="Simple Website Build"
-          client="Acme Corp"
-          progress={30}
-          progressColor="#ff9800"
-          nextUp="Visual Design"
-          dueDate="Sept 3, 2025"
-        />
-
-        {/* Project Card 5 */}
-        <ProjectCard
-          number={5}
-          status="At Risk/Late"
-          statusColor="#f44336"
-          title="Simple Website Build"
-          client="Acme Corp"
-          progress={100}
-          progressColor="#f44336"
-          nextUp="All Work Items Completed"
-          dueDate={null}
-        />
       </div>
     </div>
   );

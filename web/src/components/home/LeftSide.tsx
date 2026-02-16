@@ -2,6 +2,7 @@ import { Hero } from "./Hero";
 import { EscrowWallet } from "./EscrowWallet";
 import { ActivityOverview } from "./ActivityOverview";
 import { ProjectsGrid } from "./ProjectsGrid";
+import { RoadmapsGrid } from "./RoadmapsGrid";
 
 export function LeftSide() {
   return (
@@ -17,6 +18,9 @@ export function LeftSide() {
 
       {/* Projects Grid */}
       <ProjectsGrid />
+
+      {/* Roadmaps Grid */}
+      <RoadmapsGrid />
     </div>
   );
 }

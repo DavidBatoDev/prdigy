@@ -1,4 +1,4 @@
-import { Bell, CheckCircle, Star } from "lucide-react";
+import { Bell, CheckCircle, Map } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 
 export function ActivityOverview() {
@@ -29,12 +29,13 @@ export function ActivityOverview() {
         />
         <ActivityCard
           index={2}
-          icon={<Star className="w-8 h-8 text-white" />}
-          title="Success Rate"
-          value="98%"
-          change="+28"
+          icon={<Map className="w-8 h-8 text-white" />}
+          title="Roadmaps without Projects"
+          value="2"
+          change="-1"
           changeText="than last month"
         />
+        
       </div>
     </div>
   );

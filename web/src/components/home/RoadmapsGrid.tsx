@@ -1,4 +1,4 @@
-import { CheckCircle2, DollarSign, Loader, Inbox } from "lucide-react";
+import { CheckCircle2, Loader, Inbox, Briefcase } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { getRoadmapsPreview } from "@/api";
@@ -76,7 +76,7 @@ const EpicOverview = ({ preview }: { preview: RoadmapPreview }) => {
   );
 };
 
-export const TemplatesSection = () => {
+export function RoadmapsGrid() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,10 +87,8 @@ export const TemplatesSection = () => {
         setLoading(true);
         setError(null);
 
-        // Use centralized API from apiClient with automatic auth headers
         const roadmaps = await getRoadmapsPreview();
 
-        // Transform roadmaps to template format
         const transformedTemplates: Template[] = roadmaps.map(
           (roadmap: RoadmapPreview, index: number) => ({
             id: roadmap.id,
@@ -122,13 +120,13 @@ export const TemplatesSection = () => {
 
     fetchRoadmaps();
   }, []);
+
   return (
-    <div className="mt-24">
-      <div className="text-center mb-12">
-        <h2 className="text-4xl font-bold text-gray-900 mb-4">Your Roadmaps</h2>
-        <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-          View all your AI-generated roadmaps with timelines, milestones, and
-          budget estimates
+    <div>
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Your Roadmaps</h2>
+        <p className="text-sm text-gray-600 mt-1">
+          View and manage your project roadmaps
         </p>
       </div>
 
@@ -145,12 +143,12 @@ export const TemplatesSection = () => {
         </div>
       ) : templates.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-gray-600 text-lg">
+          <p className="text-gray-600 text-base">
             No roadmaps yet. Create your first roadmap to get started!
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {templates.map((template) => (
             <Link
               key={template.id}
@@ -173,14 +171,16 @@ export const TemplatesSection = () => {
                 <p className="text-sm text-gray-600 mb-3">
                   {template.category}
                 </p>
+                {template.preview.project_id && (
+                  <div className="mb-2 flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-md w-fit">
+                    <Briefcase className="w-3 h-3" />
+                    <span>Linked to Project</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-xs text-gray-500">
                   <span className="flex items-center gap-1">
                     <CheckCircle2 className="w-3 h-3" />
                     {template.milestones}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <DollarSign className="w-3 h-3" />
-                    {template.budget}
                   </span>
                 </div>
               </div>
@@ -190,4 +190,4 @@ export const TemplatesSection = () => {
       )}
     </div>
   );
-};
+}
