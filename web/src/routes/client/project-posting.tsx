@@ -1,9 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Header from "@/components/layout/Header";
-import { Upload, Check, Loader2, MapIcon, UserCheck } from "lucide-react";
+import { Upload, Check, Loader2, MapIcon, UserCheck, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { roadmapService } from "@/services/roadmap.service";
+import { projectService } from "@/services/project.service";
+import type { Roadmap } from "@/types/roadmap";
 import {
   Step1 as SharedStep1,
   Step2 as SharedStep2,
@@ -13,6 +15,12 @@ import {
 
 export const Route = createFileRoute("/client/project-posting")({
   component: ProjectPostingPage,
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      roadmapId: (search.roadmapId as string) || undefined,
+      fromRoadmap: search.fromRoadmap === "true" || search.fromRoadmap === true,
+    };
+  },
 });
 
 // Extended FormData with Step 3 fields
@@ -27,9 +35,13 @@ interface FormData extends BaseFormData {
 
 function ProjectPostingPage() {
   const navigate = useNavigate();
+  const searchParams = Route.useSearch();
   const [currentStep, setCurrentStep] = useState(1);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isCreatingRoadmap, setIsCreatingRoadmap] = useState(false);
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [referencedRoadmap, setReferencedRoadmap] = useState<Roadmap | null>(null);
+  const [isLoadingRoadmap, setIsLoadingRoadmap] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     title: "",
     category: "",
@@ -50,6 +62,78 @@ function ProjectPostingPage() {
     setFormData((prev) => ({ ...prev, ...updates }));
   };
 
+  // Fetch roadmap data if roadmapId is provided
+  useEffect(() => {
+    const fetchRoadmapData = async () => {
+      if (searchParams.roadmapId && searchParams.fromRoadmap) {
+        setIsLoadingRoadmap(true);
+        try {
+          const roadmap = await roadmapService.getById(searchParams.roadmapId);
+          setReferencedRoadmap(roadmap);
+
+          // Pre-populate form data from roadmap project_metadata (preferred) or settings (fallback)
+          const projectMetadata = roadmap.project_metadata as any;
+          const settings = roadmap.settings as any;
+          const source = projectMetadata || settings;
+          
+          if (source) {
+            const allSkills = source.skills || [];
+            const knownSkills = [
+              "Graphic Design",
+              "Content Writing",
+              "Web Development",
+              "Data Entry",
+              "Digital Marketing",
+              "Project Management",
+              "Translation",
+              "Video Editing",
+              "SEO",
+              "Social Media Marketing",
+              "Virtual Assistant",
+              "Illustration",
+              "3D Modeling",
+              "Voice Over",
+              "Customer Service",
+              "Accounting",
+            ];
+            const predefinedSkills = allSkills.filter((skill: string) =>
+              knownSkills.includes(skill),
+            );
+            const customSkills = allSkills.filter(
+              (skill: string) => !predefinedSkills.includes(skill),
+            );
+
+            setFormData((prev) => ({
+              ...prev,
+              title: source.title || roadmap.name || "",
+              category: source.category || "",
+              description: source.description || roadmap.description || "",
+              problemSolving: source.problemSolving || "",
+              projectState: source.projectState || "idea",
+              skills: predefinedSkills,
+              customSkills: customSkills,
+              duration: source.duration || "1-3_months",
+              // Pre-populate Step 3 fields if available in project_metadata
+              budgetRange: source.budgetRange || prev.budgetRange,
+              fundingStatus: source.fundingStatus || prev.fundingStatus,
+              startDate: source.startDate || prev.startDate,
+              customStartDate: source.customStartDate || prev.customStartDate,
+            }));
+
+            // Skip to Step 3 since Steps 1 & 2 are pre-filled
+            setCurrentStep(3);
+          }
+        } catch (error) {
+          console.error("Failed to fetch roadmap:", error);
+        } finally {
+          setIsLoadingRoadmap(false);
+        }
+      }
+    };
+
+    fetchRoadmapData();
+  }, [searchParams.roadmapId, searchParams.fromRoadmap]);
+
   const nextStep = () => {
     if (currentStep < 3) setCurrentStep(currentStep + 1);
   };
@@ -58,10 +142,50 @@ function ProjectPostingPage() {
     if (currentStep > 1) setCurrentStep(currentStep - 1);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     console.log("Project submitted:", formData);
-    // Show success modal with options
-    setShowSuccessModal(true);
+    
+    // If coming from roadmap, create project with bidding status
+    if (searchParams.fromRoadmap && referencedRoadmap) {
+      setIsCreatingProject(true);
+      try {
+        // Create project with all form data
+        const project = await projectService.create({
+          title: formData.title || "Untitled Project",
+          description: formData.description,
+          category: formData.category,
+          project_state: formData.projectState,
+          skills: [...formData.skills, ...formData.customSkills],
+          duration: formData.duration,
+          budget_range: formData.budgetRange,
+          funding_status: formData.fundingStatus,
+          start_date: formData.startDate,
+          custom_start_date: formData.customStartDate || undefined,
+          status: "bidding",
+        });
+
+        console.log("Project created from roadmap:", project);
+
+        // Link roadmap to project
+        await roadmapService.update(referencedRoadmap.id, {
+          project_id: project.id,
+        });
+
+        // Navigate to roadmap view
+        navigate({
+          to: "/project/roadmap/$roadmapId",
+          params: { roadmapId: referencedRoadmap.id },
+        });
+      } catch (error) {
+        console.error("Failed to create project:", error);
+        // Could add error toast here
+      } finally {
+        setIsCreatingProject(false);
+      }
+    } else {
+      // Show success modal with options for normal flow
+      setShowSuccessModal(true);
+    }
   };
 
   const handleGenerateRoadmap = async () => {
@@ -309,6 +433,7 @@ function ProjectPostingPage() {
                   <Step3
                     formData={formData}
                     updateFormData={updateFormData}
+                    referencedRoadmap={referencedRoadmap}
                   />
                 </motion.div>
               )}
@@ -337,10 +462,20 @@ function ProjectPostingPage() {
             ) : (
               <button
                 onClick={handleSubmit}
-                className="pointer-events-auto cursor-pointer px-8 py-3 bg-linear-to-r from-[#e91e63] to-[#ff1744] text-white rounded-lg font-semibold hover:shadow-lg transition-all uppercase flex items-center gap-2"
+                disabled={isCreatingProject}
+                className="pointer-events-auto cursor-pointer px-8 py-3 bg-linear-to-r from-[#e91e63] to-[#ff1744] text-white rounded-lg font-semibold hover:shadow-lg transition-all uppercase flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Check className="w-5 h-5" />
-                Submit Project
+                {isCreatingProject ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-5 h-5" />
+                    Submit Project
+                  </>
+                )}
               </button>
             )}
           </div>
@@ -438,11 +573,57 @@ function ProjectPostingPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Loading Modal for Pre-populating */}
+      <AnimatePresence>
+        {isLoadingRoadmap && (
+          <motion.div
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            />
+            <motion.div
+              className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-8"
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-gradient-to-br from-orange-100 to-orange-200 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Loader2 className="w-8 h-8 text-orange-600 animate-spin" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-3">
+                  Loading Roadmap Data
+                </h2>
+                <p className="text-gray-600">
+                  Pre-populating Steps 1 and 2 from your roadmap...
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-function Step3({ formData, updateFormData }: { formData: FormData; updateFormData: (updates: Partial<FormData>) => void }) {
+function Step3({
+  formData,
+  updateFormData,
+  referencedRoadmap,
+}: {
+  formData: FormData;
+  updateFormData: (updates: Partial<FormData>) => void;
+  referencedRoadmap: Roadmap | null;
+}) {
   return (
     <div className="space-y-6">
       {/* Budget Range (repeated from Step 2) */}
@@ -558,19 +739,46 @@ function Step3({ formData, updateFormData }: { formData: FormData; updateFormDat
 
 
 
-      {/* Roadmap Upload */}
+      {/* Roadmap Upload or Reference */}
       <div>
         <label className="block text-sm font-semibold text-[#333438] mb-2">
           Do you have an existing Roadmap or Timeline? (Optional)
         </label>
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-          <Upload className="w-10 h-10 text-gray-400 mx-auto mb-3" />
-          <p className="text-[#61636c] mb-1">
-            <span className="text-[#ff9933] font-semibold cursor-pointer hover:underline">Link</span> or drag and drop
-          </p>
-          <p className="text-xs text-[#92969f]">SVG, PNG, JPG or GIF (max. 3MB)</p>
-          <p className="text-xs text-[#92969f] mt-2 italic">Attach Project Schedule or Gantt Chart (PDF, Excel)</p>
-        </div>
+        {referencedRoadmap ? (
+          // Show roadmap reference when coming from roadmap
+          <div className="border-2 border-orange-300 bg-orange-50 rounded-lg p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
+                <MapIcon className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-gray-900 mb-1">Linked Roadmap</h4>
+                <p className="text-sm text-gray-600 mb-3">
+                  This project is based on your roadmap: <span className="font-semibold">"{referencedRoadmap.name}"</span>
+                </p>
+                <a
+                  href={`/project/roadmap/${referencedRoadmap.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm text-orange-600 hover:text-orange-700 font-medium"
+                >
+                  View Roadmap
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              </div>
+            </div>
+          </div>
+        ) : (
+          // Show file upload when not coming from roadmap
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+            <Upload className="w-10 h-10 text-gray-400 mx-auto mb-3" />
+            <p className="text-[#61636c] mb-1">
+              <span className="text-[#ff9933] font-semibold cursor-pointer hover:underline">Link</span> or drag and drop
+            </p>
+            <p className="text-xs text-[#92969f]">SVG, PNG, JPG or GIF (max. 3MB)</p>
+            <p className="text-xs text-[#92969f] mt-2 italic">Attach Project Schedule or Gantt Chart (PDF, Excel)</p>
+          </div>
+        )}
       </div>
     </div>
   );

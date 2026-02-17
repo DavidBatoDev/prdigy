@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight, LogIn, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -8,6 +8,7 @@ import {
 } from "@/components/roadmap/LeftSidePanel";
 import { RoadmapCanvas } from "@/components/roadmap/RoadmapCanvas";
 import { ShareRoadmapModal } from "@/components/roadmap/ShareRoadmapModal";
+import { MakeProjectDialog } from "@/components/roadmap/MakeProjectDialog";
 import { callGeminiAPI } from "@/lib/gemini";
 import { useUser } from "@/stores/authStore";
 import { getOrCreateGuestUser } from "@/lib/guestAuth";
@@ -37,6 +38,7 @@ export const Route = createFileRoute("/project/roadmap/$roadmapId")({
 function RoadmapViewPage() {
   // Get roadmap ID from URL params
   const { roadmapId } = Route.useParams();
+  const navigate = useNavigate();
 
   // Auth state
   const authenticatedUser = useUser();
@@ -80,10 +82,13 @@ function RoadmapViewPage() {
         setRoadmapMilestones(fullRoadmap.milestones || []);
         setEpics(fullRoadmap.epics || []);
 
-        // Pre-populate form data from roadmap settings
+        // Pre-populate form data from roadmap project_metadata (preferred) or settings (fallback)
+        const projectMetadata = fullRoadmap.project_metadata as any;
         const settings = fullRoadmap.settings as any;
-        if (settings) {
-          const allSkills = settings.skills || [];
+        const source = projectMetadata || settings;
+        
+        if (source) {
+          const allSkills = source.skills || [];
           const knownSkills = [
             "Graphic Design",
             "Content Writing",
@@ -110,14 +115,14 @@ function RoadmapViewPage() {
           );
 
           setFormData({
-            title: fullRoadmap.name || "",
-            category: settings.category || "",
-            description: fullRoadmap.description || "",
-            problemSolving: settings.problemSolving || "",
-            projectState: settings.projectState || "idea",
+            title: source.title || fullRoadmap.name || "",
+            category: source.category || "",
+            description: source.description || fullRoadmap.description || "",
+            problemSolving: source.problemSolving || "",
+            projectState: source.projectState || "idea",
             skills: predefinedSkills,
             customSkills: customSkills,
-            duration: settings.duration || "1-3_months",
+            duration: source.duration || "1-3_months",
           });
         }
 
@@ -235,6 +240,9 @@ function RoadmapViewPage() {
   // Share Modal state
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
+  // Make Project Dialog state
+  const [isMakeProjectDialogOpen, setIsMakeProjectDialogOpen] = useState(false);
+
   // Builder state
   const [messages, setMessages] = useState<Message[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -307,9 +315,23 @@ function RoadmapViewPage() {
 
     setIsUpdatingRoadmap(true);
     try {
+      // Save comprehensive project metadata for future project conversion
+      const projectMetadata = {
+        title: formData.title,
+        category: formData.category,
+        description: formData.description,
+        problemSolving: formData.problemSolving,
+        projectState: formData.projectState,
+        skills: [...formData.skills, ...formData.customSkills],
+        duration: formData.duration,
+        // Note: budgetRange, fundingStatus, startDate, customStartDate 
+        // will be added when converting to project via project-posting
+      };
+
       await roadmapService.update(roadmapId, {
         name: formData.title || "Untitled Roadmap",
         description: formData.description,
+        project_metadata: projectMetadata,
         settings: {
           category: formData.category,
           problemSolving: formData.problemSolving,
@@ -325,6 +347,7 @@ function RoadmapViewPage() {
           ...roadmap,
           name: formData.title || "Untitled Roadmap",
           description: formData.description,
+          project_metadata: projectMetadata,
           settings: {
             category: formData.category,
             problemSolving: formData.problemSolving,
@@ -798,6 +821,10 @@ function RoadmapViewPage() {
                 setIsShareModalOpen(true);
               }
             }}
+            onMakeProject={() => {
+              // Open dialog to convert roadmap to project
+              setIsMakeProjectDialogOpen(true);
+            }}
             onExport={() => {
               /* TODO: Export functionality */
             }}
@@ -838,6 +865,25 @@ function RoadmapViewPage() {
           isOpen={isShareModalOpen}
           onClose={() => setIsShareModalOpen(false)}
           roadmapId={roadmap.id}
+          roadmapName={roadmap.name}
+        />
+      )}
+
+      {/* Make Project Dialog */}
+      {roadmap && (
+        <MakeProjectDialog
+          isOpen={isMakeProjectDialogOpen}
+          onClose={() => setIsMakeProjectDialogOpen(false)}
+          onConfirm={() => {
+            setIsMakeProjectDialogOpen(false);
+            navigate({
+              to: "/client/project-posting",
+              search: {
+                roadmapId: roadmap.id,
+                fromRoadmap: "true",
+              },
+            });
+          }}
           roadmapName={roadmap.name}
         />
       )}

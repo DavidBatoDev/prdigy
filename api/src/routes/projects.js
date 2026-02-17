@@ -53,7 +53,20 @@ router.post(
   requirePersona("client"),
   async (req, res, next) => {
     try {
-      const { title, brief } = req.body;
+      const {
+        title,
+        brief,
+        description,
+        category,
+        project_state,
+        skills,
+        duration,
+        budget_range,
+        funding_status,
+        start_date,
+        custom_start_date,
+        status,
+      } = req.body;
 
       if (!title) {
         return res
@@ -61,15 +74,46 @@ router.post(
           .json({ error: { message: "Title is required" } });
       }
 
+      // Validate status if provided
+      if (status) {
+        const validStatuses = [
+          "draft",
+          "active",
+          "bidding",
+          "paused",
+          "completed",
+          "archived",
+        ];
+        if (!validStatuses.includes(status)) {
+          return res.status(400).json({
+            error: { message: "Invalid status value" },
+          });
+        }
+      }
+
+      // Prepare insert data with all fields
+      const insertData = {
+        title,
+        client_id: req.user.id,
+        status: status || "draft",
+      };
+
+      // Add optional fields if provided
+      if (brief !== undefined) insertData.brief = brief;
+      if (description !== undefined) insertData.description = description;
+      if (category !== undefined) insertData.category = category;
+      if (project_state !== undefined) insertData.project_state = project_state;
+      if (skills !== undefined) insertData.skills = skills;
+      if (duration !== undefined) insertData.duration = duration;
+      if (budget_range !== undefined) insertData.budget_range = budget_range;
+      if (funding_status !== undefined) insertData.funding_status = funding_status;
+      if (start_date !== undefined) insertData.start_date = start_date;
+      if (custom_start_date !== undefined) insertData.custom_start_date = custom_start_date;
+
       // Create project
       const { data: project, error: projectError } = await supabaseAdmin
         .from("projects")
-        .insert({
-          title,
-          brief,
-          client_id: req.user.id,
-          status: "draft",
-        })
+        .insert(insertData)
         .select()
         .single();
 
@@ -149,7 +193,20 @@ router.get("/:id", verifySupabaseJwt, async (req, res, next) => {
  */
 router.patch("/:id", verifySupabaseJwt, async (req, res, next) => {
   try {
-    const { title, brief, status } = req.body;
+    const {
+      title,
+      brief,
+      description,
+      category,
+      project_state,
+      skills,
+      duration,
+      budget_range,
+      funding_status,
+      start_date,
+      custom_start_date,
+      status,
+    } = req.body;
 
     // Check if user is client or consultant
     const { data: project } = await supabaseAdmin
@@ -171,9 +228,36 @@ router.patch("/:id", verifySupabaseJwt, async (req, res, next) => {
         .json({ error: { message: "Insufficient permissions" } });
     }
 
+    // Validate status if provided
+    if (status) {
+      const validStatuses = [
+        "draft",
+        "active",
+        "bidding",
+        "paused",
+        "completed",
+        "archived",
+      ];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({
+          error: { message: "Invalid status value" },
+        });
+      }
+    }
+
+    // Build updates object with all possible fields
     const updates = {};
     if (title !== undefined) updates.title = title;
     if (brief !== undefined) updates.brief = brief;
+    if (description !== undefined) updates.description = description;
+    if (category !== undefined) updates.category = category;
+    if (project_state !== undefined) updates.project_state = project_state;
+    if (skills !== undefined) updates.skills = skills;
+    if (duration !== undefined) updates.duration = duration;
+    if (budget_range !== undefined) updates.budget_range = budget_range;
+    if (funding_status !== undefined) updates.funding_status = funding_status;
+    if (start_date !== undefined) updates.start_date = start_date;
+    if (custom_start_date !== undefined) updates.custom_start_date = custom_start_date;
     if (status !== undefined) updates.status = status;
 
     const { data, error } = await supabaseAdmin

@@ -358,6 +358,7 @@ router.post("/", verifySupabaseJwt, writeLimiter, async (req, res, next) => {
       start_date,
       end_date,
       settings,
+      project_metadata,
     } = req.body;
 
     // Validate required fields
@@ -397,6 +398,7 @@ router.post("/", verifySupabaseJwt, writeLimiter, async (req, res, next) => {
       start_date: start_date || null,
       end_date: end_date || null,
       settings: settings || {},
+      project_metadata: project_metadata || {},
     };
 
     const { data, error } = await supabaseAdmin
@@ -432,6 +434,7 @@ router.patch(
         start_date,
         end_date,
         settings,
+        project_metadata,
       } = req.body;
 
       // Validate name if provided
@@ -473,6 +476,7 @@ router.patch(
       if (start_date !== undefined) updateData.start_date = start_date;
       if (end_date !== undefined) updateData.end_date = end_date;
       if (settings !== undefined) updateData.settings = settings;
+      if (project_metadata !== undefined) updateData.project_metadata = project_metadata;
 
       // Check if there's anything to update
       if (Object.keys(updateData).length === 0) {

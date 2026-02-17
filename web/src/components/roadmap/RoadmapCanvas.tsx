@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { X, Plus, Settings, Download, Share2 } from "lucide-react";
+import { X, Plus, Settings, Download, Share2, Briefcase } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -131,6 +131,7 @@ interface RoadmapCanvasProps {
   onEditBrief?: () => void;
   onExport?: () => void;
   onShare?: () => void;
+  onMakeProject?: () => void;
   focusNodeId?: string | null;
   focusNodeOffsetX?: number;
   onFocusComplete?: () => void;
@@ -168,6 +169,7 @@ const RoadmapCanvas = ({
   onEditBrief,
   onExport,
   onShare,
+  onMakeProject,
   focusNodeId,
   focusNodeOffsetX,
   onFocusComplete,
@@ -578,6 +580,18 @@ const RoadmapCanvas = ({
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
+          {/* Make Project Button - only show if roadmap has no project_id */}
+          {!roadmap.project_id && onMakeProject && (
+            <button
+              onClick={onMakeProject}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:shadow-lg rounded-lg transition-all font-medium"
+              title="Convert to Project for Consultant Bidding"
+            >
+              <Briefcase className="w-4 h-4" />
+              Make this a Project
+            </button>
+          )}
+
           {onEditBrief && (
             <button
               onClick={onEditBrief}

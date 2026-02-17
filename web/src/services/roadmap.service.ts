@@ -91,6 +91,7 @@ export interface CreateRoadmapDto {
   start_date?: string;
   end_date?: string;
   settings?: Record<string, any>;
+  project_metadata?: Record<string, any>;
 }
 
 export interface UpdateRoadmapDto {
@@ -101,6 +102,7 @@ export interface UpdateRoadmapDto {
   start_date?: string;
   end_date?: string;
   settings?: Record<string, any>;
+  project_metadata?: Record<string, any>;
 }
 
 // Epic DTOs
