@@ -21,6 +21,7 @@ import type {
   RoadmapEpic,
   ShareRole,
 } from "@/types/roadmap";
+import { useRoadmapStore } from "@/stores/roadmapStore";
 
 export const Route = createFileRoute("/roadmap/shared/$token")({
   component: SharedRoadmapPage,
@@ -65,6 +66,13 @@ function SharedRoadmapPage() {
         setMilestones(data.milestones || []);
         setEpics(data.epics || []);
         setCurrentUserRole(data.currentUserRole as ShareRole);
+        
+        // Populate store with shared roadmap data for LeftSidePanel to subscribe
+        useRoadmapStore.setState({
+          roadmap: data,
+          epics: data.epics || [],
+          milestones: data.milestones || [],
+        });
       } catch (error: any) {
         console.error("Failed to load shared roadmap:", error);
 
@@ -81,6 +89,11 @@ function SharedRoadmapPage() {
     };
 
     loadSharedRoadmap();
+    
+    // Cleanup store on unmount
+    return () => {
+      useRoadmapStore.getState().resetRoadmap();
+    };
   }, [token, user]); // Re-fetch if user logs in to check for upgraded permissions
 
   // Loading state
@@ -178,7 +191,6 @@ function SharedRoadmapPage() {
             onSendMessage={() => {}} // Disabled for shared view
             isGenerating={false}
             isCollapsed={!isSidebarOpen}
-            epics={epics}
           />
 
           <button
@@ -208,15 +220,7 @@ function SharedRoadmapPage() {
             onAddMilestone={canEdit ? () => {} : noOpHandler}
             onUpdateMilestone={canEdit ? () => {} : noOpHandler}
             onDeleteMilestone={canEdit ? () => {} : noOpHandler}
-            onAddEpic={canEdit ? () => {} : noOpHandler}
-            onUpdateEpic={canEdit ? () => {} : noOpHandler}
-            onDeleteEpic={canEdit ? () => {} : noOpHandler}
-            onAddFeature={canEdit ? () => {} : noOpHandler}
-            onUpdateFeature={canEdit ? () => {} : noOpHandler}
-            onDeleteFeature={canEdit ? () => {} : noOpHandler}
-            onAddTask={canEdit ? () => {} : noOpHandler}
-            onUpdateTask={canEdit ? () => {} : noOpHandler}
-            onDeleteTask={canEdit ? () => {} : noOpHandler}
+            // Note: Epic/Feature/Task CRUD now handled by roadmapStore
             // No share or export for shared view
           />
         </div>

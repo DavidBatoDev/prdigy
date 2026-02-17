@@ -32,7 +32,7 @@ export interface FullRoadmap extends Roadmap {
   epics: any[];
 }
 
-export interface RoadmapPreview extends Roadmap {
+export interface RoadmapPreview extends Omit<Roadmap, 'epics'> {
   epics: Array<
     Pick<RoadmapEpic, "id" | "roadmap_id" | "title" | "position" | "status"> & {
       features: Array<

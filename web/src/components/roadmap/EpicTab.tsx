@@ -615,67 +615,69 @@ export const EpicTab = ({
                 </div>
 
                 {/* Tasks List */}
-                {feature.tasks && feature.tasks.length > 0 && (
-                  <div className="border-t border-gray-200">
-                    <div className="px-6 py-3 bg-gray-50">
-                      <h3 className="text-sm font-semibold text-gray-900">
-                        Tasks (
-                        {
-                          feature.tasks.filter((t) => t.status === "done")
-                            .length
-                        }
-                        /{feature.tasks.length})
-                      </h3>
-                    </div>
-                    <div className="divide-y divide-gray-100 px-4 py-2">
-                      {feature.tasks.map((task) => (
-                        <TaskListItem
-                          key={task.id}
-                          task={task}
-                          onDelete={onDeleteTask}
-                          onClick={onSelectTask}
-                          onToggleComplete={(taskId) => {
-                            const taskToUpdate = feature.tasks?.find(
-                              (t) => t.id === taskId,
-                            );
-                            if (taskToUpdate) {
-                              onUpdateTask({
-                                ...taskToUpdate,
-                                status:
-                                  taskToUpdate.status === "done"
-                                    ? "todo"
-                                    : "done",
-                              });
-                            }
-                          }}
-                          onUpdateStatus={(taskId, status) => {
-                            const taskToUpdate = feature.tasks?.find(
-                              (t) => t.id === taskId,
-                            );
-                            if (taskToUpdate) {
-                              onUpdateTask({
-                                ...taskToUpdate,
-                                status,
-                              });
-                            }
-                          }}
-                        />
-                      ))}
-                    </div>
-                    {onAddTask && (
-                      <div className="px-4 py-3">
-                        <button
-                          onClick={() => onAddTask(feature.id)}
-                          className="pl-3 inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-                          title="Add task"
-                        >
-                          <Plus className="w-4 h-4" />
-                          Add Task
-                        </button>
+                <div className="border-t border-gray-200">
+                  {feature.tasks && feature.tasks.length > 0 && (
+                    <>
+                      <div className="px-6 py-3 bg-gray-50">
+                        <h3 className="text-sm font-semibold text-gray-900">
+                          Tasks (
+                          {
+                            feature.tasks.filter((t) => t.status === "done")
+                              .length
+                          }
+                          /{feature.tasks.length})
+                        </h3>
                       </div>
-                    )}
-                  </div>
-                )}
+                      <div className="divide-y divide-gray-100 px-4 py-2">
+                        {feature.tasks.map((task) => (
+                          <TaskListItem
+                            key={task.id}
+                            task={task}
+                            onDelete={onDeleteTask}
+                            onClick={onSelectTask}
+                            onToggleComplete={(taskId) => {
+                              const taskToUpdate = feature.tasks?.find(
+                                (t) => t.id === taskId,
+                              );
+                              if (taskToUpdate) {
+                                onUpdateTask({
+                                  ...taskToUpdate,
+                                  status:
+                                    taskToUpdate.status === "done"
+                                      ? "todo"
+                                      : "done",
+                                });
+                              }
+                            }}
+                            onUpdateStatus={(taskId, status) => {
+                              const taskToUpdate = feature.tasks?.find(
+                                (t) => t.id === taskId,
+                              );
+                              if (taskToUpdate) {
+                                onUpdateTask({
+                                  ...taskToUpdate,
+                                  status,
+                                });
+                              }
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  {onAddTask && (
+                    <div className="px-4 py-3">
+                      <button
+                        onClick={() => onAddTask(feature.id)}
+                        className="pl-3 inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                        title="Add task"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add Task
+                      </button>
+                    </div>
+                  )}
+                </div>
 
                 {/* Feature Comments Section */}
                 <div className="px-6 py-3 border-t border-gray-200 bg-gray-50">

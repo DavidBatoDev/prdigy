@@ -32,6 +32,7 @@ import { MilestonesView } from "./MilestonesView";
 import { SidePanel } from "./SidePanel";
 import { AddEpicModal } from "./AddEpicModal";
 import { AddFeatureModal } from "./AddFeatureModal";
+import { useRoadmapStore } from "@/stores/roadmapStore";
 
 type ViewMode = "roadmap" | "epic" | "milestones";
 
@@ -105,29 +106,6 @@ interface RoadmapCanvasProps {
   onAddMilestone: () => void;
   onUpdateMilestone: (milestone: RoadmapMilestone) => void;
   onDeleteMilestone: (id: string) => void;
-  onAddEpic: (
-    milestoneId?: string,
-    epicInput?: Partial<RoadmapEpic>,
-  ) => void | Promise<void>;
-  onUpdateEpic: (epic: RoadmapEpic) => void | Promise<void>;
-  onDeleteEpic: (epicId: string) => void | Promise<void>;
-  onAddFeature: (
-    epicId: string,
-    data: {
-      title: string;
-      description: string;
-      status: FeatureStatus;
-      is_deliverable: boolean;
-    },
-  ) => void | Promise<void>;
-  onUpdateFeature: (feature: RoadmapFeature) => void | Promise<void>;
-  onDeleteFeature: (featureId: string) => void | Promise<void>;
-  onAddTask: (
-    featureId: string,
-    taskData: Partial<RoadmapTask>,
-  ) => void | Promise<void>;
-  onUpdateTask: (task: RoadmapTask) => void | Promise<void>;
-  onDeleteTask: (taskId: string) => void | Promise<void>;
   onEditBrief?: () => void;
   onExport?: () => void;
   onShare?: () => void;
@@ -157,15 +135,6 @@ const RoadmapCanvas = ({
   onAddMilestone: _onAddMilestone,
   onUpdateMilestone,
   onDeleteMilestone,
-  onAddEpic,
-  onUpdateEpic,
-  onDeleteEpic,
-  onAddFeature,
-  onUpdateFeature,
-  onDeleteFeature,
-  onAddTask,
-  onUpdateTask,
-  onDeleteTask,
   onEditBrief,
   onExport,
   onShare,
@@ -185,6 +154,23 @@ const RoadmapCanvas = ({
   onOpenTaskDetailHandled,
   onActiveEpicChange,
 }: RoadmapCanvasProps) => {
+  // Get actions and modal trigger state from store
+  const {
+    addEpic,
+    updateEpic,
+    deleteEpic,
+    addFeature,
+    updateFeature,
+    deleteFeature,
+    addTask,
+    updateTask,
+    deleteTask,
+    addFeatureEpicId,
+    addTaskFeatureId,
+    closeAddFeatureModal,
+    closeAddTaskPanel,
+  } = useRoadmapStore();
+
   const [viewMode, setViewMode] = useState<ViewMode>("roadmap");
   const [selectedEpic, setSelectedEpic] = useState<string | null>(null);
   const [openEpicTabs, setOpenEpicTabs] = useState<string[]>([]); // Track opened epic tabs
@@ -279,6 +265,24 @@ const RoadmapCanvas = ({
     onActiveEpicChange?.(viewMode === "epic" ? selectedEpic : null);
   }, [onActiveEpicChange, selectedEpic, viewMode]);
 
+  // Handle quick-add feature from LeftSidePanel
+  useEffect(() => {
+    if (addFeatureEpicId) {
+      setTargetEpicForFeature(addFeatureEpicId);
+      setIsAddFeatureModalOpen(true);
+      closeAddFeatureModal(); // Clear the trigger immediately after handling
+    }
+  }, [addFeatureEpicId, closeAddFeatureModal]);
+
+  // Handle quick-add task from LeftSidePanel
+  useEffect(() => {
+    if (addTaskFeatureId) {
+      setTargetFeatureForTask(addTaskFeatureId);
+      setSidePanelOpen(true);
+      closeAddTaskPanel(); // Clear the trigger immediately after handling
+    }
+  }, [addTaskFeatureId, closeAddTaskPanel]);
+
   // Handle closing an epic tab
   const handleCloseEpicTab = (epicId: string) => {
     const newTabs = openEpicTabs.filter((id) => id !== epicId);
@@ -323,7 +327,7 @@ const RoadmapCanvas = ({
           position = targetEpic.position + 1;
         }
       }
-      await onAddEpic(undefined, {
+      await addEpic(undefined, {
         title: data.title,
         description: data.description,
         priority: data.priority,
@@ -367,7 +371,7 @@ const RoadmapCanvas = ({
 
     setIsEpicLoading(true);
     try {
-      await onUpdateEpic({
+      await updateEpic({
         ...epic,
         title: data.title,
         description: data.description,
@@ -392,7 +396,7 @@ const RoadmapCanvas = ({
     if (targetEpicForFeature) {
       setIsFeatureLoading(true);
       try {
-        await onAddFeature(targetEpicForFeature, data);
+        await addFeature(targetEpicForFeature, data);
         setIsAddFeatureModalOpen(false);
         setTargetEpicForFeature(null);
       } finally {
@@ -468,7 +472,7 @@ const RoadmapCanvas = ({
 
     setIsFeatureLoading(true);
     try {
-      await onUpdateFeature({
+      await updateFeature({
         ...feature,
         title: data.title,
         description: data.description,
@@ -515,10 +519,10 @@ const RoadmapCanvas = ({
     if (!deleteConfirm) return;
 
     if (deleteConfirm.type === "epic") {
-      onDeleteEpic(deleteConfirm.id);
+      deleteEpic(deleteConfirm.id);
       if (selectedEpic === deleteConfirm.id) setSelectedEpic(null);
     } else {
-      onDeleteFeature(deleteConfirm.id);
+      deleteFeature(deleteConfirm.id);
       if (selectedFeature === deleteConfirm.id) setSelectedFeature(null);
     }
 
@@ -530,7 +534,7 @@ const RoadmapCanvas = ({
     if (targetFeatureForTask) {
       setIsTaskLoading(true);
       try {
-        await onAddTask(targetFeatureForTask, taskData);
+        await addTask(targetFeatureForTask, taskData);
         setSidePanelOpen(false);
         setTargetFeatureForTask(null);
       } finally {
@@ -542,7 +546,7 @@ const RoadmapCanvas = ({
   const handleTaskUpdate = async (task: RoadmapTask) => {
     setIsTaskLoading(true);
     try {
-      await onUpdateTask(task);
+      await updateTask(task);
     } finally {
       setIsTaskLoading(false);
     }
@@ -551,7 +555,7 @@ const RoadmapCanvas = ({
   const handleTaskDelete = async (taskId: string) => {
     setIsTaskLoading(true);
     try {
-      await onDeleteTask(taskId);
+      await deleteTask(taskId);
       setSidePanelOpen(false);
       setSelectedTaskId(null);
     } finally {
@@ -721,9 +725,9 @@ const RoadmapCanvas = ({
           <RoadmapView
             roadmap={roadmap}
             epics={epics}
-            onUpdateEpic={onUpdateEpic}
+            onUpdateEpic={updateEpic}
             onDeleteEpic={handleDeleteEpic}
-            onUpdateFeature={onUpdateFeature}
+            onUpdateFeature={updateFeature}
             onDeleteFeature={handleDeleteFeature}
             onSelectFeature={(feature) => {
               handleOpenEditFeatureModal(feature.epic_id, feature.id);
@@ -752,7 +756,7 @@ const RoadmapCanvas = ({
                 setOpenEpicTabs([...openEpicTabs, epicId]);
               }
             }}
-            onUpdateTask={onUpdateTask}
+            onUpdateTask={updateTask}
             focusNodeId={focusNodeId}
             focusNodeOffsetX={focusNodeOffsetX}
             onFocusComplete={onFocusComplete}
@@ -762,11 +766,11 @@ const RoadmapCanvas = ({
         {viewMode === "epic" && currentEpic && (
           <EpicTab
             epic={currentEpic}
-            onUpdateEpic={onUpdateEpic}
-            onUpdateFeature={onUpdateFeature}
+            onUpdateEpic={updateEpic}
+            onUpdateFeature={updateFeature}
             onDeleteFeature={handleDeleteFeature}
-            onUpdateTask={onUpdateTask}
-            onDeleteTask={onDeleteTask}
+            onUpdateTask={updateTask}
+            onDeleteTask={deleteTask}
             onSelectTask={(task) => {
               setSelectedTaskId(task.id);
               setTargetFeatureForTask(null);

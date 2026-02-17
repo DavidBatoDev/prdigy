@@ -113,6 +113,7 @@ export const SidePanel = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div
+          key="sidepanel-backdrop"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -123,6 +124,7 @@ export const SidePanel = ({
       )}
       {isOpen && (
         <motion.div
+          key="sidepanel-content"
           initial={{ x: "100%" }}
           animate={{ x: 0 }}
           exit={{ x: "100%" }}

@@ -15,10 +15,11 @@ import {
   Folder,
   ExternalLink,
   Sparkles,
+  Plus,
 } from "lucide-react";
 import { ChatPanel } from "./ChatPanel";
 import type { Message } from "./ChatPanel";
-import type { RoadmapEpic } from "@/types/roadmap";
+import { useEpics, useRoadmapStore } from "@/stores/roadmapStore";
 
 export type { Message } from "./ChatPanel";
 
@@ -27,7 +28,6 @@ interface LeftSidePanelProps {
   onSendMessage: (message: string) => void;
   isGenerating?: boolean;
   isCollapsed?: boolean;
-  epics?: RoadmapEpic[];
   onSelectEpic?: (epicId: string) => void;
   onSelectFeature?: (epicId: string, featureId: string) => void;
   onSelectTask?: (taskId: string) => void;
@@ -48,7 +48,6 @@ export function LeftSidePanel({
   onSendMessage,
   isGenerating = false,
   isCollapsed = false,
-  epics = [],
   onSelectEpic,
   onSelectFeature,
   onSelectTask,
@@ -138,7 +137,6 @@ export function LeftSidePanel({
           {/* Content */}
           {activeTab === "explorer" ? (
             <ExplorerPanel
-              epics={epics}
               onSelectEpic={onSelectEpic}
               onSelectFeature={onSelectFeature}
               onSelectTask={onSelectTask}
@@ -163,7 +161,6 @@ export function LeftSidePanel({
 }
 
 interface ExplorerPanelProps {
-  epics?: RoadmapEpic[];
   onSelectEpic?: (epicId: string) => void;
   onSelectFeature?: (epicId: string, featureId: string) => void;
   onSelectTask?: (taskId: string) => void;
@@ -186,7 +183,6 @@ interface SearchResult {
 }
 
 function ExplorerPanel({
-  epics = [],
   onSelectEpic,
   onSelectFeature,
   onSelectTask,
@@ -198,6 +194,10 @@ function ExplorerPanel({
   highlightedEpicId,
 }: ExplorerPanelProps) {
   const NAVIGATION_OPEN_DELAY_MS = 700;
+  
+  // Subscribe to epics from store
+  const epics = useEpics();
+  const { openAddFeatureModal, openAddTaskPanel } = useRoadmapStore();
   const [expandedEpics, setExpandedEpics] = useState<Set<string>>(new Set());
   const [expandedFeatures, setExpandedFeatures] = useState<Set<string>>(
     new Set(),
@@ -614,7 +614,7 @@ function ExplorerPanel({
               return (
                 <div key={epic.id}>
                   {/* Epic */}
-                  <div className="flex items-center gap-1">
+                  <div className="group flex items-center gap-1">
                     <div
                       className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all border ${
                         isEpicHighlighted
@@ -656,6 +656,15 @@ function ExplorerPanel({
                         </span>
                       )}
                     </div>
+                    {/* Quick Add Feature Button */}
+                    <button
+                      type="button"
+                      onClick={() => openAddFeatureModal(epic.id)}
+                      className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center gap-1 px-2 py-2 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-primary hover:text-primary"
+                      title="Add feature to epic"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
                     <button
                       type="button"
                       onClick={() => onNavigateToEpicTab?.(epic.id)}
@@ -680,7 +689,7 @@ function ExplorerPanel({
                         return (
                           <div key={feature.id}>
                             {/* Feature */}
-                            <div className="w-full flex items-center gap-2 px-2.5 py-1.5 text-sm text-gray-700 hover:bg-white hover:shadow-sm rounded-md transition-all border border-transparent hover:border-gray-200">
+                            <div className="group w-full flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-gray-700 hover:bg-white hover:shadow-sm rounded-md transition-all border border-transparent hover:border-gray-200">
                               {tasks.length > 0 ? (
                                 <button
                                   onClick={(e) => {
@@ -718,6 +727,15 @@ function ExplorerPanel({
                                   {tasks.length}
                                 </span>
                               )}
+                              {/* Quick Add Task Button */}
+                              <button
+                                type="button"
+                                onClick={() => openAddTaskPanel(feature.id)}
+                                className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center gap-1 px-1.5 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-md hover:bg-gray-50 hover:border-primary hover:text-primary"
+                                title="Add task to feature"
+                              >
+                                <Plus className="w-3 h-3" />
+                              </button>
                             </div>
 
                             {/* Tasks */}
