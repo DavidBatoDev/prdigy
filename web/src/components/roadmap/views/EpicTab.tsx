@@ -10,7 +10,7 @@ import {
   ChevronUp,
   MessageSquare,
 } from "lucide-react";
-import { TaskListItem } from "./TaskListItem";
+import { TaskListItem } from "../widgets/TaskListItem";
 import type {
   RoadmapEpic,
   RoadmapFeature,
@@ -18,8 +18,8 @@ import type {
   Comment,
 } from "@/types/roadmap";
 import { RichTextEditor } from "@/components/common/RichTextEditor";
-import { AddFeatureModal } from "./AddFeatureModal";
-import { CommentsSection } from "./CommentsSection";
+import { AddFeatureModal } from "../modals/AddFeatureModal";
+import { CommentsSection } from "../shared/CommentsSection";
 import { roadmapSharesServiceAPI } from "@/services/roadmap-shares.service";
 
 interface EpicTabProps {

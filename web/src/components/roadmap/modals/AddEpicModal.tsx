@@ -9,7 +9,7 @@ import { useUser } from "@/auth";
 import { RoadmapModalLayout } from "./RoadmapModalLayout";
 import { RichTextEditor } from "@/components/common/RichTextEditor";
 import { LabelSelector } from "@/components/common/LabelSelector";
-import { TaskListItem } from "./TaskListItem";
+import { TaskListItem } from "../widgets/TaskListItem";
 import type { Label } from "@/types/label";
 import { LABEL_COLORS } from "@/types/label";
 

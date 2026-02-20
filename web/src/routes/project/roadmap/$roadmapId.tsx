@@ -5,12 +5,15 @@ import { motion } from "framer-motion";
 import {
   LeftSidePanel,
   type Message,
-} from "@/components/roadmap/LeftSidePanel";
-import { RoadmapCanvas } from "@/components/roadmap/RoadmapCanvas";
-import { ShareRoadmapModal } from "@/components/roadmap/ShareRoadmapModal";
-import { MakeProjectDialog } from "@/components/roadmap/MakeProjectDialog";
+  RoadmapCanvas,
+  ShareRoadmapModal,
+  MakeProjectDialog,
+  ProjectBriefModal,
+  type FormData,
+} from "@/components/roadmap";
 import { callGeminiAPI } from "@/lib/gemini";
 import { useUser } from "@/stores/authStore";
+import { useRoadmapStore } from "@/stores/roadmapStore";
 import { getOrCreateGuestUser } from "@/lib/guestAuth";
 import { Link } from "@tanstack/react-router";
 import {
@@ -19,10 +22,6 @@ import {
   featureService,
   taskService,
 } from "@/services/roadmap.service";
-import {
-  ProjectBriefModal,
-  type FormData,
-} from "@/components/roadmap/ProjectBriefModal";
 import type {
   RoadmapMilestone,
   RoadmapEpic,
@@ -30,7 +29,6 @@ import type {
   Roadmap,
   RoadmapTask,
 } from "@/types/roadmap";
-import { useRoadmapStore } from "@/stores/roadmapStore";
 
 export const Route = createFileRoute("/project/roadmap/$roadmapId")({
   component: RoadmapViewPage,
@@ -46,14 +44,9 @@ function RoadmapViewPage() {
   const [isGuest, setIsGuest] = useState(false);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
 
-  // Get roadmap data and actions from store
-  const {
-    roadmap,
-    epics,
-    loadRoadmap,
-    resetRoadmap,
-    isLoadingRoadmap,
-  } = useRoadmapStore();
+  // Roadmap data
+  const [roadmap, setRoadmap] = useState<Roadmap | null>(null);
+  const [isLoadingRoadmap, setIsLoadingRoadmap] = useState(true);
   const [roadmapError, setRoadmapError] = useState<string | null>(null);
 
   // Initialize user (authenticated or guest)
@@ -74,85 +67,92 @@ function RoadmapViewPage() {
     initializeUser();
   }, [authenticatedUser]);
 
-  // Fetch roadmap data from store
+  // Fetch roadmap data
   useEffect(() => {
-    if (!roadmapId) return;
-
     const fetchRoadmap = async () => {
+      if (!roadmapId) return;
+
       try {
+        setIsLoadingRoadmap(true);
         setRoadmapError(null);
-        await loadRoadmap(roadmapId);
+
+        const fullRoadmap = await roadmapService.getFull(roadmapId);
+        setRoadmap(fullRoadmap);
+        setRoadmapMilestones(fullRoadmap.milestones || []);
+        setEpics(fullRoadmap.epics || []);
+        useRoadmapStore.setState({
+          roadmap: fullRoadmap,
+          epics: fullRoadmap.epics || [],
+          milestones: fullRoadmap.milestones || [],
+        });
 
         // Pre-populate form data from roadmap project_metadata (preferred) or settings (fallback)
-        const currentRoadmap = useRoadmapStore.getState().roadmap;
-        if (currentRoadmap) {
-          const projectMetadata = currentRoadmap.project_metadata as any;
-          const settings = currentRoadmap.settings as any;
-          const source = projectMetadata || settings;
-          
-          if (source) {
-            const allSkills = source.skills || [];
-            const knownSkills = [
-              "Graphic Design",
-              "Content Writing",
-              "Web Development",
-              "Data Entry",
-              "Digital Marketing",
-              "Project Management",
-              "Translation",
-              "Video Editing",
-              "SEO",
-              "Social Media Marketing",
-              "Virtual Assistant",
-              "Illustration",
-              "3D Modeling",
-              "Voice Over",
-              "Customer Service",
-              "Accounting",
-            ];
-            const predefinedSkills = allSkills.filter((skill: string) =>
-              knownSkills.includes(skill),
-            );
-            const customSkills = allSkills.filter(
-              (skill: string) => !predefinedSkills.includes(skill),
-            );
+        const projectMetadata = fullRoadmap.project_metadata as any;
+        const settings = fullRoadmap.settings as any;
+        const source = projectMetadata || settings;
+        
+        if (source) {
+          const allSkills = source.skills || [];
+          const knownSkills = [
+            "Graphic Design",
+            "Content Writing",
+            "Web Development",
+            "Data Entry",
+            "Digital Marketing",
+            "Project Management",
+            "Translation",
+            "Video Editing",
+            "SEO",
+            "Social Media Marketing",
+            "Virtual Assistant",
+            "Illustration",
+            "3D Modeling",
+            "Voice Over",
+            "Customer Service",
+            "Accounting",
+          ];
+          const predefinedSkills = allSkills.filter((skill: string) =>
+            knownSkills.includes(skill),
+          );
+          const customSkills = allSkills.filter(
+            (skill: string) => !predefinedSkills.includes(skill),
+          );
 
-            setFormData({
-              title: source.title || currentRoadmap.name || "",
-              category: source.category || "",
-              description: source.description || currentRoadmap.description || "",
-              problemSolving: source.problemSolving || "",
-              projectState: source.projectState || "idea",
-              skills: predefinedSkills,
-              customSkills: customSkills,
-              duration: source.duration || "1-3_months",
-            });
-          }
-
-          // Add initial welcome message
-          const welcomeMessage: Message = {
-            id: "1",
-            role: "assistant",
-            content: `Welcome back to your roadmap "${currentRoadmap.name}"! I'm here to help you manage milestones, epics, and features. What would you like to work on?`,
-            timestamp: new Date(),
-          };
-          setMessages([welcomeMessage]);
+          setFormData({
+            title: source.title || fullRoadmap.name || "",
+            category: source.category || "",
+            description: source.description || fullRoadmap.description || "",
+            problemSolving: source.problemSolving || "",
+            projectState: source.projectState || "idea",
+            skills: predefinedSkills,
+            customSkills: customSkills,
+            duration: source.duration || "1-3_months",
+          });
         }
+
+        // Add initial welcome message
+        const welcomeMessage: Message = {
+          id: "1",
+          role: "assistant",
+          content: `Welcome back to your roadmap "${fullRoadmap.name}"! I'm here to help you manage milestones, epics, and features. What would you like to work on?`,
+          timestamp: new Date(),
+        };
+        setMessages([welcomeMessage]);
       } catch (error: any) {
         console.error("Error fetching roadmap:", error);
         setRoadmapError(
           error.response?.data?.error?.message || "Failed to load roadmap",
         );
+      } finally {
+        setIsLoadingRoadmap(false);
       }
     };
 
     fetchRoadmap();
-    
-    // Cleanup on unmount
     return () => {
-      resetRoadmap();
+      useRoadmapStore.getState().resetRoadmap();
     };
-  }, [roadmapId, loadRoadmap, resetRoadmap]);
+  }, [roadmapId]);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
@@ -253,8 +253,18 @@ function RoadmapViewPage() {
   // Builder state
   const [messages, setMessages] = useState<Message[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  // NOTE: epics and milestones are now managed by roadmapStore
-  const { milestones: roadmapMilestones, addMilestone, updateMilestone, deleteMilestone } = useRoadmapStore();
+  const [epics, setEpics] = useState<RoadmapEpic[]>([]);
+  const [roadmapMilestones, setRoadmapMilestones] = useState<
+    RoadmapMilestone[]
+  >([]);
+
+  useEffect(() => {
+    useRoadmapStore.setState({
+      roadmap,
+      epics,
+      milestones: roadmapMilestones,
+    });
+  }, [roadmap, epics, roadmapMilestones]);
 
   const handleSendMessage = async (message: string) => {
     const userMessage: Message = {
@@ -346,9 +356,22 @@ function RoadmapViewPage() {
         },
       });
 
-
-      // Note: roadmap state is now managed by the store
-      // The store will automatically update when loadRoadmap is called
+      // Update local roadmap state
+      if (roadmap) {
+        setRoadmap({
+          ...roadmap,
+          name: formData.title || "Untitled Roadmap",
+          description: formData.description,
+          project_metadata: projectMetadata,
+          settings: {
+            category: formData.category,
+            problemSolving: formData.problemSolving,
+            projectState: formData.projectState,
+            skills: [...formData.skills, ...formData.customSkills],
+            duration: formData.duration,
+          },
+        });
+      }
 
       setIsBriefOpen(false);
       setBriefStep(1);
@@ -376,20 +399,299 @@ function RoadmapViewPage() {
   };
 
   const handleAddMilestone = () => {
-    // Milestone CRUD is now handled by the store
-    addMilestone();
+    if (!roadmapId) {
+      console.warn("No roadmap ID available");
+      return;
+    }
+
+    const newMilestone: RoadmapMilestone = {
+      id: `m${Date.now()}`,
+      roadmap_id: roadmapId,
+      title: "New Milestone",
+      target_date: new Date().toISOString(),
+      status: "not_started",
+      position: roadmapMilestones.length,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    setRoadmapMilestones((prev) => [...prev, newMilestone]);
+    // TODO: Create milestone via API
   };
 
   const handleUpdateMilestone = (updated: RoadmapMilestone) => {
-    updateMilestone(updated);
+    setRoadmapMilestones((prev) =>
+      prev.map((m) => (m.id === updated.id ? updated : m)),
+    );
   };
 
   const handleDeleteMilestone = (id: string) => {
-    deleteMilestone(id);
+    setRoadmapMilestones((prev) => prev.filter((m) => m.id !== id));
   };
 
-  // Note: Epic, Feature, and Task CRUD handlers have been moved to roadmapStore.ts
-  // The store handles all data mutations and optimistic updates
+  const handleAddEpic = async (
+    _milestoneId?: string,
+    epicInput?: Partial<RoadmapEpic>,
+  ) => {
+    if (!roadmapId) {
+      console.warn("No roadmap ID available");
+      return;
+    }
+
+    try {
+      // Call the API to create the epic
+      const newEpic = await epicService.create({
+        roadmap_id: roadmapId,
+        title: epicInput?.title?.trim() || "New Epic",
+        description: epicInput?.description || "",
+        priority: epicInput?.priority || "medium",
+        status: epicInput?.status || "backlog",
+        position: epicInput?.position ?? epics.length,
+        color: epicInput?.color,
+        estimated_hours: epicInput?.estimated_hours,
+        start_date: epicInput?.start_date,
+        due_date: epicInput?.due_date,
+        tags: epicInput?.tags,
+        labels: epicInput?.labels,
+      });
+
+      // Update local state with the newly created epic from the API
+      if (newEpic.position < epics.length) {
+        const updatedEpics = epics.map((e) => {
+          if (e.position >= newEpic.position) {
+            return { ...e, position: e.position + 1 };
+          }
+          return e;
+        });
+        setEpics([...updatedEpics, { ...newEpic, features: [] }]);
+      } else {
+        setEpics([...epics, { ...newEpic, features: [] }]);
+      }
+    } catch (error) {
+      console.error("Failed to create epic:", error);
+      // You might want to show a toast notification here
+    }
+  };
+
+  const handleUpdateEpic = async (updatedEpic: RoadmapEpic) => {
+    try {
+      const updated = await epicService.update(updatedEpic.id, {
+        title: updatedEpic.title,
+        description: updatedEpic.description,
+        priority: updatedEpic.priority,
+        status: updatedEpic.status,
+        position: updatedEpic.position,
+        color: updatedEpic.color,
+        estimated_hours: updatedEpic.estimated_hours,
+        actual_hours: updatedEpic.actual_hours,
+        start_date: updatedEpic.start_date,
+        due_date: updatedEpic.due_date,
+        completed_date: updatedEpic.completed_date,
+        tags: updatedEpic.tags,
+        labels: updatedEpic.labels,
+      });
+
+      setEpics(
+        epics.map((e) =>
+          e.id === updated.id ? { ...updated, features: e.features } : e,
+        ),
+      );
+    } catch (error) {
+      console.error("Failed to update epic:", error);
+    }
+  };
+
+  const handleDeleteEpic = async (epicId: string) => {
+    try {
+      await epicService.delete(epicId);
+      setEpics(epics.filter((e) => e.id !== epicId));
+    } catch (error) {
+      console.error("Failed to delete epic:", error);
+    }
+  };
+
+  const handleAddFeature = async (
+    epicId: string,
+    data: {
+      title: string;
+      description: string;
+      status:
+        | "not_started"
+        | "in_progress"
+        | "in_review"
+        | "completed"
+        | "blocked";
+      is_deliverable: boolean;
+    },
+  ) => {
+    if (!roadmapId) {
+      console.warn("No roadmap ID available");
+      return;
+    }
+
+    const epic = epics.find((e) => e.id === epicId);
+    if (!epic) return;
+
+    try {
+      const newFeature = await featureService.create({
+        roadmap_id: roadmapId,
+        epic_id: epicId,
+        title: data.title,
+        description: data.description,
+        status: data.status,
+        position: epic.features?.length || 0,
+        is_deliverable: data.is_deliverable,
+      });
+
+      setEpics(
+        epics.map((e) =>
+          e.id === epicId
+            ? { ...e, features: [...(e.features || []), newFeature] }
+            : e,
+        ),
+      );
+    } catch (error) {
+      console.error("Failed to create feature:", error);
+    }
+  };
+
+  const handleUpdateFeature = async (feature: RoadmapFeature) => {
+    try {
+      const updated = await featureService.update(feature.id, {
+        title: feature.title,
+        description: feature.description,
+        status: feature.status,
+        position: feature.position,
+        is_deliverable: feature.is_deliverable,
+        estimated_hours: feature.estimated_hours,
+        actual_hours: feature.actual_hours,
+      });
+
+      setEpics((prev) =>
+        prev.map((epic) =>
+          epic.id === feature.epic_id
+            ? {
+                ...epic,
+                features: (epic.features || []).map((f) =>
+                  f.id === updated.id
+                    ? { ...updated, tasks: f.tasks || [] }
+                    : f,
+                ),
+              }
+            : epic,
+        ),
+      );
+    } catch (error) {
+      console.error("Failed to update feature:", error);
+    }
+  };
+
+  const handleDeleteFeature = async (featureId: string) => {
+    const epic = epics.find((e) => e.features?.some((f) => f.id === featureId));
+    if (!epic) return;
+
+    try {
+      await featureService.delete(featureId);
+      setEpics(
+        epics.map((e) =>
+          e.id === epic.id
+            ? {
+                ...e,
+                features: e.features?.filter((f) => f.id !== featureId),
+                updated_at: new Date().toISOString(),
+              }
+            : e,
+        ),
+      );
+    } catch (error) {
+      console.error("Failed to delete feature:", error);
+    }
+  };
+
+  // Task handlers
+  const handleAddTask = async (
+    featureId: string,
+    taskData: Partial<RoadmapTask>,
+  ) => {
+    if (!taskData.title) {
+      console.warn("Task title is required");
+      return;
+    }
+
+    try {
+      const newTask = await taskService.create({
+        feature_id: featureId,
+        title: taskData.title,
+        status: taskData.status || "todo",
+        priority: taskData.priority || "medium",
+        position: taskData.position,
+        due_date: taskData.due_date,
+      });
+
+      // Update local state
+      setEpics((prevEpics) =>
+        prevEpics.map((epic) => ({
+          ...epic,
+          features: (epic.features || []).map((feature) =>
+            feature.id === featureId
+              ? {
+                  ...feature,
+                  tasks: [...(feature.tasks || []), newTask],
+                }
+              : feature,
+          ),
+        })),
+      );
+    } catch (error) {
+      console.error("Failed to create task:", error);
+    }
+  };
+
+  const handleUpdateTask = async (task: RoadmapTask) => {
+    try {
+      const updated = await taskService.update(task.id, {
+        title: task.title,
+        status: task.status,
+        priority: task.priority,
+        position: task.position,
+        due_date: task.due_date,
+        completed_at: task.completed_at,
+      });
+
+      // Update local state
+      setEpics((prevEpics) =>
+        prevEpics.map((epic) => ({
+          ...epic,
+          features: (epic.features || []).map((feature) => ({
+            ...feature,
+            tasks: (feature.tasks || []).map((t) =>
+              t.id === updated.id ? updated : t,
+            ),
+          })),
+        })),
+      );
+    } catch (error) {
+      console.error("Failed to update task:", error);
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      await taskService.delete(taskId);
+
+      // Update local state
+      setEpics((prevEpics) =>
+        prevEpics.map((epic) => ({
+          ...epic,
+          features: (epic.features || []).map((feature) => ({
+            ...feature,
+            tasks: (feature.tasks || []).filter((t) => t.id !== taskId),
+          })),
+        })),
+      );
+    } catch (error) {
+      console.error("Failed to delete task:", error);
+    }
+  };
 
   // Loading states
   if (isLoadingUser || isLoadingRoadmap) {
@@ -460,7 +762,7 @@ function RoadmapViewPage() {
         {/* Left: Chat Sidebar */}
         <motion.div
           id="roadmap-chat-panel"
-          className="relative h-full border-r border-gray-200 bg-white overflow-x-hidden"
+          className="relative h-full border-r border-gray-200 bg-white"
           initial={{ width: "30%" }}
           animate={{ width: isSidebarOpen ? "30%" : "56px" }}
           transition={{ duration: 0.25, ease: "easeInOut" }}
@@ -485,26 +787,22 @@ function RoadmapViewPage() {
             onNavigateToEpicTab={handleNavigateToEpicTab}
             highlightedEpicId={activeEpicId}
           />
-        </motion.div>
 
-        {/* Toggle button - positioned outside motion.div to avoid clipping */}
-        <motion.button
-          type="button"
-          aria-controls="roadmap-chat-panel"
-          aria-expanded={isSidebarOpen}
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="absolute top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center hover:bg-gray-50"
-          title={isSidebarOpen ? "Collapse chat" : "Expand chat"}
-          initial={{ left: "calc(30% - 12px)" }}
-          animate={{ left: isSidebarOpen ? "calc(30% - 12px)" : "44px" }}
-          transition={{ duration: 0.25, ease: "easeInOut" }}
-        >
-          {isSidebarOpen ? (
-            <ChevronLeft className="w-4 h-4 text-gray-600" />
-          ) : (
-            <ChevronRight className="w-4 h-4 text-gray-600" />
-          )}
-        </motion.button>
+          <button
+            type="button"
+            aria-controls="roadmap-chat-panel"
+            aria-expanded={isSidebarOpen}
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="absolute -right-3 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center hover:bg-gray-50"
+            title={isSidebarOpen ? "Collapse chat" : "Expand chat"}
+          >
+            {isSidebarOpen ? (
+              <ChevronLeft className="w-4 h-4 text-gray-600" />
+            ) : (
+              <ChevronRight className="w-4 h-4 text-gray-600" />
+            )}
+          </button>
+        </motion.div>
 
         {/* Right: Roadmap Canvas */}
         <div className="flex-1">
@@ -517,6 +815,15 @@ function RoadmapViewPage() {
             onAddMilestone={handleAddMilestone}
             onUpdateMilestone={handleUpdateMilestone}
             onDeleteMilestone={handleDeleteMilestone}
+            onAddEpic={handleAddEpic}
+            onUpdateEpic={handleUpdateEpic}
+            onDeleteEpic={handleDeleteEpic}
+            onAddFeature={handleAddFeature}
+            onUpdateFeature={handleUpdateFeature}
+            onDeleteFeature={handleDeleteFeature}
+            onAddTask={handleAddTask}
+            onUpdateTask={handleUpdateTask}
+            onDeleteTask={handleDeleteTask}
             onEditBrief={() => {
               // Open the project brief modal for editing
               setBriefStep(1);

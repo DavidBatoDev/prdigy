@@ -8,7 +8,7 @@ import type {
 import { useUser } from "@/auth";
 import { RoadmapModalLayout } from "./RoadmapModalLayout";
 import { RichTextEditor } from "@/components/common/RichTextEditor";
-import { TaskListItem } from "./TaskListItem";
+import { TaskListItem } from "../widgets/TaskListItem";
 
 interface AddFeatureModalProps {
   isOpen: boolean;

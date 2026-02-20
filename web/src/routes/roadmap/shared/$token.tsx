@@ -11,8 +11,8 @@ import { motion } from "framer-motion";
 import {
   LeftSidePanel,
   type Message,
-} from "@/components/roadmap/LeftSidePanel";
-import { RoadmapCanvas } from "@/components/roadmap/RoadmapCanvas";
+  RoadmapCanvas,
+} from "@/components/roadmap";
 import { roadmapSharesServiceAPI } from "@/services/roadmap-shares.service";
 import { useUser } from "@/stores/authStore";
 import type {
