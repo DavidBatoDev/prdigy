@@ -180,7 +180,7 @@ function SharedRoadmapPage() {
         {/* Left: Chat Sidebar (Info Only) */}
         <motion.div
           id="roadmap-info-panel"
-          className="relative h-full border-r border-gray-200 bg-white"
+          className="relative h-full border-r border-gray-200 bg-white overflow-x-hidden"
           initial={{ width: "30%" }}
           animate={{ width: isSidebarOpen ? "30%" : "56px" }}
           transition={{ duration: 0.25, ease: "easeInOut" }}
@@ -192,22 +192,26 @@ function SharedRoadmapPage() {
             isGenerating={false}
             isCollapsed={!isSidebarOpen}
           />
-
-          <button
-            type="button"
-            aria-controls="roadmap-info-panel"
-            aria-expanded={isSidebarOpen}
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="absolute -right-3 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center hover:bg-gray-50"
-            title={isSidebarOpen ? "Collapse panel" : "Expand panel"}
-          >
-            {isSidebarOpen ? (
-              <ChevronLeft className="w-4 h-4 text-gray-600" />
-            ) : (
-              <ChevronRight className="w-4 h-4 text-gray-600" />
-            )}
-          </button>
         </motion.div>
+
+        {/* Toggle button - positioned outside motion.div to avoid clipping */}
+        <motion.button
+          type="button"
+          aria-controls="roadmap-info-panel"
+          aria-expanded={isSidebarOpen}
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className="absolute top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center hover:bg-gray-50"
+          title={isSidebarOpen ? "Collapse panel" : "Expand panel"}
+          initial={{ left: "calc(30% - 12px)" }}
+          animate={{ left: isSidebarOpen ? "calc(30% - 12px)" : "44px" }}
+          transition={{ duration: 0.25, ease: "easeInOut" }}
+        >
+          {isSidebarOpen ? (
+            <ChevronLeft className="w-4 h-4 text-gray-600" />
+          ) : (
+            <ChevronRight className="w-4 h-4 text-gray-600" />
+          )}
+        </motion.button>
 
         {/* Right: Roadmap Canvas */}
         <div className="flex-1">

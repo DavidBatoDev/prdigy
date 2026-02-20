@@ -103,7 +103,7 @@ export function LeftSidePanel({
 
       {/* Main Content Area - Hidden when collapsed */}
       {!isCollapsed && (
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
           {/* Tabs */}
           <div className="flex border-b border-gray-200 bg-gray-50">
             <button
@@ -433,9 +433,9 @@ function ExplorerPanel({
   );
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-white ">
+    <div className="flex flex-col h-full min-w-0 overflow-hidden bg-white ">
       {/* Header */}
-      <div className="px-4 py-4 border-b border-gray-200 bg-white">
+      <div className="px-4 py-4 border-b border-gray-200 bg-white min-w-0">
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-base font-semibold text-gray-900">
             Roadmap Structure
@@ -612,11 +612,11 @@ function ExplorerPanel({
               );
 
               return (
-                <div key={epic.id}>
+                <div key={epic.id} className="min-w-0">
                   {/* Epic */}
-                  <div className="group flex items-center gap-1">
+                  <div className="group relative flex items-center gap-1 min-w-0">
                     <div
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all border ${
+                      className={`flex-1 min-w-0 flex items-center gap-2 px-3 py-2 pr-12 text-sm font-medium rounded-lg transition-all border ${
                         isEpicHighlighted
                           ? "text-primary bg-orange-50 border-orange-200 shadow-sm"
                           : "text-gray-900 bg-gray-50 border-gray-200 hover:bg-white hover:shadow-sm"
@@ -645,8 +645,8 @@ function ExplorerPanel({
                             onOpenEpicEditor?.(epic.id);
                           });
                         }}
-                        className="truncate flex-1 text-left hover:text-primary transition-colors cursor-pointer"
-                        title="Focus in canvas"
+                        className="truncate flex-1 min-w-0 text-left hover:text-primary transition-colors cursor-pointer"
+                        title={epic.title}
                       >
                         {epic.title}
                       </span>
@@ -656,11 +656,11 @@ function ExplorerPanel({
                         </span>
                       )}
                     </div>
-                    {/* Quick Add Feature Button */}
+                    {/* Quick Add Feature Button - Absolutely positioned */}
                     <button
                       type="button"
                       onClick={() => openAddFeatureModal(epic.id)}
-                      className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center gap-1 px-2 py-2 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-primary hover:text-primary"
+                      className="absolute right-10 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center w-7 h-7 text-gray-700 bg-white border border-gray-200 rounded-md hover:bg-gray-50 hover:border-primary hover:text-primary shadow-sm"
                       title="Add feature to epic"
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -686,57 +686,57 @@ function ExplorerPanel({
                           (a, b) => a.position - b.position,
                         );
 
-                        return (
-                          <div key={feature.id}>
-                            {/* Feature */}
-                            <div className="group w-full flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-gray-700 hover:bg-white hover:shadow-sm rounded-md transition-all border border-transparent hover:border-gray-200">
-                              {tasks.length > 0 ? (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleFeature(feature.id);
+                          return (
+                            <div key={feature.id} className="min-w-0">
+                              {/* Feature */}
+                              <div className="group relative w-full min-w-0 flex items-center gap-1.5 px-2.5 py-1.5 pr-10 text-sm text-gray-700 hover:bg-white hover:shadow-sm rounded-md transition-all border border-transparent hover:border-gray-200">
+                                {tasks.length > 0 ? (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleFeature(feature.id);
+                                    }}
+                                    className="p-0.5 hover:bg-black/5 rounded cursor-pointer"
+                                  >
+                                    <ChevronRight
+                                      className={`w-3.5 h-3.5 text-gray-400 transition-transform ${
+                                        isFeatureExpanded ? "rotate-90" : ""
+                                      }`}
+                                    />
+                                  </button>
+                                ) : (
+                                  <div className="w-2 h-2 rounded-full bg-gray-300 ml-1 mr-0.5" />
+                                )}
+                                <span
+                                  onClick={() => {
+                                    onSelectFeature?.(epic.id, feature.id);
+                                    onNavigateToNode?.(feature.id);
                                   }}
-                                  className="p-0.5 hover:bg-black/5 rounded cursor-pointer"
+                                  onDoubleClick={() => {
+                                    runAfterNavigationDelay(() => {
+                                      onOpenFeatureEditor?.(epic.id, feature.id);
+                                    });
+                                  }}
+                                  className="truncate flex-1 min-w-0 text-left hover:text-primary transition-colors cursor-pointer"
+                                  title={feature.title}
                                 >
-                                  <ChevronRight
-                                    className={`w-3.5 h-3.5 text-gray-400 transition-transform ${
-                                      isFeatureExpanded ? "rotate-90" : ""
-                                    }`}
-                                  />
-                                </button>
-                              ) : (
-                                <div className="w-2 h-2 rounded-full bg-gray-300 ml-1 mr-0.5" />
-                              )}
-                              <span
-                                onClick={() => {
-                                  onSelectFeature?.(epic.id, feature.id);
-                                  onNavigateToNode?.(feature.id);
-                                }}
-                                onDoubleClick={() => {
-                                  runAfterNavigationDelay(() => {
-                                    onOpenFeatureEditor?.(epic.id, feature.id);
-                                  });
-                                }}
-                                className="truncate flex-1 text-left hover:text-primary transition-colors cursor-pointer"
-                                title="Focus in canvas"
-                              >
-                                {feature.title}
-                              </span>
-                              {tasks.length > 0 && (
-                                <span className="text-xs font-normal text-gray-500">
-                                  {tasks.length}
+                                  {feature.title}
                                 </span>
-                              )}
-                              {/* Quick Add Task Button */}
-                              <button
-                                type="button"
-                                onClick={() => openAddTaskPanel(feature.id)}
-                                className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center gap-1 px-1.5 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-md hover:bg-gray-50 hover:border-primary hover:text-primary"
-                                title="Add task to feature"
-                              >
-                                <Plus className="w-3 h-3" />
-                              </button>
-                            </div>
+                                {tasks.length > 0 && (
+                                  <span className="text-xs font-normal text-gray-500">
+                                    {tasks.length}
+                                  </span>
+                                )}
+                                {/* Quick Add Task Button - Absolutely positioned */}
+                                <button
+                                  type="button"
+                                  onClick={() => openAddTaskPanel(feature.id)}
+                                  className="absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center w-6 h-6 text-gray-700 bg-white border border-gray-200 rounded hover:bg-gray-50 hover:border-primary hover:text-primary shadow-sm"
+                                  title="Add task to feature"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </button>
+                              </div>
 
                             {/* Tasks */}
                             {isFeatureExpanded && tasks.length > 0 && (
