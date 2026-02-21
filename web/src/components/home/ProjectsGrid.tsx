@@ -1,7 +1,15 @@
-import { Calendar, Clock } from "lucide-react";
+import { Calendar, Clock, Loader2 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { projectService } from "@/services/project.service";
 
 export function ProjectsGrid() {
+
+  const { data: projects = [], isLoading } = useQuery({
+    queryKey: ["projects"],
+    queryFn: () => projectService.list(),
+  });
+
   return (
     <div data-tutorial="projects-grid">
       <div className="flex items-center justify-between mb-4">
@@ -19,52 +27,52 @@ export function ProjectsGrid() {
       </div>
 
       <div className="grid grid-cols-3 gap-6">
-        {/* Add New Project Card */}
-        {/* <div className="bg-white rounded-xl shadow-sm h-[385px] flex items-center justify-center hover:bg-gray-50 cursor-pointer transition-colors">
-          <Plus className="w-24 h-24 text-gray-300" strokeWidth={1.5} />
-        </div> */}
+        {isLoading ? (
+          <div className="col-span-2 flex items-center justify-center h-[385px]">
+            <Loader2 className="w-8 h-8 animate-spin text-[#ff9933]" />
+          </div>
+        ) : projects.length === 0 ? (
+          <div className="col-span-2 flex flex-col items-center justify-center h-[385px] bg-white rounded-xl shadow-sm text-center px-6">
+            <div className="w-16 h-16 bg-[#ff9933]/10 rounded-full flex items-center justify-center mb-4">
+              <Calendar className="w-8 h-8 text-[#ff9933]" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No projects yet</h3>
+            <p className="text-gray-500">Create your first project to get started tracking milestones and tasks.</p>
+          </div>
+        ) : (
+          projects.slice(0, 2).map((project, index) => {
+            // Map status to color
+            let statusColor = "#9c27b0"; // Default purple
+            let displayStatus = "In Progress";
+            
+            if (project.status === "completed") {
+              statusColor = "#03a9f4";
+              displayStatus = "Completed";
+            } else if (project.status === "active") {
+              statusColor = "#4caf50";
+              displayStatus = "On Track";
+            } else if (project.status === "draft") {
+              statusColor = "#f59e0b";
+              displayStatus = "Draft";
+            }
 
-        {/* Project Card 1 */}
-        <ProjectCard
-          number={1}
-          projectId="demo-project-1"
-          status="On Track"
-          statusColor="#4caf50"
-          title="Simple Website Build"
-          client="Acme Corp"
-          progress={30}
-          progressColor="#4caf50"
-          nextUp="Visual Design"
-          dueDate="Sept 3, 2025"
-        />
-
-        {/* Project Card 2 */}
-        <ProjectCard
-          number={2}
-          projectId="demo-project-2"
-          status="Completed"
-          statusColor="#03a9f4"
-          title="Simple Website Build"
-          client="Acme Corp"
-          progress={100}
-          progressColor="#03a9f4"
-          nextUp="All Work Items Completed"
-          dueDate={null}
-        />
-
-        {/* Project Card 3 */}
-        <ProjectCard
-          number={3}
-          projectId="demo-project-3"
-          status="Under Review"
-          statusColor="#9c27b0"
-          title="Simple Website Build"
-          client="Acme Corp"
-          progress={30}
-          progressColor="#9c27b0"
-          nextUp="Visual Design"
-          dueDate="Sept 3, 2025"
-        />
+            return (
+              <ProjectCard
+                key={project.id}
+                number={index + 1}
+                projectId={project.id}
+                status={displayStatus}
+                statusColor={statusColor}
+                title={project.title}
+                client="Unknown Client" // TODO: Fetch client details
+                progress={project.status === "completed" ? 100 : 0} // Default mock data
+                progressColor={statusColor}
+                nextUp={project.brief ? "Review Brief" : "Create Brief"} // Default mock data
+                dueDate={project.custom_start_date || project.start_date || null}
+              />
+            );
+          })
+        )}
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Map, ExternalLink, Loader2, AlertCircle } from "lucide-react";
 import { projectService, type Project } from "@/services/project.service";
+import { roadmapService } from "@/services/roadmap.service";
 
 export const Route = createFileRoute("/project/$projectId/roadmap")({
   component: RoadmapPage,
@@ -12,12 +13,27 @@ function RoadmapPage() {
   const navigate = useNavigate();
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [linkedRoadmapId, setLinkedRoadmapId] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const data = await projectService.get(projectId);
+        const [data, roadmaps] = await Promise.all([
+          projectService.get(projectId),
+          roadmapService.getAll(),
+        ]);
+
         setProject(data);
+
+        const projectRoadmapId = (
+          data as Project & { roadmap_id?: string | null }
+        ).roadmap_id;
+
+        const linkedByProject = roadmaps.find(
+          (roadmap) => roadmap.project_id === projectId,
+        );
+
+        setLinkedRoadmapId(projectRoadmapId ?? linkedByProject?.id ?? null);
       } catch {
         // silently handled
       } finally {
@@ -27,6 +43,16 @@ function RoadmapPage() {
     load();
   }, [projectId]);
 
+  useEffect(() => {
+    if (!linkedRoadmapId) return;
+
+    navigate({
+      to: "/project/roadmap/$roadmapId",
+      params: { roadmapId: linkedRoadmapId },
+      replace: true,
+    });
+  }, [linkedRoadmapId, navigate]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full min-h-[400px]">
@@ -35,16 +61,7 @@ function RoadmapPage() {
     );
   }
 
-  // Check if this project has a linked roadmap_id somewhere in its metadata
-  // (The project service currently doesn't expose roadmap_id but we handle both states)
-  const roadmapId = (project as any)?.roadmap_id as string | undefined;
-
-  if (roadmapId) {
-    // Auto-navigate to the full roadmap canvas
-    navigate({
-      to: "/project/roadmap/$roadmapId",
-      params: { roadmapId },
-    });
+  if (linkedRoadmapId) {
     return (
       <div className="flex items-center justify-center h-full min-h-[400px]">
         <Loader2 className="w-8 h-8 animate-spin text-[#ff9933]" />
