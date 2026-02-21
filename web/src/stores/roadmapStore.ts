@@ -16,7 +16,6 @@ import type {
   RoadmapFeature,
   RoadmapTask,
   RoadmapMilestone,
-  EpicPriority,
   FeatureStatus,
 } from "@/types/roadmap";
 
@@ -25,6 +24,16 @@ interface RoadmapState {
   roadmap: Roadmap | null;
   epics: RoadmapEpic[];
   milestones: RoadmapMilestone[];
+
+  // UI State - Canvas Navigation
+  focusNodeId: string | null;
+  focusNodeOffsetX: number;
+  navigateToEpicId: string | null;
+  navigateToFeature: { epicId: string; featureId: string } | null;
+  openEpicEditorId: string | null;
+  openFeatureEditor: { epicId: string; featureId: string } | null;
+  openTaskDetailId: string | null;
+  activeEpicId: string | null;
 
   // UI State - Modal Triggers
   addFeatureEpicId: string | null;
@@ -78,6 +87,19 @@ interface RoadmapActions {
   closeAddFeatureModal: () => void;
   openAddTaskPanel: (featureId: string) => void;
   closeAddTaskPanel: () => void;
+  navigateToNode: (nodeId: string, options?: { offsetX?: number }) => void;
+  clearNodeFocus: () => void;
+  navigateToEpicTab: (epicId: string) => void;
+  clearNavigateToEpicTab: () => void;
+  navigateToFeatureNode: (epicId: string, featureId: string) => void;
+  clearNavigateToFeatureNode: () => void;
+  openEpicEditor: (epicId: string) => void;
+  clearOpenEpicEditor: () => void;
+  openFeatureEditorModal: (epicId: string, featureId: string) => void;
+  clearOpenFeatureEditorModal: () => void;
+  openTaskDetail: (taskId: string) => void;
+  clearOpenTaskDetail: () => void;
+  setActiveEpicId: (epicId: string | null) => void;
 }
 
 type RoadmapStore = RoadmapState & RoadmapActions;
@@ -87,6 +109,14 @@ export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
   roadmap: null,
   epics: [],
   milestones: [],
+  focusNodeId: null,
+  focusNodeOffsetX: 0,
+  navigateToEpicId: null,
+  navigateToFeature: null,
+  openEpicEditorId: null,
+  openFeatureEditor: null,
+  openTaskDetailId: null,
+  activeEpicId: null,
   addFeatureEpicId: null,
   addTaskFeatureId: null,
   isLoadingRoadmap: false,
@@ -118,6 +148,14 @@ export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
       roadmap: null,
       epics: [],
       milestones: [],
+      focusNodeId: null,
+      focusNodeOffsetX: 0,
+      navigateToEpicId: null,
+      navigateToFeature: null,
+      openEpicEditorId: null,
+      openFeatureEditor: null,
+      openTaskDetailId: null,
+      activeEpicId: null,
       addFeatureEpicId: null,
       addTaskFeatureId: null,
     });
@@ -138,7 +176,7 @@ export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
   },
 
   // Epic CRUD
-  addEpic: async (milestoneId?: string, epicInput?: Partial<RoadmapEpic>) => {
+  addEpic: async (_milestoneId?: string, epicInput?: Partial<RoadmapEpic>) => {
     const { roadmap, epics } = get();
     if (!roadmap) return;
 
@@ -163,7 +201,9 @@ export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
       // Update local state with optimistic update
       if (newEpic.position < epics.length) {
         const updatedEpics = epics.map((e) =>
-          e.position >= newEpic.position ? { ...e, position: e.position + 1 } : e,
+          e.position >= newEpic.position
+            ? { ...e, position: e.position + 1 }
+            : e,
         );
         set({
           epics: [...updatedEpics, { ...newEpic, features: [] }],
@@ -292,7 +332,9 @@ export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
             ? {
                 ...epic,
                 features: (epic.features || []).map((f) =>
-                  f.id === updated.id ? { ...updated, tasks: f.tasks || [] } : f,
+                  f.id === updated.id
+                    ? { ...updated, tasks: f.tasks || [] }
+                    : f,
                 ),
               }
             : epic,
@@ -478,6 +520,64 @@ export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
 
   closeAddTaskPanel: () => {
     set({ addTaskFeatureId: null });
+  },
+
+  navigateToNode: (nodeId: string, options?: { offsetX?: number }) => {
+    set({
+      focusNodeId: nodeId,
+      focusNodeOffsetX: options?.offsetX ?? 0,
+    });
+  },
+
+  clearNodeFocus: () => {
+    set({
+      focusNodeId: null,
+      focusNodeOffsetX: 0,
+    });
+  },
+
+  navigateToEpicTab: (epicId: string) => {
+    set({ navigateToEpicId: epicId });
+  },
+
+  clearNavigateToEpicTab: () => {
+    set({ navigateToEpicId: null });
+  },
+
+  navigateToFeatureNode: (epicId: string, featureId: string) => {
+    set({ navigateToFeature: { epicId, featureId } });
+  },
+
+  clearNavigateToFeatureNode: () => {
+    set({ navigateToFeature: null });
+  },
+
+  openEpicEditor: (epicId: string) => {
+    set({ openEpicEditorId: epicId });
+  },
+
+  clearOpenEpicEditor: () => {
+    set({ openEpicEditorId: null });
+  },
+
+  openFeatureEditorModal: (epicId: string, featureId: string) => {
+    set({ openFeatureEditor: { epicId, featureId } });
+  },
+
+  clearOpenFeatureEditorModal: () => {
+    set({ openFeatureEditor: null });
+  },
+
+  openTaskDetail: (taskId: string) => {
+    set({ openTaskDetailId: taskId });
+  },
+
+  clearOpenTaskDetail: () => {
+    set({ openTaskDetailId: null });
+  },
+
+  setActiveEpicId: (epicId: string | null) => {
+    set({ activeEpicId: epicId });
   },
 }));
 

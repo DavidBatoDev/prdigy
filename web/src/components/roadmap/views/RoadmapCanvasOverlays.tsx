@@ -1,0 +1,297 @@
+import type { Dispatch, SetStateAction } from "react";
+import { SidePanel } from "../panels/SidePanel";
+import { AddEpicModal } from "../modals/AddEpicModal";
+import { AddFeatureModal } from "../modals/AddFeatureModal";
+import type {
+  RoadmapEpic,
+  RoadmapTask,
+  EpicPriority,
+  FeatureStatus,
+} from "@/types/roadmap";
+
+interface DeleteConfirm {
+  type: "epic" | "feature";
+  id: string;
+  label: string;
+}
+
+interface RoadmapCanvasOverlaysProps {
+  epics: RoadmapEpic[];
+  selectedTask: RoadmapTask | null;
+  sidePanelOpen: boolean;
+  selectedTaskId: string | null;
+  targetFeatureForTask: string | null;
+  closeAddTaskPanel: () => void;
+  setSidePanelOpen: Dispatch<SetStateAction<boolean>>;
+  setSelectedTaskId: Dispatch<SetStateAction<string | null>>;
+  setTargetFeatureForTask: Dispatch<SetStateAction<string | null>>;
+  setIsAddFeatureModalOpen: Dispatch<SetStateAction<boolean>>;
+  setTargetEpicForFeature: Dispatch<SetStateAction<string | null>>;
+  setIsEditFeatureModalOpen: Dispatch<SetStateAction<boolean>>;
+  setEditingFeatureId: Dispatch<SetStateAction<string | null>>;
+  setEditingFeatureEpicId: Dispatch<SetStateAction<string | null>>;
+  isTaskLoading: boolean;
+  isEpicLoading: boolean;
+  isFeatureLoading: boolean;
+  isAddEpicModalOpen: boolean;
+  isEditEpicModalOpen: boolean;
+  isAddFeatureModalOpen: boolean;
+  isEditFeatureModalOpen: boolean;
+  editingEpicId: string | null;
+  editingFeatureId: string | null;
+  editingFeatureEpicId: string | null;
+  targetEpicForFeature: string | null;
+  deleteConfirm: DeleteConfirm | null;
+  setDeleteConfirm: Dispatch<SetStateAction<DeleteConfirm | null>>;
+  setIsAddEpicModalOpen: Dispatch<SetStateAction<boolean>>;
+  setIsEditEpicModalOpen: Dispatch<SetStateAction<boolean>>;
+  setEditingEpicId: Dispatch<SetStateAction<string | null>>;
+  handleTaskUpdate: (task: RoadmapTask) => Promise<void>;
+  handleTaskDelete: (taskId: string) => Promise<void>;
+  handleTaskCreate: (taskData: Partial<RoadmapTask>) => Promise<void>;
+  handleCreateEpic: (data: {
+    title: string;
+    description: string;
+    priority: EpicPriority;
+    tags: string[];
+  }) => Promise<void>;
+  handleUpdateEpicFromModal: (data: {
+    title: string;
+    description: string;
+    priority: EpicPriority;
+    tags: string[];
+  }) => Promise<void>;
+  handleCreateFeature: (data: {
+    title: string;
+    description: string;
+    status: FeatureStatus;
+    is_deliverable: boolean;
+  }) => Promise<void>;
+  handleUpdateFeatureFromModal: (data: {
+    title: string;
+    description: string;
+    status: FeatureStatus;
+    is_deliverable: boolean;
+  }) => Promise<void>;
+  handleOpenEditFeatureModal: (epicId: string, featureId: string) => void;
+  handleConfirmDelete: () => void;
+}
+
+export function RoadmapCanvasOverlays({
+  epics,
+  selectedTask,
+  sidePanelOpen,
+  selectedTaskId,
+  targetFeatureForTask,
+  closeAddTaskPanel,
+  setSidePanelOpen,
+  setSelectedTaskId,
+  setTargetFeatureForTask,
+  setIsAddFeatureModalOpen,
+  setTargetEpicForFeature,
+  setIsEditFeatureModalOpen,
+  setEditingFeatureId,
+  setEditingFeatureEpicId,
+  isTaskLoading,
+  isEpicLoading,
+  isFeatureLoading,
+  isAddEpicModalOpen,
+  isEditEpicModalOpen,
+  isAddFeatureModalOpen,
+  isEditFeatureModalOpen,
+  editingEpicId,
+  editingFeatureId,
+  editingFeatureEpicId,
+  targetEpicForFeature,
+  deleteConfirm,
+  setDeleteConfirm,
+  setIsAddEpicModalOpen,
+  setIsEditEpicModalOpen,
+  setEditingEpicId,
+  handleTaskUpdate,
+  handleTaskDelete,
+  handleTaskCreate,
+  handleCreateEpic,
+  handleUpdateEpicFromModal,
+  handleCreateFeature,
+  handleUpdateFeatureFromModal,
+  handleOpenEditFeatureModal,
+  handleConfirmDelete,
+}: RoadmapCanvasOverlaysProps) {
+  return (
+    <>
+      <SidePanel
+        task={selectedTask || null}
+        isOpen={sidePanelOpen}
+        isCreating={!selectedTaskId && targetFeatureForTask !== null}
+        onClose={() => {
+          setSidePanelOpen(false);
+          setSelectedTaskId(null);
+          setTargetFeatureForTask(null);
+          closeAddTaskPanel();
+        }}
+        onUpdateTask={handleTaskUpdate}
+        onDeleteTask={handleTaskDelete}
+        onCreateTask={handleTaskCreate}
+        isLoading={isTaskLoading}
+      />
+
+      <AddEpicModal
+        isOpen={isAddEpicModalOpen}
+        onClose={() => setIsAddEpicModalOpen(false)}
+        onSubmit={handleCreateEpic}
+        isLoading={isEpicLoading}
+      />
+
+      <AddEpicModal
+        isOpen={isEditEpicModalOpen}
+        onClose={() => {
+          setIsEditEpicModalOpen(false);
+          setEditingEpicId(null);
+        }}
+        onSubmit={handleUpdateEpicFromModal}
+        onAddFeature={
+          editingEpicId
+            ? () => {
+                setTargetEpicForFeature(editingEpicId);
+                setIsAddFeatureModalOpen(true);
+              }
+            : undefined
+        }
+        onSelectFeature={
+          editingEpicId
+            ? (feature) => {
+                if (feature.id) {
+                  handleOpenEditFeatureModal(editingEpicId, feature.id);
+                }
+              }
+            : undefined
+        }
+        onAddTask={
+          editingEpicId
+            ? (featureId) => {
+                setTargetFeatureForTask(featureId);
+                setSelectedTaskId(null);
+                setSidePanelOpen(true);
+              }
+            : undefined
+        }
+        onUpdateTask={handleTaskUpdate}
+        onDeleteTask={handleTaskDelete}
+        onSelectTask={(task) => {
+          setSelectedTaskId(task.id);
+          setTargetFeatureForTask(null);
+          setSidePanelOpen(true);
+        }}
+        initialData={
+          editingEpicId
+            ? {
+                title: epics.find((epic) => epic.id === editingEpicId)?.title,
+                description: epics.find((epic) => epic.id === editingEpicId)
+                  ?.description,
+                priority: epics.find((epic) => epic.id === editingEpicId)
+                  ?.priority,
+                tags: epics.find((epic) => epic.id === editingEpicId)?.tags,
+                labels: epics.find((epic) => epic.id === editingEpicId)?.labels,
+                features: epics.find((epic) => epic.id === editingEpicId)
+                  ?.features,
+              }
+            : undefined
+        }
+        titleText="Edit Epic"
+        submitLabel="Save Changes"
+        isLoading={isEpicLoading}
+      />
+
+      <AddFeatureModal
+        isOpen={isAddFeatureModalOpen}
+        epicTitle={
+          targetEpicForFeature
+            ? epics.find((epic) => epic.id === targetEpicForFeature)?.title
+            : undefined
+        }
+        onClose={() => {
+          setIsAddFeatureModalOpen(false);
+          setTargetEpicForFeature(null);
+        }}
+        onSubmit={handleCreateFeature}
+        isLoading={isFeatureLoading}
+      />
+
+      <AddFeatureModal
+        isOpen={isEditFeatureModalOpen}
+        epicTitle={
+          editingFeatureEpicId
+            ? epics.find((epic) => epic.id === editingFeatureEpicId)?.title
+            : undefined
+        }
+        initialData={
+          editingFeatureId && editingFeatureEpicId
+            ? epics
+                .find((epic) => epic.id === editingFeatureEpicId)
+                ?.features?.find((feature) => feature.id === editingFeatureId)
+            : undefined
+        }
+        titleText="Edit Feature"
+        submitLabel="Save Changes"
+        onClose={() => {
+          setIsEditFeatureModalOpen(false);
+          setEditingFeatureId(null);
+          setEditingFeatureEpicId(null);
+        }}
+        onAddTask={
+          editingFeatureId
+            ? (featureId) => {
+                setTargetFeatureForTask(featureId);
+                setSelectedTaskId(null);
+                setSidePanelOpen(true);
+              }
+            : undefined
+        }
+        onUpdateTask={handleTaskUpdate}
+        onDeleteTask={handleTaskDelete}
+        onSelectTask={(task) => {
+          setSelectedTaskId(task.id);
+          setTargetFeatureForTask(null);
+          setSidePanelOpen(true);
+        }}
+        onSubmit={handleUpdateFeatureFromModal}
+        isLoading={isFeatureLoading}
+      />
+
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setDeleteConfirm(null)}
+          />
+          <div className="relative z-10 w-full max-w-md mx-4 rounded-xl bg-white shadow-2xl p-6">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Delete {deleteConfirm.type === "epic" ? "Epic" : "Feature"}?
+            </h3>
+            <p className="text-sm text-gray-600 mt-2">
+              This will permanently remove {deleteConfirm.label} and cannot be
+              undone.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirm(null)}
+                className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 text-sm rounded-md bg-red-600 text-white hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
