@@ -15,7 +15,6 @@ import {
 import { ChatPanel } from "./ChatPanel";
 import type { Message } from "./ChatPanel";
 import { useEpics, useRoadmapStore } from "@/stores/roadmapStore";
-import { ProjectSidebar } from "@/components/project/ProjectSidebar";
 
 export type { Message } from "./ChatPanel";
 
@@ -55,17 +54,9 @@ export function LeftSidePanel({
   const [activeTab, setActiveTab] = useState<"assistant" | "explorer">(
     "explorer",
   );
-  const { roadmap } = useRoadmapStore();
 
   return (
     <div className="h-full w-full flex bg-white">
-      {/* Left Sidenav - Always visible */}
-      <ProjectSidebar
-        project={null}
-        projectId={roadmap?.project_id || roadmap?.id || ""}
-        hasProject={!!roadmap?.project_id}
-      />
-
       {/* Main Content Area - Hidden when collapsed */}
       {!isCollapsed && (
         <div className="flex-1 min-w-0 flex flex-col overflow-hidden">

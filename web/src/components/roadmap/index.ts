@@ -7,6 +7,7 @@ export { TaskListItem } from "./widgets/TaskListItem";
 // View components
 export { RoadmapCanvas } from "./views/RoadmapCanvas";
 export { RoadmapView } from "./views/RoadmapView";
+export { RoadmapViewContent } from "./views/RoadmapViewContent";
 export { EpicTab } from "./views/EpicTab";
 export { MilestonesView } from "./views/MilestonesView";
 

@@ -16,12 +16,18 @@ import Header from "@/components/layout/Header";
 import Logo from "/prodigylogos/light/logovector.svg";
 
 export const Route = createFileRoute("/project/roadmap/")({
+  validateSearch: (search: Record<string, unknown>): { projectId?: string } => {
+    return {
+      projectId: search.projectId as string | undefined,
+    };
+  },
   component: RoadmapBuilderPage,
 });
 
 function RoadmapBuilderPage() {
   // Navigation
   const navigate = useNavigate();
+  const { projectId } = Route.useSearch();
 
   // Auth state
   const authenticatedUser = useUser();
@@ -94,6 +100,7 @@ function RoadmapBuilderPage() {
       const roadmap = await roadmapService.create({
         name: formData.title || "Untitled Roadmap",
         description: formData.description,
+        project_id: projectId || undefined,
         status: "draft",
         settings: {
           category: formData.category,

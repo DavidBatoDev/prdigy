@@ -1,8 +1,11 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Map, ExternalLink, Loader2, AlertCircle } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Map, ExternalLink, Loader2 } from "lucide-react";
 import { projectService, type Project } from "@/services/project.service";
 import { roadmapService } from "@/services/roadmap.service";
+import { RoadmapViewContent } from "@/components/roadmap";
+import { LinkRoadmapModal } from "@/components/roadmap/modals/LinkRoadmapModal";
 
 export const Route = createFileRoute("/project/$projectId/roadmap")({
   component: RoadmapPage,
@@ -10,10 +13,9 @@ export const Route = createFileRoute("/project/$projectId/roadmap")({
 
 function RoadmapPage() {
   const { projectId } = Route.useParams();
-  const navigate = useNavigate();
-  const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [linkedRoadmapId, setLinkedRoadmapId] = useState<string | null>(null);
+  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -22,8 +24,6 @@ function RoadmapPage() {
           projectService.get(projectId),
           roadmapService.getAll(),
         ]);
-
-        setProject(data);
 
         const projectRoadmapId = (
           data as Project & { roadmap_id?: string | null }
@@ -43,16 +43,6 @@ function RoadmapPage() {
     load();
   }, [projectId]);
 
-  useEffect(() => {
-    if (!linkedRoadmapId) return;
-
-    navigate({
-      to: "/project/roadmap/$roadmapId",
-      params: { roadmapId: linkedRoadmapId },
-      replace: true,
-    });
-  }, [linkedRoadmapId, navigate]);
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full min-h-[400px]">
@@ -62,11 +52,7 @@ function RoadmapPage() {
   }
 
   if (linkedRoadmapId) {
-    return (
-      <div className="flex items-center justify-center h-full min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-[#ff9933]" />
-      </div>
-    );
+    return <RoadmapViewContent roadmapId={linkedRoadmapId} />;
   }
 
   return (
@@ -95,19 +81,33 @@ function RoadmapPage() {
           planning milestones, epics, and features.
         </p>
         <div className="flex items-center justify-center gap-3">
-          <a
-            href="/project/roadmap"
+          <Link
+            to="/project/roadmap"
+            search={{ projectId }}
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#ff9933] text-white rounded-lg text-sm font-semibold hover:bg-[#e68829] transition-colors"
           >
             <ExternalLink className="w-4 h-4" />
             Create a Roadmap
-          </a>
-        </div>
-        <div className="mt-6 flex items-center justify-center gap-1.5 text-xs text-gray-400">
-          <AlertCircle className="w-3.5 h-3.5" />
-          Linking an existing roadmap to a project is coming soon.
+          </Link>
+          <button
+            onClick={() => setIsLinkModalOpen(true)}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-50 transition-colors"
+          >
+            Link Existing Roadmap
+          </button>
         </div>
       </div>
+
+      <LinkRoadmapModal
+        isOpen={isLinkModalOpen}
+        onClose={() => setIsLinkModalOpen(false)}
+        projectId={projectId}
+        onLinked={() => {
+          setIsLinkModalOpen(false);
+          // Reload the page logic or trigger re-fetch
+          window.location.reload();
+        }}
+      />
     </div>
   );
 }
