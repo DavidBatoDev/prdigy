@@ -1,4 +1,5 @@
 import { Calendar, Clock } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 
 export function ProjectsGrid() {
   return (
@@ -26,6 +27,7 @@ export function ProjectsGrid() {
         {/* Project Card 1 */}
         <ProjectCard
           number={1}
+          projectId="demo-project-1"
           status="On Track"
           statusColor="#4caf50"
           title="Simple Website Build"
@@ -39,6 +41,7 @@ export function ProjectsGrid() {
         {/* Project Card 2 */}
         <ProjectCard
           number={2}
+          projectId="demo-project-2"
           status="Completed"
           statusColor="#03a9f4"
           title="Simple Website Build"
@@ -52,6 +55,7 @@ export function ProjectsGrid() {
         {/* Project Card 3 */}
         <ProjectCard
           number={3}
+          projectId="demo-project-3"
           status="Under Review"
           statusColor="#9c27b0"
           title="Simple Website Build"
@@ -68,6 +72,7 @@ export function ProjectsGrid() {
 
 function ProjectCard({
   number,
+  projectId,
   status,
   statusColor,
   title,
@@ -78,6 +83,7 @@ function ProjectCard({
   dueDate,
 }: {
   number: number;
+  projectId: string;
   status: string;
   statusColor: string;
   title: string;
@@ -165,9 +171,13 @@ function ProjectCard({
               +3
             </div>
           </div>
-          <button className="text-[14px] font-semibold text-[#333438] hover:text-[#ff9933] uppercase">
+          <Link
+            to="/project/$projectId/overview"
+            params={{ projectId }}
+            className="text-[14px] font-semibold text-[#333438] hover:text-[#ff9933] uppercase transition-colors"
+          >
             View Project →
-          </button>
+          </Link>
         </div>
       </div>
     </div>

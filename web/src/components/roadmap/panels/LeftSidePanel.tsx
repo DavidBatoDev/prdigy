@@ -1,10 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "@tanstack/react-router";
 import {
-  Home,
-  Map,
-  CheckSquare,
-  Settings,
   List,
   ChevronRight,
   FolderOpen,
@@ -20,6 +15,7 @@ import {
 import { ChatPanel } from "./ChatPanel";
 import type { Message } from "./ChatPanel";
 import { useEpics, useRoadmapStore } from "@/stores/roadmapStore";
+import { ProjectSidebar } from "@/components/project/ProjectSidebar";
 
 export type { Message } from "./ChatPanel";
 
@@ -38,8 +34,6 @@ interface LeftSidePanelProps {
   onNavigateToEpicTab?: (epicId: string) => void;
   highlightedEpicId?: string | null;
 }
-
-type NavItem = "home" | "roadmap" | "tasks" | "settings";
 
 const TASK_NAVIGATE_OFFSET_X = 620;
 
@@ -61,45 +55,16 @@ export function LeftSidePanel({
   const [activeTab, setActiveTab] = useState<"assistant" | "explorer">(
     "explorer",
   );
-  const [activeNav, setActiveNav] = useState<NavItem>("roadmap");
-  const navigate = useNavigate();
-
-  const navItems = [
-    { id: "home" as NavItem, icon: Home, label: "Home" },
-    { id: "roadmap" as NavItem, icon: Map, label: "Roadmap" },
-    { id: "tasks" as NavItem, icon: CheckSquare, label: "Tasks" },
-    { id: "settings" as NavItem, icon: Settings, label: "Settings" },
-  ];
+  const { roadmap } = useRoadmapStore();
 
   return (
     <div className="h-full w-full flex bg-white">
       {/* Left Sidenav - Always visible */}
-      <div className="w-14 border-r border-gray-200 bg-gray-50 flex flex-col items-center py-4 gap-2">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeNav === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => {
-                if (item.id === "home") {
-                  navigate({ to: "/" });
-                } else {
-                  setActiveNav(item.id);
-                }
-              }}
-              className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
-                isActive
-                  ? "bg-primary text-white shadow-sm"
-                  : "text-gray-600 hover:bg-gray-200 hover:text-gray-900"
-              }`}
-              title={item.label}
-            >
-              <Icon className="w-5 h-5" />
-            </button>
-          );
-        })}
-      </div>
+      <ProjectSidebar
+        project={null}
+        projectId={roadmap?.project_id || roadmap?.id || ""}
+        hasProject={!!roadmap?.project_id}
+      />
 
       {/* Main Content Area - Hidden when collapsed */}
       {!isCollapsed && (

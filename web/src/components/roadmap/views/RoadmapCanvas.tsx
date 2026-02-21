@@ -22,10 +22,11 @@ import type {
   RoadmapMilestone,
   RoadmapEpic,
   RoadmapFeature,
-  RoadmapTask,
+  RoadmapTask,   
   EpicPriority,
   FeatureStatus,
 } from "@/types/roadmap";
+import { useRoadmapStore } from "@/stores/roadmapStore";
 import { RoadmapView } from "./RoadmapView";
 import { EpicTab } from "./EpicTab";
 import { MilestonesView } from "./MilestonesView";
@@ -204,6 +205,13 @@ const RoadmapCanvas = ({
   const [targetEpicForFeature, setTargetEpicForFeature] = useState<
     string | null
   >(null);
+
+  const addFeatureEpicId = useRoadmapStore((state) => state.addFeatureEpicId);
+  const addTaskFeatureId = useRoadmapStore((state) => state.addTaskFeatureId);
+  const closeAddFeatureModal = useRoadmapStore(
+    (state) => state.closeAddFeatureModal,
+  );
+  const closeAddTaskPanel = useRoadmapStore((state) => state.closeAddTaskPanel);
   const [isEditFeatureModalOpen, setIsEditFeatureModalOpen] = useState(false);
   const [editingFeatureId, setEditingFeatureId] = useState<string | null>(null);
   const [editingFeatureEpicId, setEditingFeatureEpicId] = useState<
@@ -454,6 +462,27 @@ const RoadmapCanvas = ({
     }
     onOpenTaskDetailHandled?.();
   }, [epics, onOpenTaskDetailHandled, openTaskDetailId]);
+
+  useEffect(() => {
+    if (!addFeatureEpicId) {
+      return;
+    }
+
+    setTargetEpicForFeature(addFeatureEpicId);
+    setIsAddFeatureModalOpen(true);
+    closeAddFeatureModal();
+  }, [addFeatureEpicId, closeAddFeatureModal]);
+
+  useEffect(() => {
+    if (!addTaskFeatureId) {
+      return;
+    }
+
+    setTargetFeatureForTask(addTaskFeatureId);
+    setSelectedTaskId(null);
+    setSidePanelOpen(true);
+    closeAddTaskPanel();
+  }, [addTaskFeatureId, closeAddTaskPanel]);
 
   const handleUpdateFeatureFromModal = async (data: {
     title: string;
@@ -817,6 +846,7 @@ const RoadmapCanvas = ({
             setSidePanelOpen(false);
             setSelectedTaskId(null);
             setTargetFeatureForTask(null);
+            closeAddTaskPanel();
           }}
           onUpdateTask={handleTaskUpdate}
           onDeleteTask={handleTaskDelete}
@@ -902,6 +932,7 @@ const RoadmapCanvas = ({
           onClose={() => {
             setIsAddFeatureModalOpen(false);
             setTargetEpicForFeature(null);
+            closeAddFeatureModal();
           }}
           onSubmit={handleCreateFeature}
           isLoading={isFeatureLoading}
