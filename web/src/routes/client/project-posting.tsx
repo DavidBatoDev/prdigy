@@ -12,13 +12,17 @@ import {
   StepIndicator,
   type FormData as BaseFormData,
 } from "@/components/project-brief";
+import { LinkRoadmapModal } from "@/components/roadmap/modals/LinkRoadmapModal";
 
 export const Route = createFileRoute("/client/project-posting")({
   component: ProjectPostingPage,
   validateSearch: (search: Record<string, unknown>) => {
     return {
       roadmapId: (search.roadmapId as string) || undefined,
-      fromRoadmap: search.fromRoadmap === "true" || search.fromRoadmap === true,
+      fromRoadmap:
+        search.fromRoadmap === "true" || search.fromRoadmap === true
+          ? true
+          : undefined,
     };
   },
 });
@@ -38,6 +42,9 @@ function ProjectPostingPage() {
   const searchParams = Route.useSearch();
   const [currentStep, setCurrentStep] = useState(1);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showLinkOptionDialog, setShowLinkOptionDialog] = useState(false);
+  const [showLinkRoadmapModal, setShowLinkRoadmapModal] = useState(false);
+  const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
   const [isCreatingRoadmap, setIsCreatingRoadmap] = useState(false);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [referencedRoadmap, setReferencedRoadmap] = useState<Roadmap | null>(null);
@@ -183,8 +190,33 @@ function ProjectPostingPage() {
         setIsCreatingProject(false);
       }
     } else {
-      // Show success modal with options for normal flow
-      setShowSuccessModal(true);
+      // Normal flow - create project first before showing success modal
+      setIsCreatingProject(true);
+      try {
+        const project = await projectService.create({
+          title: formData.title || "Untitled Project",
+          description: formData.description,
+          category: formData.category,
+          project_state: formData.projectState,
+          skills: [...formData.skills, ...formData.customSkills],
+          duration: formData.duration,
+          budget_range: formData.budgetRange,
+          funding_status: formData.fundingStatus,
+          start_date: formData.startDate,
+          custom_start_date: formData.customStartDate || undefined,
+          status: "bidding",
+        });
+        
+        console.log("Project created:", project);
+        setCreatedProjectId(project.id);
+        
+        // Show success modal with options for normal flow
+        setShowSuccessModal(true);
+      } catch (error) {
+        console.error("Failed to create project:", error);
+      } finally {
+        setIsCreatingProject(false);
+      }
     }
   };
 
@@ -192,7 +224,7 @@ function ProjectPostingPage() {
     setIsCreatingRoadmap(true);
     try {
       // Create roadmap with all form data including Step 3 budget/timeline
-      const roadmap = await roadmapService.create({
+      const roadmapData: any = {
         name: formData.title || "Untitled Project",
         description: formData.description,
         status: "draft",
@@ -207,7 +239,13 @@ function ProjectPostingPage() {
           startDate: formData.startDate,
           customStartDate: formData.customStartDate,
         },
-      });
+      };
+
+      if (createdProjectId) {
+        roadmapData.project_id = createdProjectId;
+      }
+
+      const roadmap = await roadmapService.create(roadmapData);
 
       console.log("Roadmap created from project posting:", roadmap);
 
@@ -518,9 +556,9 @@ function ProjectPostingPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Generate Roadmap Option */}
+                {/* Generate or Link Roadmap Option */}
                 <button
-                  onClick={handleGenerateRoadmap}
+                  onClick={() => setShowLinkOptionDialog(true)}
                   disabled={isCreatingRoadmap}
                   className="group relative p-6 bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-orange-200 rounded-xl hover:border-orange-400 hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -533,10 +571,10 @@ function ProjectPostingPage() {
                       )}
                     </div>
                     <h3 className="font-bold text-gray-900 mb-2">
-                      Generate Roadmap
+                      Create or Link Roadmap
                     </h3>
                     <p className="text-sm text-gray-600">
-                      Create an AI-powered project roadmap with timelines and milestones
+                      Create a new roadmap or link to an existing unlinked roadmap
                     </p>
                   </div>
                 </button>
@@ -573,6 +611,84 @@ function ProjectPostingPage() {
           </motion.div>
         )}
       </AnimatePresence>
+      
+      {/* Link or Create Option Dialog */}
+      <AnimatePresence>
+        {showLinkOptionDialog && (
+          <motion.div
+            className="fixed inset-0 z-[10000] flex items-center justify-center p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowLinkOptionDialog(false)}
+            />
+            <motion.div
+              className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-8"
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+            >
+              <div className="text-center mb-6">
+                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Roadmap Option</h2>
+                 <p className="text-gray-600">Would you like to link an existing roadmap or create a new one?</p>
+              </div>
+              <div className="space-y-3">
+                 <button
+                   onClick={() => {
+                     setShowLinkOptionDialog(false);
+                     setShowLinkRoadmapModal(true);
+                   }}
+                   className="w-full p-4 border-2 border-orange-200 bg-orange-50 rounded-xl hover:border-orange-400 hover:shadow-md transition-all font-semibold text-gray-800"
+                 >
+                   🔗 Link Existing Roadmap
+                 </button>
+                 <button
+                   onClick={() => {
+                     setShowLinkOptionDialog(false);
+                     handleGenerateRoadmap();
+                   }}
+                   disabled={isCreatingRoadmap}
+                   className="w-full p-4 border-2 border-gray-200 bg-white rounded-xl hover:border-gray-400 hover:shadow-md transition-all font-semibold text-gray-800 disabled:opacity-50"
+                 >
+                   {isCreatingRoadmap ? (
+                      <span className="flex justify-center items-center gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Creating...
+                      </span>
+                   ) : (
+                     "✨ Create New Roadmap"
+                   )}
+                 </button>
+              </div>
+              <button
+                onClick={() => setShowLinkOptionDialog(false)}
+                className="mt-6 w-full px-4 py-2 text-gray-500 hover:text-gray-800 transition-colors text-sm"
+              >
+                Cancel
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <LinkRoadmapModal
+        isOpen={showLinkRoadmapModal}
+        onClose={() => setShowLinkRoadmapModal(false)}
+        projectId={createdProjectId || ""}
+        onLinked={() => {
+           setShowLinkRoadmapModal(false);
+           setShowSuccessModal(false);
+           alert("Roadmap linked successfully!");
+           // Optional: You could redirect somewhere else or fetch data again
+        }}
+      />
 
       {/* Loading Modal for Pre-populating */}
       <AnimatePresence>

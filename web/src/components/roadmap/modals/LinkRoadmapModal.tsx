@@ -21,6 +21,7 @@ export function LinkRoadmapModal({
   const [isLoading, setIsLoading] = useState(false);
   const [isLinking, setIsLinking] = useState(false);
   const [selectedRoadmapId, setSelectedRoadmapId] = useState<string | null>(null);
+  const [showConfirmInfo, setShowConfirmInfo] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -40,6 +41,7 @@ export function LinkRoadmapModal({
       loadRoadmaps();
     } else {
       setSelectedRoadmapId(null);
+      setShowConfirmInfo(false);
     }
   }, [isOpen]);
 
@@ -54,11 +56,13 @@ export function LinkRoadmapModal({
       console.error("Failed to link roadmap:", error);
     } finally {
       setIsLinking(false);
+      setShowConfirmInfo(false);
     }
   };
 
   return (
-    <AnimatePresence>
+    <>
+      <AnimatePresence>
       {isOpen && (
         <motion.div
           className="fixed inset-0 z-9999 flex items-center justify-center p-4"
@@ -144,7 +148,7 @@ export function LinkRoadmapModal({
                 Cancel
               </button>
               <button
-                 onClick={handleLink}
+                 onClick={() => setShowConfirmInfo(true)}
                  disabled={!selectedRoadmapId || isLinking}
                  className="flex items-center justify-center gap-2 px-6 py-2.5 bg-[#ff9933] text-white rounded-lg font-semibold hover:bg-[#e68829] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -161,6 +165,58 @@ export function LinkRoadmapModal({
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+      </AnimatePresence>
+
+      <AnimatePresence>
+      {showConfirmInfo && (
+        <motion.div
+           className="fixed inset-0 z-[10001] flex items-center justify-center p-4"
+           initial={{ opacity: 0 }}
+           animate={{ opacity: 1 }}
+           exit={{ opacity: 0 }}
+        >
+          <motion.div
+             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+             initial={{ opacity: 0 }}
+             animate={{ opacity: 1 }}
+             exit={{ opacity: 0 }}
+             onClick={() => setShowConfirmInfo(false)}
+          />
+
+          <motion.div
+             className="relative bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center"
+             initial={{ opacity: 0, scale: 0.9, y: 20 }}
+             animate={{ opacity: 1, scale: 1, y: 0 }}
+             exit={{ opacity: 0, scale: 0.9, y: 20 }}
+             transition={{ duration: 0.3, ease: "easeOut" }}
+          >
+            <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Map className="w-6 h-6 text-[#ff9933]" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Confirm Link</h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to link this roadmap to the project? This action cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowConfirmInfo(false)}
+                className="flex-1 px-4 py-2 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg font-semibold transition-colors"
+                disabled={isLinking}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLink}
+                className="flex-1 px-4 py-2 bg-[#ff9933] text-white rounded-lg font-semibold hover:bg-[#e68829] transition-all"
+                disabled={isLinking}
+              >
+                 {isLinking ? <Loader2 className="w-5 h-5 mx-auto animate-spin" /> : "Confirm"}
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+      </AnimatePresence>
+    </>
   );
 }
