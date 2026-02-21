@@ -15,6 +15,7 @@ import { ProjectHeader } from "@/components/project/ProjectHeader";
 import { callGeminiAPI } from "@/lib/gemini";
 import { useUser } from "@/stores/authStore";
 import { useRoadmapStore } from "@/stores/roadmapStore";
+import { useProjectSettingsStore } from "@/stores/projectSettingsStore";
 import { getOrCreateGuestUser } from "@/lib/guestAuth";
 import { Link } from "@tanstack/react-router";
 
@@ -52,6 +53,18 @@ function RoadmapViewPage() {
   );
   const openTaskDetail = useRoadmapStore((state) => state.openTaskDetail);
   const [roadmapError, setRoadmapError] = useState<string | null>(null);
+
+  const isProjectSidebarExpanded = useProjectSettingsStore(
+    (state) => state.isSidebarExpanded,
+  );
+  const setSidebarExpanded = useProjectSettingsStore(
+    (state) => state.setSidebarExpanded,
+  );
+
+  // Auto-close project sidebar when entering roadmap canvas
+  useEffect(() => {
+    setSidebarExpanded(false);
+  }, [setSidebarExpanded]);
 
   // Initialize user (authenticated or guest)
   useEffect(() => {
@@ -369,9 +382,11 @@ function RoadmapViewPage() {
         <motion.div
           id="roadmap-left-panel"
           className="relative h-full border-r border-gray-200 bg-white"
-          initial={{ width: "30%" }}
-          animate={{ width: isSidebarOpen ? "30%" : "56px" }}
-          transition={{ duration: 0.25, ease: "easeInOut" }}
+          initial={false}
+          animate={{ 
+            width: (isProjectSidebarExpanded ? 256 : 56) + (isSidebarOpen ? 320 : 0) 
+          }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
           style={{ minWidth: 56 }}
         >
           <LeftSidePanel

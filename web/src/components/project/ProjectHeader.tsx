@@ -1,6 +1,5 @@
-import { Briefcase, Settings } from "lucide-react";
+import { Briefcase, Settings, Home, Share2, Download } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { Home } from "lucide-react";
 
 type ViewingRole = "CLIENT" | "CONSULTANT" | "OWNER" | "VIEWER" | string;
 
@@ -12,7 +11,7 @@ const roleBadgeColor: Record<string, string> = {
 };
 
 interface ProjectHeaderProps {
-  title: string;
+  title?: string;
   /** Optional metadata shown as a subtitle row */
   projectId?: string;
   clientName?: string;
@@ -26,6 +25,8 @@ interface ProjectHeaderProps {
   onMakeProject?: () => void;
   onEditBrief?: () => void;
   onSettings?: () => void;
+  onShare?: () => void;
+  onExport?: () => void;
 }
 
 export function ProjectHeader({
@@ -40,6 +41,8 @@ export function ProjectHeader({
   onMakeProject,
   onEditBrief,
   onSettings,
+  onShare,
+  onExport,
 }: ProjectHeaderProps) {
   const hasSubtitle = projectId || clientName || consultantName;
   const badgeClass =
@@ -47,7 +50,7 @@ export function ProjectHeader({
     roleBadgeColor["VIEWER"];
 
   return (
-    <div className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0">
+    <div className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0 z-10">
       {/* Left: Home + title + subtitle */}
       <div className="flex flex-row items-center gap-3 min-w-0">
         <Link
@@ -113,6 +116,28 @@ export function ProjectHeader({
           >
             <Settings className="w-4 h-4" />
             Project Brief
+          </button>
+        )}
+
+        {onShare && (
+          <button
+            onClick={onShare}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors border border-gray-300"
+            title="Share"
+          >
+            <Share2 className="w-4 h-4" />
+            Share
+          </button>
+        )}
+
+        {onExport && (
+          <button
+            onClick={onExport}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors"
+            title="Export"
+          >
+            <Download className="w-4 h-4" />
+            Export
           </button>
         )}
 

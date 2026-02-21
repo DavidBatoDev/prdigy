@@ -8,6 +8,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { projectService, type Project } from "@/services/project.service";
 import { ProjectSidebar } from "@/components/project/ProjectSidebar";
 import { ProjectHeader } from "@/components/project/ProjectHeader";
+import { useProjectSettingsStore } from "@/stores/projectSettingsStore";
 import { Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/project/$projectId")({
@@ -24,6 +25,14 @@ function ProjectLayout() {
   const { projectId } = Route.useParams();
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const setSidebarExpanded = useProjectSettingsStore(
+    (state) => state.setSidebarExpanded,
+  );
+
+  // Auto-open project sidebar when navigating to project pages (non-roadmap)
+  useEffect(() => {
+    setSidebarExpanded(true);
+  }, [setSidebarExpanded]);
 
   useEffect(() => {
     const loadProject = async () => {
