@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, LogIn, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
@@ -12,10 +12,8 @@ import {
   type FormData,
 } from "@/components/roadmap";
 import { callGeminiAPI } from "@/lib/gemini";
-import { useUser } from "@/stores/authStore";
 import { useRoadmapStore } from "@/stores/roadmapStore";
 import { useProjectSettingsStore } from "@/stores/projectSettingsStore";
-import { getOrCreateGuestUser } from "@/lib/guestAuth";
 
 interface RoadmapViewContentProps {
   roadmapId: string;
@@ -23,11 +21,6 @@ interface RoadmapViewContentProps {
 
 export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
   const navigate = useNavigate();
-
-  // Auth state
-  const authenticatedUser = useUser();
-  const [isGuest, setIsGuest] = useState(false);
-  const [isLoadingUser, setIsLoadingUser] = useState(true);
 
   // Roadmap data and actions from store
   const roadmap = useRoadmapStore((state) => state.roadmap);
@@ -61,24 +54,6 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
   useEffect(() => {
     setSidebarExpanded(false);
   }, [setSidebarExpanded]);
-
-  // Initialize user (authenticated or guest)
-  useEffect(() => {
-    const initializeUser = async () => {
-      setIsLoadingUser(true);
-
-      if (authenticatedUser) {
-        setIsGuest(false);
-      } else {
-        await getOrCreateGuestUser();
-        setIsGuest(true);
-      }
-
-      setIsLoadingUser(false);
-    };
-
-    initializeUser();
-  }, [authenticatedUser]);
 
   // Fetch roadmap data
   useEffect(() => {
@@ -300,8 +275,8 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
     }
   };
 
-  // Loading states
-  if (isLoadingUser || isLoadingRoadmap) {
+  // Loading roadmap data
+  if (isLoadingRoadmap) {
     return (
       <div className="flex-1 min-h-full bg-[#f6f7f8] flex items-center justify-center">
         <div className="text-center">
@@ -337,26 +312,6 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
 
   return (
     <div className="flex flex-col h-full bg-[#f6f7f8] overflow-hidden">
-      {/* Guest User Banner */}
-      {isGuest && !isLoadingUser && (
-        <div className="relative z-50 bg-linear-to-r from-primary/90 to-primary text-white px-4 py-2 text-sm flex items-center justify-between shadow-md">
-          <div className="flex items-center gap-2">
-            <span className="font-medium">🎯 Guest Mode</span>
-            <span className="opacity-90">
-              Your roadmap will be saved for 30 days. Sign in to save
-              permanently.
-            </span>
-          </div>
-          <Link
-            to="/auth/signup"
-            search={{ redirect: window.location.pathname }}
-            className="flex items-center gap-2 px-4 py-1.5 bg-white text-primary rounded-md hover:bg-gray-50 transition-colors font-medium"
-          >
-            <LogIn className="w-4 h-4" />
-            Sign In
-          </Link>
-        </div>
-      )}
 
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -415,12 +370,7 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
         <div className="flex-1 relative">
           <RoadmapCanvas
             roadmap={roadmap}
-            onShare={() => {
-              // Only allow sharing for authenticated users
-              if (!isGuest) {
-                setIsShareModalOpen(true);
-              }
-            }}
+            onShare={() => setIsShareModalOpen(true)}
             onExport={() => {
               /* TODO: Export functionality */
             }}
@@ -442,7 +392,7 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
       />
 
       {/* Share Roadmap Modal */}
-      {roadmap && !isGuest && (
+      {roadmap && (
         <ShareRoadmapModal
           isOpen={isShareModalOpen}
           onClose={() => setIsShareModalOpen(false)}
