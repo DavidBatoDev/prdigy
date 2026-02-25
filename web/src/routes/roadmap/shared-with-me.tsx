@@ -101,8 +101,8 @@ function SharedWithMePage() {
               return (
                 <Link
                   key={item.roadmap.id}
-                  to="/project/roadmap/$roadmapId"
-                  params={{ roadmapId: item.roadmap.id }}
+                  to="/project/$projectId/roadmap/$roadmapId"
+                  params={{ projectId: item.roadmap.project_id || "n", roadmapId: item.roadmap.id }}
                   className="block bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow overflow-hidden"
                 >
                   <div className="p-6">

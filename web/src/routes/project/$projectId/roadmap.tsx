@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useChildMatches } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Map, ExternalLink, Loader2 } from "lucide-react";
@@ -12,6 +12,11 @@ export const Route = createFileRoute("/project/$projectId/roadmap")({
 });
 
 function RoadmapPage() {
+  const childMatches = useChildMatches();
+  if (childMatches.length > 0) {
+    return <Outlet />;
+  }
+
   const { projectId } = Route.useParams();
   const [isLoading, setIsLoading] = useState(true);
   const [linkedRoadmapId, setLinkedRoadmapId] = useState<string | null>(null);

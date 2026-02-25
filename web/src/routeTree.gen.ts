@@ -23,7 +23,6 @@ import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
 import { Route as ProjectRoadmapIndexRouteImport } from './routes/project/roadmap/index'
 import { Route as RoadmapSharedTokenRouteImport } from './routes/roadmap/shared/$token'
-import { Route as ProjectRoadmapRoadmapIdRouteImport } from './routes/project/roadmap/$roadmapId'
 import { Route as ProjectProjectIdWorkItemsRouteImport } from './routes/project/$projectId/work-items'
 import { Route as ProjectProjectIdTimeRouteImport } from './routes/project/$projectId/time'
 import { Route as ProjectProjectIdRoadmapRouteImport } from './routes/project/$projectId/roadmap'
@@ -32,6 +31,7 @@ import { Route as ProjectProjectIdOverviewRouteImport } from './routes/project/$
 import { Route as ProjectProjectIdFilesRouteImport } from './routes/project/$projectId/files'
 import { Route as AuthAdminSigninRouteImport } from './routes/auth/admin/signin'
 import { Route as AuthAdminLoginRouteImport } from './routes/auth/admin/login'
+import { Route as ProjectProjectIdRoadmapRoadmapIdRouteImport } from './routes/project/$projectId/roadmap/$roadmapId'
 
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
@@ -103,11 +103,6 @@ const RoadmapSharedTokenRoute = RoadmapSharedTokenRouteImport.update({
   path: '/roadmap/shared/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProjectRoadmapRoadmapIdRoute = ProjectRoadmapRoadmapIdRouteImport.update({
-  id: '/project/roadmap/$roadmapId',
-  path: '/project/roadmap/$roadmapId',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ProjectProjectIdWorkItemsRoute =
   ProjectProjectIdWorkItemsRouteImport.update({
     id: '/work-items',
@@ -151,6 +146,12 @@ const AuthAdminLoginRoute = AuthAdminLoginRouteImport.update({
   path: '/auth/admin/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProjectProjectIdRoadmapRoadmapIdRoute =
+  ProjectProjectIdRoadmapRoadmapIdRouteImport.update({
+    id: '/$roadmapId',
+    path: '/$roadmapId',
+    getParentRoute: () => ProjectProjectIdRoadmapRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -170,12 +171,12 @@ export interface FileRoutesByFullPath {
   '/project/$projectId/files': typeof ProjectProjectIdFilesRoute
   '/project/$projectId/overview': typeof ProjectProjectIdOverviewRoute
   '/project/$projectId/payments': typeof ProjectProjectIdPaymentsRoute
-  '/project/$projectId/roadmap': typeof ProjectProjectIdRoadmapRoute
+  '/project/$projectId/roadmap': typeof ProjectProjectIdRoadmapRouteWithChildren
   '/project/$projectId/time': typeof ProjectProjectIdTimeRoute
   '/project/$projectId/work-items': typeof ProjectProjectIdWorkItemsRoute
-  '/project/roadmap/$roadmapId': typeof ProjectRoadmapRoadmapIdRoute
   '/roadmap/shared/$token': typeof RoadmapSharedTokenRoute
   '/project/roadmap': typeof ProjectRoadmapIndexRoute
+  '/project/$projectId/roadmap/$roadmapId': typeof ProjectProjectIdRoadmapRoadmapIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -195,12 +196,12 @@ export interface FileRoutesByTo {
   '/project/$projectId/files': typeof ProjectProjectIdFilesRoute
   '/project/$projectId/overview': typeof ProjectProjectIdOverviewRoute
   '/project/$projectId/payments': typeof ProjectProjectIdPaymentsRoute
-  '/project/$projectId/roadmap': typeof ProjectProjectIdRoadmapRoute
+  '/project/$projectId/roadmap': typeof ProjectProjectIdRoadmapRouteWithChildren
   '/project/$projectId/time': typeof ProjectProjectIdTimeRoute
   '/project/$projectId/work-items': typeof ProjectProjectIdWorkItemsRoute
-  '/project/roadmap/$roadmapId': typeof ProjectRoadmapRoadmapIdRoute
   '/roadmap/shared/$token': typeof RoadmapSharedTokenRoute
   '/project/roadmap': typeof ProjectRoadmapIndexRoute
+  '/project/$projectId/roadmap/$roadmapId': typeof ProjectProjectIdRoadmapRoadmapIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -221,12 +222,12 @@ export interface FileRoutesById {
   '/project/$projectId/files': typeof ProjectProjectIdFilesRoute
   '/project/$projectId/overview': typeof ProjectProjectIdOverviewRoute
   '/project/$projectId/payments': typeof ProjectProjectIdPaymentsRoute
-  '/project/$projectId/roadmap': typeof ProjectProjectIdRoadmapRoute
+  '/project/$projectId/roadmap': typeof ProjectProjectIdRoadmapRouteWithChildren
   '/project/$projectId/time': typeof ProjectProjectIdTimeRoute
   '/project/$projectId/work-items': typeof ProjectProjectIdWorkItemsRoute
-  '/project/roadmap/$roadmapId': typeof ProjectRoadmapRoadmapIdRoute
   '/roadmap/shared/$token': typeof RoadmapSharedTokenRoute
   '/project/roadmap/': typeof ProjectRoadmapIndexRoute
+  '/project/$projectId/roadmap/$roadmapId': typeof ProjectProjectIdRoadmapRoadmapIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -251,9 +252,9 @@ export interface FileRouteTypes {
     | '/project/$projectId/roadmap'
     | '/project/$projectId/time'
     | '/project/$projectId/work-items'
-    | '/project/roadmap/$roadmapId'
     | '/roadmap/shared/$token'
     | '/project/roadmap'
+    | '/project/$projectId/roadmap/$roadmapId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -276,9 +277,9 @@ export interface FileRouteTypes {
     | '/project/$projectId/roadmap'
     | '/project/$projectId/time'
     | '/project/$projectId/work-items'
-    | '/project/roadmap/$roadmapId'
     | '/roadmap/shared/$token'
     | '/project/roadmap'
+    | '/project/$projectId/roadmap/$roadmapId'
   id:
     | '__root__'
     | '/'
@@ -301,9 +302,9 @@ export interface FileRouteTypes {
     | '/project/$projectId/roadmap'
     | '/project/$projectId/time'
     | '/project/$projectId/work-items'
-    | '/project/roadmap/$roadmapId'
     | '/roadmap/shared/$token'
     | '/project/roadmap/'
+    | '/project/$projectId/roadmap/$roadmapId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -321,7 +322,6 @@ export interface RootRouteChildren {
   RoadmapSharedWithMeRoute: typeof RoadmapSharedWithMeRoute
   AuthAdminLoginRoute: typeof AuthAdminLoginRoute
   AuthAdminSigninRoute: typeof AuthAdminSigninRoute
-  ProjectRoadmapRoadmapIdRoute: typeof ProjectRoadmapRoadmapIdRoute
   RoadmapSharedTokenRoute: typeof RoadmapSharedTokenRoute
   ProjectRoadmapIndexRoute: typeof ProjectRoadmapIndexRoute
 }
@@ -426,13 +426,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RoadmapSharedTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/project/roadmap/$roadmapId': {
-      id: '/project/roadmap/$roadmapId'
-      path: '/project/roadmap/$roadmapId'
-      fullPath: '/project/roadmap/$roadmapId'
-      preLoaderRoute: typeof ProjectRoadmapRoadmapIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/project/$projectId/work-items': {
       id: '/project/$projectId/work-items'
       path: '/work-items'
@@ -489,14 +482,36 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthAdminLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/project/$projectId/roadmap/$roadmapId': {
+      id: '/project/$projectId/roadmap/$roadmapId'
+      path: '/$roadmapId'
+      fullPath: '/project/$projectId/roadmap/$roadmapId'
+      preLoaderRoute: typeof ProjectProjectIdRoadmapRoadmapIdRouteImport
+      parentRoute: typeof ProjectProjectIdRoadmapRoute
+    }
   }
 }
+
+interface ProjectProjectIdRoadmapRouteChildren {
+  ProjectProjectIdRoadmapRoadmapIdRoute: typeof ProjectProjectIdRoadmapRoadmapIdRoute
+}
+
+const ProjectProjectIdRoadmapRouteChildren: ProjectProjectIdRoadmapRouteChildren =
+  {
+    ProjectProjectIdRoadmapRoadmapIdRoute:
+      ProjectProjectIdRoadmapRoadmapIdRoute,
+  }
+
+const ProjectProjectIdRoadmapRouteWithChildren =
+  ProjectProjectIdRoadmapRoute._addFileChildren(
+    ProjectProjectIdRoadmapRouteChildren,
+  )
 
 interface ProjectProjectIdRouteChildren {
   ProjectProjectIdFilesRoute: typeof ProjectProjectIdFilesRoute
   ProjectProjectIdOverviewRoute: typeof ProjectProjectIdOverviewRoute
   ProjectProjectIdPaymentsRoute: typeof ProjectProjectIdPaymentsRoute
-  ProjectProjectIdRoadmapRoute: typeof ProjectProjectIdRoadmapRoute
+  ProjectProjectIdRoadmapRoute: typeof ProjectProjectIdRoadmapRouteWithChildren
   ProjectProjectIdTimeRoute: typeof ProjectProjectIdTimeRoute
   ProjectProjectIdWorkItemsRoute: typeof ProjectProjectIdWorkItemsRoute
 }
@@ -505,7 +520,7 @@ const ProjectProjectIdRouteChildren: ProjectProjectIdRouteChildren = {
   ProjectProjectIdFilesRoute: ProjectProjectIdFilesRoute,
   ProjectProjectIdOverviewRoute: ProjectProjectIdOverviewRoute,
   ProjectProjectIdPaymentsRoute: ProjectProjectIdPaymentsRoute,
-  ProjectProjectIdRoadmapRoute: ProjectProjectIdRoadmapRoute,
+  ProjectProjectIdRoadmapRoute: ProjectProjectIdRoadmapRouteWithChildren,
   ProjectProjectIdTimeRoute: ProjectProjectIdTimeRoute,
   ProjectProjectIdWorkItemsRoute: ProjectProjectIdWorkItemsRoute,
 }
@@ -528,7 +543,6 @@ const rootRouteChildren: RootRouteChildren = {
   RoadmapSharedWithMeRoute: RoadmapSharedWithMeRoute,
   AuthAdminLoginRoute: AuthAdminLoginRoute,
   AuthAdminSigninRoute: AuthAdminSigninRoute,
-  ProjectRoadmapRoadmapIdRoute: ProjectRoadmapRoadmapIdRoute,
   RoadmapSharedTokenRoute: RoadmapSharedTokenRoute,
   ProjectRoadmapIndexRoute: ProjectRoadmapIndexRoute,
 }

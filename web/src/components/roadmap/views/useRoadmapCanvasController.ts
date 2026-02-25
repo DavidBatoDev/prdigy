@@ -1,8 +1,5 @@
 import { useEffect, useState } from "react";
-import type {
-  Roadmap,
-  EpicPriority,
-} from "@/types/roadmap";
+import type { EpicPriority, FeatureStatus, RoadmapTask } from "@/types/roadmap";
 import { useRoadmapStore } from "@/stores/roadmapStore";
 import type { UseRoadmapCanvasControllerArgs } from "./RoadmapCanvas.types";
 
@@ -243,7 +240,9 @@ export function useRoadmapCanvasController({
     try {
       let position = epics.length;
       if (targetEpicForAddBelow) {
-        const targetEpic = epics.find((epic) => epic.id === targetEpicForAddBelow);
+        const targetEpic = epics.find(
+          (epic) => epic.id === targetEpicForAddBelow,
+        );
         if (targetEpic) {
           position = targetEpic.position + 1;
         }
@@ -406,7 +405,9 @@ export function useRoadmapCanvasController({
   }) => {
     if (!editingFeatureId || !editingFeatureEpicId) return;
     const epic = epics.find((item) => item.id === editingFeatureEpicId);
-    const feature = epic?.features?.find((item) => item.id === editingFeatureId);
+    const feature = epic?.features?.find(
+      (item) => item.id === editingFeatureId,
+    );
     if (!epic || !feature) return;
 
     setIsFeatureLoading(true);
@@ -496,10 +497,10 @@ export function useRoadmapCanvasController({
 
   const currentEpic = epics.find((epic) => epic.id === selectedEpic);
   const selectedTask = selectedTaskId
-    ? epics
+    ? (epics
         .flatMap((epic) => epic.features || [])
         .flatMap((feature) => feature.tasks || [])
-        .find((task) => task.id === selectedTaskId) ?? null
+        .find((task) => task.id === selectedTaskId) ?? null)
     : null;
 
   return {

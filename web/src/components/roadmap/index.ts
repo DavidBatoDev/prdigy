@@ -20,7 +20,11 @@ export { ChatPanel } from "./panels/ChatPanel";
 export { AddEpicModal } from "./modals/AddEpicModal";
 export { AddFeatureModal } from "./modals/AddFeatureModal";
 export { ShareRoadmapModal } from "./modals/ShareRoadmapModal";
-export { ProjectBriefModal, type FormData, type ProjectState } from "./modals/ProjectBriefModal";
+export {
+  ProjectBriefModal,
+  type FormData,
+  type ProjectState,
+} from "./modals/ProjectBriefModal";
 export { MakeProjectDialog } from "./modals/MakeProjectDialog";
 export { RoadmapModalLayout } from "./modals/RoadmapModalLayout";
 

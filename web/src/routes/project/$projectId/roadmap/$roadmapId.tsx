@@ -8,7 +8,7 @@ import { useRoadmapStore } from "@/stores/roadmapStore";
 import { useUser } from "@/stores/authStore";
 import { getOrCreateGuestUser } from "@/lib/guestAuth";
 
-export const Route = createFileRoute("/project/roadmap/$roadmapId")({
+export const Route = createFileRoute("/project/$projectId/roadmap/$roadmapId")({
   component: RoadmapViewPage,
 });
 

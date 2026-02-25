@@ -115,8 +115,8 @@ function RoadmapBuilderPage() {
 
       // Navigate to the dynamic roadmap route
       navigate({
-        to: "/project/roadmap/$roadmapId",
-        params: { roadmapId: roadmap.id },
+        to: "/project/$projectId/roadmap/$roadmapId",
+        params: { projectId: projectId || "n", roadmapId: roadmap.id },
       });
     } catch (error) {
       console.error("Failed to create roadmap:", error);

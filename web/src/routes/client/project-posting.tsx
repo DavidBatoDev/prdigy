@@ -1,7 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import Header from "@/components/layout/Header";
-import { Upload, Check, Loader2, MapIcon, UserCheck, ExternalLink } from "lucide-react";
+import {
+  Upload,
+  Check,
+  Loader2,
+  MapIcon,
+  UserCheck,
+  ExternalLink,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { roadmapService } from "@/services/roadmap.service";
 import { projectService } from "@/services/project.service";
@@ -12,17 +19,13 @@ import {
   StepIndicator,
   type FormData as BaseFormData,
 } from "@/components/project-brief";
-import { LinkRoadmapModal } from "@/components/roadmap/modals/LinkRoadmapModal";
 
 export const Route = createFileRoute("/client/project-posting")({
   component: ProjectPostingPage,
   validateSearch: (search: Record<string, unknown>) => {
     return {
       roadmapId: (search.roadmapId as string) || undefined,
-      fromRoadmap:
-        search.fromRoadmap === "true" || search.fromRoadmap === true
-          ? true
-          : undefined,
+      fromRoadmap: search.fromRoadmap === "true" || search.fromRoadmap === true,
     };
   },
 });
@@ -42,12 +45,11 @@ function ProjectPostingPage() {
   const searchParams = Route.useSearch();
   const [currentStep, setCurrentStep] = useState(1);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [showLinkOptionDialog, setShowLinkOptionDialog] = useState(false);
-  const [showLinkRoadmapModal, setShowLinkRoadmapModal] = useState(false);
-  const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
   const [isCreatingRoadmap, setIsCreatingRoadmap] = useState(false);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
-  const [referencedRoadmap, setReferencedRoadmap] = useState<Roadmap | null>(null);
+  const [referencedRoadmap, setReferencedRoadmap] = useState<Roadmap | null>(
+    null,
+  );
   const [isLoadingRoadmap, setIsLoadingRoadmap] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     title: "",
@@ -82,7 +84,7 @@ function ProjectPostingPage() {
           const projectMetadata = roadmap.project_metadata as any;
           const settings = roadmap.settings as any;
           const source = projectMetadata || settings;
-          
+
           if (source) {
             const allSkills = source.skills || [];
             const knownSkills = [
@@ -151,7 +153,7 @@ function ProjectPostingPage() {
 
   const handleSubmit = async () => {
     console.log("Project submitted:", formData);
-    
+
     // If coming from roadmap, create project with bidding status
     if (searchParams.fromRoadmap && referencedRoadmap) {
       setIsCreatingProject(true);
@@ -180,8 +182,8 @@ function ProjectPostingPage() {
 
         // Navigate to roadmap view
         navigate({
-          to: "/project/roadmap/$roadmapId",
-          params: { roadmapId: referencedRoadmap.id },
+          to: "/project/$projectId/roadmap/$roadmapId",
+          params: { projectId: project.id, roadmapId: referencedRoadmap.id },
         });
       } catch (error) {
         console.error("Failed to create project:", error);
@@ -190,33 +192,8 @@ function ProjectPostingPage() {
         setIsCreatingProject(false);
       }
     } else {
-      // Normal flow - create project first before showing success modal
-      setIsCreatingProject(true);
-      try {
-        const project = await projectService.create({
-          title: formData.title || "Untitled Project",
-          description: formData.description,
-          category: formData.category,
-          project_state: formData.projectState,
-          skills: [...formData.skills, ...formData.customSkills],
-          duration: formData.duration,
-          budget_range: formData.budgetRange,
-          funding_status: formData.fundingStatus,
-          start_date: formData.startDate,
-          custom_start_date: formData.customStartDate || undefined,
-          status: "bidding",
-        });
-        
-        console.log("Project created:", project);
-        setCreatedProjectId(project.id);
-        
-        // Show success modal with options for normal flow
-        setShowSuccessModal(true);
-      } catch (error) {
-        console.error("Failed to create project:", error);
-      } finally {
-        setIsCreatingProject(false);
-      }
+      // Show success modal with options for normal flow
+      setShowSuccessModal(true);
     }
   };
 
@@ -224,7 +201,7 @@ function ProjectPostingPage() {
     setIsCreatingRoadmap(true);
     try {
       // Create roadmap with all form data including Step 3 budget/timeline
-      const roadmapData: any = {
+      const roadmap = await roadmapService.create({
         name: formData.title || "Untitled Project",
         description: formData.description,
         status: "draft",
@@ -239,20 +216,14 @@ function ProjectPostingPage() {
           startDate: formData.startDate,
           customStartDate: formData.customStartDate,
         },
-      };
-
-      if (createdProjectId) {
-        roadmapData.project_id = createdProjectId;
-      }
-
-      const roadmap = await roadmapService.create(roadmapData);
+      });
 
       console.log("Roadmap created from project posting:", roadmap);
 
       // Navigate to the roadmap view
       navigate({
-        to: "/project/roadmap/$roadmapId",
-        params: { roadmapId: roadmap.id },
+        to: "/project/$projectId/roadmap/$roadmapId",
+        params: { projectId: "n", roadmapId: roadmap.id },
       });
     } catch (error) {
       console.error("Failed to create roadmap:", error);
@@ -264,7 +235,9 @@ function ProjectPostingPage() {
 
   const handleSubmitToConsultant = () => {
     // Future implementation - for now just show a message
-    alert("Consultant matching feature coming soon! Your project details have been saved.");
+    alert(
+      "Consultant matching feature coming soon! Your project details have been saved.",
+    );
     setShowSuccessModal(false);
     // TODO: Submit project to consultant matching system
   };
@@ -272,7 +245,7 @@ function ProjectPostingPage() {
   return (
     <div className="min-h-screen bg-[#f6f7f8] relative overflow-hidden">
       <Header />
-      
+
       {/* Decorative Background Elements */}
       <div className="absolute inset-0 pointer-events-none">
         {/* Wave SVG at bottom */}
@@ -291,10 +264,21 @@ function ProjectPostingPage() {
         >
           <motion.path
             d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,122.7C672,117,768,139,864,144C960,149,1056,139,1152,128C1248,117,1344,107,1392,101.3L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
-            fill={currentStep === 1 ? "#FF9933" : currentStep === 2 ? "#e91e63" : "#8b5cf6"}
+            fill={
+              currentStep === 1
+                ? "#FF9933"
+                : currentStep === 2
+                  ? "#e91e63"
+                  : "#8b5cf6"
+            }
             fillOpacity="0.3"
             animate={{
-              fill: currentStep === 1 ? "#FF9933" : currentStep === 2 ? "#e91e63" : "#8b5cf6",
+              fill:
+                currentStep === 1
+                  ? "#FF9933"
+                  : currentStep === 2
+                    ? "#e91e63"
+                    : "#8b5cf6",
             }}
             transition={{
               duration: 0.5,
@@ -346,29 +330,44 @@ function ProjectPostingPage() {
           }}
         />
       </div>
-      
+
       <div className="max-w-[1440px] mx-auto px-20 py-8 pb-40 relative z-10">
         {/* Progress Stepper */}
         <div className="flex items-center justify-center mb-14 relative">
-          <StepIndicator step={1} currentStep={currentStep} label="Vision & Scope" totalSteps={3} />
+          <StepIndicator
+            step={1}
+            currentStep={currentStep}
+            label="Vision & Scope"
+            totalSteps={3}
+          />
           <div className="w-32 h-1 bg-gray-200 rounded-full mx-2 overflow-hidden mt-[-24px]">
-             <motion.div 
-               className="h-full bg-linear-to-r from-[#ff9933] to-[#e91e63]"
-               initial={{ width: "0%" }}
-               animate={{ width: currentStep > 1 ? "100%" : "0%" }}
-               transition={{ duration: 0.5, ease: "easeInOut" }}
-             />
+            <motion.div
+              className="h-full bg-linear-to-r from-[#ff9933] to-[#e91e63]"
+              initial={{ width: "0%" }}
+              animate={{ width: currentStep > 1 ? "100%" : "0%" }}
+              transition={{ duration: 0.5, ease: "easeInOut" }}
+            />
           </div>
-          <StepIndicator step={2} currentStep={currentStep} label="Skills & Duration" totalSteps={3} />
+          <StepIndicator
+            step={2}
+            currentStep={currentStep}
+            label="Skills & Duration"
+            totalSteps={3}
+          />
           <div className="w-32 h-1 bg-gray-200 rounded-full mx-2 overflow-hidden mt-[-24px]">
-            <motion.div 
-               className="h-full bg-[#e91e63]"
-               initial={{ width: "0%" }}
-               animate={{ width: currentStep > 2 ? "100%" : "0%" }}
-               transition={{ duration: 0.5, ease: "easeInOut", delay: 0.1 }}
-             />
+            <motion.div
+              className="h-full bg-[#e91e63]"
+              initial={{ width: "0%" }}
+              animate={{ width: currentStep > 2 ? "100%" : "0%" }}
+              transition={{ duration: 0.5, ease: "easeInOut", delay: 0.1 }}
+            />
           </div>
-          <StepIndicator step={3} currentStep={currentStep} label="Budget & Timeline" totalSteps={3} />
+          <StepIndicator
+            step={3}
+            currentStep={currentStep}
+            label="Budget & Timeline"
+            totalSteps={3}
+          />
         </div>
 
         {/* Step Content */}
@@ -386,10 +385,12 @@ function ProjectPostingPage() {
                     transition={{ duration: 0.4, ease: "easeOut" }}
                   >
                     <h1 className="text-4xl font-bold text-[#333438] mb-4">
-                      Step 1: Vision &<br />Scope
+                      Step 1: Vision &<br />
+                      Scope
                     </h1>
                     <p className="text-[#61636c] text-lg">
-                      Tell us what you want to build. You can either answer a few questions or upload an existing RFP/Brief.
+                      Tell us what you want to build. You can either answer a
+                      few questions or upload an existing RFP/Brief.
                     </p>
                   </motion.div>
                 )}
@@ -402,7 +403,8 @@ function ProjectPostingPage() {
                     transition={{ duration: 0.4, ease: "easeOut" }}
                   >
                     <h1 className="text-4xl font-bold text-[#333438] mb-4">
-                      Step 2: Skills &<br />Deliverables
+                      Step 2: Skills &<br />
+                      Deliverables
                     </h1>
                     <p className="text-[#61636c] text-lg">
                       Define the expertise you need and the results you expect.
@@ -418,10 +420,12 @@ function ProjectPostingPage() {
                     transition={{ duration: 0.4, ease: "easeOut" }}
                   >
                     <h1 className="text-4xl font-bold text-[#333438] mb-4">
-                      Step 3: Budget &<br />Timeline
+                      Step 3: Budget &<br />
+                      Timeline
                     </h1>
                     <p className="text-[#61636c] text-lg">
-                      Help us match you with Consultants who fit your financial and schedule goals.
+                      Help us match you with Consultants who fit your financial
+                      and schedule goals.
                     </p>
                   </motion.div>
                 )}
@@ -556,9 +560,9 @@ function ProjectPostingPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Generate or Link Roadmap Option */}
+                {/* Generate Roadmap Option */}
                 <button
-                  onClick={() => setShowLinkOptionDialog(true)}
+                  onClick={handleGenerateRoadmap}
                   disabled={isCreatingRoadmap}
                   className="group relative p-6 bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-orange-200 rounded-xl hover:border-orange-400 hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -571,10 +575,11 @@ function ProjectPostingPage() {
                       )}
                     </div>
                     <h3 className="font-bold text-gray-900 mb-2">
-                      Create or Link Roadmap
+                      Generate Roadmap
                     </h3>
                     <p className="text-sm text-gray-600">
-                      Create a new roadmap or link to an existing unlinked roadmap
+                      Create an AI-powered project roadmap with timelines and
+                      milestones
                     </p>
                   </div>
                 </button>
@@ -592,7 +597,8 @@ function ProjectPostingPage() {
                       Find Consultant
                     </h3>
                     <p className="text-sm text-gray-600">
-                      Match with expert consultants to bring your project to life
+                      Match with expert consultants to bring your project to
+                      life
                     </p>
                     <span className="inline-block mt-2 px-3 py-1 bg-pink-200 text-pink-700 text-xs font-semibold rounded-full">
                       Coming Soon
@@ -611,84 +617,6 @@ function ProjectPostingPage() {
           </motion.div>
         )}
       </AnimatePresence>
-      
-      {/* Link or Create Option Dialog */}
-      <AnimatePresence>
-        {showLinkOptionDialog && (
-          <motion.div
-            className="fixed inset-0 z-[10000] flex items-center justify-center p-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <motion.div
-              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowLinkOptionDialog(false)}
-            />
-            <motion.div
-              className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-8"
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-            >
-              <div className="text-center mb-6">
-                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Roadmap Option</h2>
-                 <p className="text-gray-600">Would you like to link an existing roadmap or create a new one?</p>
-              </div>
-              <div className="space-y-3">
-                 <button
-                   onClick={() => {
-                     setShowLinkOptionDialog(false);
-                     setShowLinkRoadmapModal(true);
-                   }}
-                   className="w-full p-4 border-2 border-orange-200 bg-orange-50 rounded-xl hover:border-orange-400 hover:shadow-md transition-all font-semibold text-gray-800"
-                 >
-                   🔗 Link Existing Roadmap
-                 </button>
-                 <button
-                   onClick={() => {
-                     setShowLinkOptionDialog(false);
-                     handleGenerateRoadmap();
-                   }}
-                   disabled={isCreatingRoadmap}
-                   className="w-full p-4 border-2 border-gray-200 bg-white rounded-xl hover:border-gray-400 hover:shadow-md transition-all font-semibold text-gray-800 disabled:opacity-50"
-                 >
-                   {isCreatingRoadmap ? (
-                      <span className="flex justify-center items-center gap-2">
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Creating...
-                      </span>
-                   ) : (
-                     "✨ Create New Roadmap"
-                   )}
-                 </button>
-              </div>
-              <button
-                onClick={() => setShowLinkOptionDialog(false)}
-                className="mt-6 w-full px-4 py-2 text-gray-500 hover:text-gray-800 transition-colors text-sm"
-              >
-                Cancel
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <LinkRoadmapModal
-        isOpen={showLinkRoadmapModal}
-        onClose={() => setShowLinkRoadmapModal(false)}
-        projectId={createdProjectId || ""}
-        onLinked={() => {
-           setShowLinkRoadmapModal(false);
-           setShowSuccessModal(false);
-           alert("Roadmap linked successfully!");
-           // Optional: You could redirect somewhere else or fetch data again
-        }}
-      />
 
       {/* Loading Modal for Pre-populating */}
       <AnimatePresence>
@@ -844,7 +772,10 @@ function Step3({
               type="date"
               value={formData.customStartDate}
               onChange={(e) => {
-                updateFormData({ startDate: "custom", customStartDate: e.target.value });
+                updateFormData({
+                  startDate: "custom",
+                  customStartDate: e.target.value,
+                });
               }}
               className="ml-3 flex-1 px-2 py-1 border-b border-gray-200 focus:outline-none focus:border-[#ff9933] text-sm"
               placeholder="DD/MM/YY"
@@ -852,8 +783,6 @@ function Step3({
           </div>
         </div>
       </div>
-
-
 
       {/* Roadmap Upload or Reference */}
       <div>
@@ -868,9 +797,14 @@ function Step3({
                 <MapIcon className="w-6 h-6 text-white" />
               </div>
               <div className="flex-1">
-                <h4 className="font-semibold text-gray-900 mb-1">Linked Roadmap</h4>
+                <h4 className="font-semibold text-gray-900 mb-1">
+                  Linked Roadmap
+                </h4>
                 <p className="text-sm text-gray-600 mb-3">
-                  This project is based on your roadmap: <span className="font-semibold">"{referencedRoadmap.name}"</span>
+                  This project is based on your roadmap:{" "}
+                  <span className="font-semibold">
+                    "{referencedRoadmap.name}"
+                  </span>
                 </p>
                 <a
                   href={`/project/roadmap/${referencedRoadmap.id}`}
@@ -889,10 +823,17 @@ function Step3({
           <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
             <Upload className="w-10 h-10 text-gray-400 mx-auto mb-3" />
             <p className="text-[#61636c] mb-1">
-              <span className="text-[#ff9933] font-semibold cursor-pointer hover:underline">Link</span> or drag and drop
+              <span className="text-[#ff9933] font-semibold cursor-pointer hover:underline">
+                Link
+              </span>{" "}
+              or drag and drop
             </p>
-            <p className="text-xs text-[#92969f]">SVG, PNG, JPG or GIF (max. 3MB)</p>
-            <p className="text-xs text-[#92969f] mt-2 italic">Attach Project Schedule or Gantt Chart (PDF, Excel)</p>
+            <p className="text-xs text-[#92969f]">
+              SVG, PNG, JPG or GIF (max. 3MB)
+            </p>
+            <p className="text-xs text-[#92969f] mt-2 italic">
+              Attach Project Schedule or Gantt Chart (PDF, Excel)
+            </p>
           </div>
         )}
       </div>
@@ -934,10 +875,16 @@ function TileOption({
         />
       </div>
       <div className="ml-3 text-sm">
-        <span className={`font-semibold block ${checked ? "text-[#333438]" : "text-[#61636c]"}`}>
+        <span
+          className={`font-semibold block ${checked ? "text-[#333438]" : "text-[#61636c]"}`}
+        >
           {label}
         </span>
-        {description && <span className="text-xs text-[#92969f] mt-1 block">{description}</span>}
+        {description && (
+          <span className="text-xs text-[#92969f] mt-1 block">
+            {description}
+          </span>
+        )}
       </div>
     </label>
   );
