@@ -47,6 +47,7 @@ app.use("/api/payments", require("./routes/payments"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/users", require("./routes/users"));
 app.use("/api/guests", require("./routes/guests"));
+app.use("/api/consultants", require("./routes/consultants"));
 
 // Roadmap Routes
 app.use("/api/roadmaps", require("./routes/roadmaps"));
