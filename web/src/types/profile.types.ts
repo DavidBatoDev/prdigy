@@ -44,6 +44,7 @@ export interface Profile {
   zip_code: string | null;
   settings: ProfileSettings;
   has_completed_onboarding: boolean;
+  skills?: string[]; // Array of strings representing skills
   tutorials_completed?: Record<string, any>; // JSONB field for tutorial completion tracking
   migrated_from_guest_id: string | null; // UUID of guest profile user migrated from
   created_at: string;
@@ -70,6 +71,7 @@ export interface ProfileInsert {
   zip_code?: string | null;
   settings?: ProfileSettings;
   has_completed_onboarding?: boolean;
+  skills?: string[];
 }
 
 // Profile update type (for updating existing profiles)
@@ -92,4 +94,5 @@ export interface ProfileUpdate {
   settings?: ProfileSettings;
   has_completed_onboarding?: boolean;
   migrated_from_guest_id?: string | null;
+  skills?: string[];
 }

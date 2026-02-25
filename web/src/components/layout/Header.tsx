@@ -47,9 +47,10 @@ const Header = () => {
           label: 'My Consultants',
           items: [
             { label: "Post a Project", href: "/client/project-posting" },
-            { label: "Browse Professional Consultants", href: "/browse-consultants" },
+            { label: "Browse Professional Consultants", href: "/consultant/browse" },
             { label: "My Consultant Pool", href: "/consultant-pool" },
             { label: "Direct Contacts", href: "/direct-contacts" },
+
           ]
         };
     }

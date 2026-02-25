@@ -28,7 +28,7 @@ import EllipseBottomRight from "/svgs/ellipse/ellipse-bottom-right.svg";
 import EllipseCenterLeft from "/svgs/ellipse/ellipse-center-left.svg";
 
 export const Route = createFileRoute("/auth/signup")({
-  validateSearch: (search: Record<string, unknown>) => {
+  validateSearch: (search: Record<string, unknown>): { redirect?: string } => {
     return {
       redirect: (search.redirect as string) || undefined,
     };

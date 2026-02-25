@@ -9,13 +9,15 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LandingRouteImport } from './routes/landing'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RoadmapSharedWithMeRouteImport } from './routes/roadmap/shared-with-me'
 import { Route as ProjectProjectIdRouteImport } from './routes/project/$projectId'
+import { Route as ProfileProfileIdRouteImport } from './routes/profile/$profileId'
+import { Route as ConsultantBrowseRouteImport } from './routes/consultant/browse'
+import { Route as ConsultantProfileIdRouteImport } from './routes/consultant/$profileId'
 import { Route as ClientProjectPostingRouteImport } from './routes/client/project-posting'
 import { Route as AuthVerifyRouteImport } from './routes/auth/verify'
 import { Route as AuthSignupRouteImport } from './routes/auth/signup'
@@ -33,11 +35,6 @@ import { Route as AuthAdminSigninRouteImport } from './routes/auth/admin/signin'
 import { Route as AuthAdminLoginRouteImport } from './routes/auth/admin/login'
 import { Route as ProjectProjectIdRoadmapRoadmapIdRouteImport } from './routes/project/$projectId/roadmap/$roadmapId'
 
-const ProfileRoute = ProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
@@ -66,6 +63,21 @@ const RoadmapSharedWithMeRoute = RoadmapSharedWithMeRouteImport.update({
 const ProjectProjectIdRoute = ProjectProjectIdRouteImport.update({
   id: '/project/$projectId',
   path: '/project/$projectId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileProfileIdRoute = ProfileProfileIdRouteImport.update({
+  id: '/profile/$profileId',
+  path: '/profile/$profileId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConsultantBrowseRoute = ConsultantBrowseRouteImport.update({
+  id: '/consultant/browse',
+  path: '/consultant/browse',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConsultantProfileIdRoute = ConsultantProfileIdRouteImport.update({
+  id: '/consultant/$profileId',
+  path: '/consultant/$profileId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ClientProjectPostingRoute = ClientProjectPostingRouteImport.update({
@@ -158,12 +170,14 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/landing': typeof LandingRoute
   '/onboarding': typeof OnboardingRoute
-  '/profile': typeof ProfileRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/auth/verify': typeof AuthVerifyRoute
   '/client/project-posting': typeof ClientProjectPostingRoute
+  '/consultant/$profileId': typeof ConsultantProfileIdRoute
+  '/consultant/browse': typeof ConsultantBrowseRoute
+  '/profile/$profileId': typeof ProfileProfileIdRoute
   '/project/$projectId': typeof ProjectProjectIdRouteWithChildren
   '/roadmap/shared-with-me': typeof RoadmapSharedWithMeRoute
   '/auth/admin/login': typeof AuthAdminLoginRoute
@@ -183,12 +197,14 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/landing': typeof LandingRoute
   '/onboarding': typeof OnboardingRoute
-  '/profile': typeof ProfileRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/auth/verify': typeof AuthVerifyRoute
   '/client/project-posting': typeof ClientProjectPostingRoute
+  '/consultant/$profileId': typeof ConsultantProfileIdRoute
+  '/consultant/browse': typeof ConsultantBrowseRoute
+  '/profile/$profileId': typeof ProfileProfileIdRoute
   '/project/$projectId': typeof ProjectProjectIdRouteWithChildren
   '/roadmap/shared-with-me': typeof RoadmapSharedWithMeRoute
   '/auth/admin/login': typeof AuthAdminLoginRoute
@@ -209,12 +225,14 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/landing': typeof LandingRoute
   '/onboarding': typeof OnboardingRoute
-  '/profile': typeof ProfileRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/auth/verify': typeof AuthVerifyRoute
   '/client/project-posting': typeof ClientProjectPostingRoute
+  '/consultant/$profileId': typeof ConsultantProfileIdRoute
+  '/consultant/browse': typeof ConsultantBrowseRoute
+  '/profile/$profileId': typeof ProfileProfileIdRoute
   '/project/$projectId': typeof ProjectProjectIdRouteWithChildren
   '/roadmap/shared-with-me': typeof RoadmapSharedWithMeRoute
   '/auth/admin/login': typeof AuthAdminLoginRoute
@@ -236,12 +254,14 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/landing'
     | '/onboarding'
-    | '/profile'
     | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/signup'
     | '/auth/verify'
     | '/client/project-posting'
+    | '/consultant/$profileId'
+    | '/consultant/browse'
+    | '/profile/$profileId'
     | '/project/$projectId'
     | '/roadmap/shared-with-me'
     | '/auth/admin/login'
@@ -261,12 +281,14 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/landing'
     | '/onboarding'
-    | '/profile'
     | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/signup'
     | '/auth/verify'
     | '/client/project-posting'
+    | '/consultant/$profileId'
+    | '/consultant/browse'
+    | '/profile/$profileId'
     | '/project/$projectId'
     | '/roadmap/shared-with-me'
     | '/auth/admin/login'
@@ -286,12 +308,14 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/landing'
     | '/onboarding'
-    | '/profile'
     | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/signup'
     | '/auth/verify'
     | '/client/project-posting'
+    | '/consultant/$profileId'
+    | '/consultant/browse'
+    | '/profile/$profileId'
     | '/project/$projectId'
     | '/roadmap/shared-with-me'
     | '/auth/admin/login'
@@ -312,12 +336,14 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   LandingRoute: typeof LandingRoute
   OnboardingRoute: typeof OnboardingRoute
-  ProfileRoute: typeof ProfileRoute
   AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthSignupRoute: typeof AuthSignupRoute
   AuthVerifyRoute: typeof AuthVerifyRoute
   ClientProjectPostingRoute: typeof ClientProjectPostingRoute
+  ConsultantProfileIdRoute: typeof ConsultantProfileIdRoute
+  ConsultantBrowseRoute: typeof ConsultantBrowseRoute
+  ProfileProfileIdRoute: typeof ProfileProfileIdRoute
   ProjectProjectIdRoute: typeof ProjectProjectIdRouteWithChildren
   RoadmapSharedWithMeRoute: typeof RoadmapSharedWithMeRoute
   AuthAdminLoginRoute: typeof AuthAdminLoginRoute
@@ -328,13 +354,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/profile': {
-      id: '/profile'
-      path: '/profile'
-      fullPath: '/profile'
-      preLoaderRoute: typeof ProfileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/onboarding': {
       id: '/onboarding'
       path: '/onboarding'
@@ -375,6 +394,27 @@ declare module '@tanstack/react-router' {
       path: '/project/$projectId'
       fullPath: '/project/$projectId'
       preLoaderRoute: typeof ProjectProjectIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile/$profileId': {
+      id: '/profile/$profileId'
+      path: '/profile/$profileId'
+      fullPath: '/profile/$profileId'
+      preLoaderRoute: typeof ProfileProfileIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/consultant/browse': {
+      id: '/consultant/browse'
+      path: '/consultant/browse'
+      fullPath: '/consultant/browse'
+      preLoaderRoute: typeof ConsultantBrowseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/consultant/$profileId': {
+      id: '/consultant/$profileId'
+      path: '/consultant/$profileId'
+      fullPath: '/consultant/$profileId'
+      preLoaderRoute: typeof ConsultantProfileIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/client/project-posting': {
@@ -533,12 +573,14 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   LandingRoute: LandingRoute,
   OnboardingRoute: OnboardingRoute,
-  ProfileRoute: ProfileRoute,
   AuthForgotPasswordRoute: AuthForgotPasswordRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthSignupRoute: AuthSignupRoute,
   AuthVerifyRoute: AuthVerifyRoute,
   ClientProjectPostingRoute: ClientProjectPostingRoute,
+  ConsultantProfileIdRoute: ConsultantProfileIdRoute,
+  ConsultantBrowseRoute: ConsultantBrowseRoute,
+  ProfileProfileIdRoute: ProfileProfileIdRoute,
   ProjectProjectIdRoute: ProjectProjectIdRouteWithChildren,
   RoadmapSharedWithMeRoute: RoadmapSharedWithMeRoute,
   AuthAdminLoginRoute: AuthAdminLoginRoute,

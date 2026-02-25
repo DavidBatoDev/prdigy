@@ -35,6 +35,10 @@ function ProjectLayout() {
   }, [setSidebarExpanded]);
 
   useEffect(() => {
+    if (projectId === "n") {
+      setIsLoading(false);
+      return;
+    }
     const loadProject = async () => {
       try {
         setIsLoading(true);
@@ -67,8 +71,8 @@ function ProjectLayout() {
         viewingAs={project?.consultant_id ? "CONSULTANT" : "CLIENT"}
       />
       <div className="flex flex-1 overflow-hidden">
-        <ProjectSidebar project={project} projectId={projectId} hasProject={true} />
-        <main className="flex-1 overflow-y-auto">
+        <ProjectSidebar project={project} projectId={projectId} hasProject={projectId !== "n" && !!project} />
+        <main className="flex-1 overflow-hidden">
           <Outlet />
         </main>
       </div>

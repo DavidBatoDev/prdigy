@@ -14,7 +14,7 @@ export default function UserMenu() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const { data: profile } = useProfileQuery(); // Use query instead of store
-  const { signOut } = useAuthStore();
+  const { user, signOut } = useAuthStore();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { isActive } = useTutorial();
@@ -207,7 +207,8 @@ export default function UserMenu() {
           {/* Menu items */}
           <div className="py-1">
             <Link
-              to="/profile"
+              to="/profile/$profileId"
+              params={{ profileId: user?.id || "" }}
               onClick={() => setIsOpen(false)}
               className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
             >
