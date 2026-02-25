@@ -159,16 +159,6 @@ function ConsultantProfile() {
                </div>
             </div>
 
-            {/* Persona/Role */}
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-900 text-lg">System Role</h3>
-              </div>
-              <div className="inline-flex items-center px-3 py-1 bg-primary/10 text-primary font-medium text-sm rounded-full border border-primary/10">
-                Consultant
-              </div>
-            </div>
-
             {/* Contact Information */}
             <div className="p-6 border-b border-gray-200">
                <h3 className="font-semibold text-gray-900 text-lg mb-4">Direct Context</h3>

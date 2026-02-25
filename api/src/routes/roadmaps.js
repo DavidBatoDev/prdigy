@@ -50,7 +50,7 @@ router.get(
     try {
       const { data: roadmaps, error: roadmapsError } = await supabaseAdmin
         .from("roadmaps")
-        .select("id,name,description,status,created_at,updated_at")
+        .select("id,name,description,status,project_id,created_at,updated_at")
         .eq("owner_id", req.user.id)
         .order("updated_at", { ascending: false });
 

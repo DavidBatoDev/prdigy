@@ -127,10 +127,6 @@ function ProfilePage() {
   const fullName = profile.display_name || `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "User";
   const initial = fullName.charAt(0).toUpperCase();
 
-  const getPersonaLabel = () => {
-    return profile.active_persona.charAt(0).toUpperCase() + profile.active_persona.slice(1);
-  };
-
   // Helper formatting dates (mock since we don't have created_at usually in profile response)
   const currentTime = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) + " local time";
 
@@ -252,16 +248,6 @@ function ProfilePage() {
           {/* LEFT SIDEBAR (Col 1) */}
           <div className="lg:col-span-1 border-r border-gray-200 bg-white">
             
-            {/* Persona Block */}
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-900">Platform Role</h3>
-              </div>
-              <div className="inline-flex items-center px-3 py-1 bg-green-50 text-green-700 font-medium text-sm rounded-full border border-green-200">
-                {getPersonaLabel()}
-              </div>
-            </div>
-
             {/* Contact Information */}
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between mb-4">

@@ -1,10 +1,9 @@
-import { createFileRoute, Outlet, useChildMatches } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate, useChildMatches } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Map, ExternalLink, Loader2 } from "lucide-react";
 import { projectService, type Project } from "@/services/project.service";
 import { roadmapService } from "@/services/roadmap.service";
-import { RoadmapViewContent } from "@/components/roadmap";
 import { LinkRoadmapModal } from "@/components/roadmap/modals/LinkRoadmapModal";
 
 export const Route = createFileRoute("/project/$projectId/roadmap")({
@@ -13,16 +12,14 @@ export const Route = createFileRoute("/project/$projectId/roadmap")({
 
 function RoadmapPage() {
   const childMatches = useChildMatches();
-  if (childMatches.length > 0) {
-    return <Outlet />;
-  }
-
   const { projectId } = Route.useParams();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
-  const [linkedRoadmapId, setLinkedRoadmapId] = useState<string | null>(null);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
 
   useEffect(() => {
+    if (childMatches.length > 0) return;
+
     const load = async () => {
       try {
         const [data, roadmaps] = await Promise.all([
@@ -38,7 +35,16 @@ function RoadmapPage() {
           (roadmap) => roadmap.project_id === projectId,
         );
 
-        setLinkedRoadmapId(projectRoadmapId ?? linkedByProject?.id ?? null);
+        const linkedRoadmapId = projectRoadmapId ?? linkedByProject?.id ?? null;
+
+        if (linkedRoadmapId) {
+          navigate({
+            to: "/project/$projectId/roadmap/$roadmapId",
+            params: { projectId, roadmapId: linkedRoadmapId },
+            replace: true,
+          });
+          return;
+        }
       } catch {
         // silently handled
       } finally {
@@ -46,7 +52,11 @@ function RoadmapPage() {
       }
     };
     load();
-  }, [projectId]);
+  }, [projectId, childMatches.length]);
+
+  if (childMatches.length > 0) {
+    return <Outlet />;
+  }
 
   if (isLoading) {
     return (
@@ -54,10 +64,6 @@ function RoadmapPage() {
         <Loader2 className="w-8 h-8 animate-spin text-[#ff9933]" />
       </div>
     );
-  }
-
-  if (linkedRoadmapId) {
-    return <RoadmapViewContent roadmapId={linkedRoadmapId} />;
   }
 
   return (

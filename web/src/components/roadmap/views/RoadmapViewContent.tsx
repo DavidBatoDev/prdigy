@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import {
   LeftSidePanel,
   type Message,
   RoadmapCanvas,
   ShareRoadmapModal,
-  MakeProjectDialog,
   ProjectBriefModal,
   type FormData,
 } from "@/components/roadmap";
@@ -20,7 +19,6 @@ interface RoadmapViewContentProps {
 }
 
 export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
-  const navigate = useNavigate();
 
   // Roadmap data and actions from store
   const roadmap = useRoadmapStore((state) => state.roadmap);
@@ -152,9 +150,6 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
 
   // Share Modal state
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-
-  // Make Project Dialog state
-  const [isMakeProjectDialogOpen, setIsMakeProjectDialogOpen] = useState(false);
 
   // Builder state
   const [messages, setMessages] = useState<Message[]>([]);
@@ -397,25 +392,6 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
           isOpen={isShareModalOpen}
           onClose={() => setIsShareModalOpen(false)}
           roadmapId={roadmap.id}
-          roadmapName={roadmap.name}
-        />
-      )}
-
-      {/* Make Project Dialog */}
-      {roadmap && (
-        <MakeProjectDialog
-          isOpen={isMakeProjectDialogOpen}
-          onClose={() => setIsMakeProjectDialogOpen(false)}
-          onConfirm={() => {
-            setIsMakeProjectDialogOpen(false);
-            navigate({
-              to: "/client/project-posting",
-              search: {
-                roadmapId: roadmap.id,
-                fromRoadmap: true,
-              },
-            });
-          }}
           roadmapName={roadmap.name}
         />
       )}

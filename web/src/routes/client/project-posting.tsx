@@ -25,7 +25,6 @@ export const Route = createFileRoute("/client/project-posting")({
   validateSearch: (search: Record<string, unknown>) => {
     return {
       roadmapId: (search.roadmapId as string) || undefined,
-      fromRoadmap: search.fromRoadmap === "true" || search.fromRoadmap === true,
     };
   },
 });
@@ -51,6 +50,12 @@ function ProjectPostingPage() {
     null,
   );
   const [isLoadingRoadmap, setIsLoadingRoadmap] = useState(false);
+  // Read fromRoadmap from sessionStorage (set by the roadmap flow) and clear it immediately
+  const [fromRoadmap] = useState<boolean>(() => {
+    const value = sessionStorage.getItem("fromRoadmap") === "true";
+    sessionStorage.removeItem("fromRoadmap");
+    return value;
+  });
   const [formData, setFormData] = useState<FormData>({
     title: "",
     category: "",
@@ -74,7 +79,7 @@ function ProjectPostingPage() {
   // Fetch roadmap data if roadmapId is provided
   useEffect(() => {
     const fetchRoadmapData = async () => {
-      if (searchParams.roadmapId && searchParams.fromRoadmap) {
+      if (searchParams.roadmapId && fromRoadmap) {
         setIsLoadingRoadmap(true);
         try {
           const roadmap = await roadmapService.getById(searchParams.roadmapId);
@@ -141,7 +146,7 @@ function ProjectPostingPage() {
     };
 
     fetchRoadmapData();
-  }, [searchParams.roadmapId, searchParams.fromRoadmap]);
+  }, [searchParams.roadmapId, fromRoadmap]);
 
   const nextStep = () => {
     if (currentStep < 3) setCurrentStep(currentStep + 1);
@@ -155,7 +160,7 @@ function ProjectPostingPage() {
     console.log("Project submitted:", formData);
 
     // If coming from roadmap, create project with bidding status
-    if (searchParams.fromRoadmap && referencedRoadmap) {
+    if (fromRoadmap && referencedRoadmap) {
       setIsCreatingProject(true);
       try {
         // Create project with all form data
