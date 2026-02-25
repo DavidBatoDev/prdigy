@@ -46,6 +46,8 @@ app.use("/api/projects", require("./routes/projects"));
 app.use("/api/payments", require("./routes/payments"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/users", require("./routes/users"));
+app.use("/api/profile", require("./routes/profile"));
+app.use("/api/uploads", require("./routes/uploads"));
 app.use("/api/guests", require("./routes/guests"));
 app.use("/api/consultants", require("./routes/consultants"));
 
