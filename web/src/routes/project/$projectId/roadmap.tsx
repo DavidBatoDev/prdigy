@@ -1,9 +1,8 @@
 import { createFileRoute, Outlet, useNavigate, useChildMatches } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Map, ExternalLink, Loader2 } from "lucide-react";
 import { projectService, type Project } from "@/services/project.service";
-import { roadmapService } from "@/services/roadmap.service";
 import { LinkRoadmapModal } from "@/components/roadmap/modals/LinkRoadmapModal";
 
 export const Route = createFileRoute("/project/$projectId/roadmap")({
@@ -17,25 +16,30 @@ function RoadmapPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
 
+  // Guard: only fire once per projectId mount, never re-fire when childMatches changes
+  const fetchedRef = useRef(false);
+
   useEffect(() => {
-    if (childMatches.length > 0) return;
+    // If a child route is already active (e.g. navigated directly to /$roadmapId),
+    // skip the lookup — the child handles rendering.
+    if (childMatches.length > 0) {
+      setIsLoading(false);
+      return;
+    }
+
+    // Already fetched for this projectId — don't re-fetch
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+
+    let cancelled = false;
 
     const load = async () => {
       try {
-        const [data, roadmaps] = await Promise.all([
-          projectService.get(projectId),
-          roadmapService.getAll(),
-        ]);
+        // Only one request needed — the project object carries roadmap_id
+        const data = await projectService.get(projectId);
+        if (cancelled) return;
 
-        const projectRoadmapId = (
-          data as Project & { roadmap_id?: string | null }
-        ).roadmap_id;
-
-        const linkedByProject = roadmaps.find(
-          (roadmap) => roadmap.project_id === projectId,
-        );
-
-        const linkedRoadmapId = projectRoadmapId ?? linkedByProject?.id ?? null;
+        const linkedRoadmapId = (data as Project & { roadmap_id?: string | null }).roadmap_id ?? null;
 
         if (linkedRoadmapId) {
           navigate({
@@ -43,16 +47,27 @@ function RoadmapPage() {
             params: { projectId, roadmapId: linkedRoadmapId },
             replace: true,
           });
+          // Don't setIsLoading(false) — component is transitioning away
           return;
         }
       } catch {
         // silently handled
-      } finally {
+      }
+
+      if (!cancelled) {
         setIsLoading(false);
       }
     };
+
     load();
-  }, [projectId, childMatches.length]);
+
+    return () => {
+      cancelled = true;
+    };
+  // NOTE: intentionally only depend on projectId — childMatches must NOT be a dep
+  // because navigate() changes childMatches and would re-trigger the fetch.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
 
   if (childMatches.length > 0) {
     return <Outlet />;
@@ -115,7 +130,6 @@ function RoadmapPage() {
         projectId={projectId}
         onLinked={() => {
           setIsLinkModalOpen(false);
-          // Reload the page logic or trigger re-fetch
           window.location.reload();
         }}
       />

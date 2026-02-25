@@ -7,14 +7,14 @@ const { supabaseAdmin } = require("../lib/supabase");
 // Rate limiter for read operations
 const readLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  max: 300,
   message: "Too many requests. Please try again later.",
 });
 
 // Rate limiter for write operations
 const writeLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 50,
+  max: 100,
   message: "Too many requests. Please try again later.",
 });
 
