@@ -24,6 +24,10 @@ const BUCKET_CONFIG = {
     maxSizeBytes: 20 * 1024 * 1024,   // 20 MB
     allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
   },
+  identity_documents: {
+    maxSizeBytes: 10 * 1024 * 1024,   // 10 MB
+    allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "application/pdf"],
+  },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

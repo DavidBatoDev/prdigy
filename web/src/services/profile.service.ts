@@ -27,6 +27,7 @@ export interface UserSkill {
 
 export interface UserLanguage {
   id: string;
+  language_id: string;
   fluency_level: FluencyLevel;
   language: LanguageMeta;
 }
@@ -116,6 +117,38 @@ export interface UserRateSettings {
   weekly_hours?: number | null;
 }
 
+export type LicenseType = "legal" | "engineering" | "medical" | "financial" | "real_estate" | "other";
+
+export interface UserLicense {
+  id: string;
+  user_id: string;
+  name: string;
+  type: LicenseType;
+  issuing_authority: string;
+  license_number?: string | null;
+  issue_date?: string | null;
+  expiry_date?: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type IdentityDocumentType = "passport" | "national_id" | "drivers_license" | "other";
+
+export interface UserIdentityDocument {
+  id: string;
+  user_id: string;
+  type: IdentityDocumentType;
+  storage_path: string;
+  is_verified: boolean;
+  expires_at?: string | null;
+  uploaded_at: string;
+  verified_at?: string | null;
+  verified_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface FullProfile {
   id: string;
   email: string;
@@ -141,12 +174,13 @@ export interface FullProfile {
   languages: UserLanguage[];
   educations: UserEducation[];
   certifications: UserCertification[];
-  licenses: unknown[];
+  licenses: UserLicense[];
   experiences: UserExperience[];
   portfolios: UserPortfolio[];
   stats: UserStats | null;
   specializations: UserSpecialization[];
   rate_settings: UserRateSettings | null;
+  identity_documents: UserIdentityDocument[];
 }
 
 export interface UpdateProfileData {
@@ -253,6 +287,54 @@ class ProfileService {
   async updateRateSettings(payload: Partial<UserRateSettings>): Promise<UserRateSettings> {
     const { data } = await apiClient.put(`${this.base}/rate-settings`, payload);
     return data.data;
+  }
+
+  // ── Languages (Individual endpoints) ───────────────────────────────────────
+  async addLanguage(payload: Omit<UserLanguage, "id" | "user_id" | "created_at">): Promise<UserLanguage> {
+    const { data } = await apiClient.post(`${this.base}/languages`, payload);
+    return data.data;
+  }
+  async updateLanguage(id: string, payload: Partial<UserLanguage>): Promise<UserLanguage> {
+    const { data } = await apiClient.patch(`${this.base}/languages/${id}`, payload);
+    return data.data;
+  }
+  async deleteLanguage(id: string): Promise<void> {
+    await apiClient.delete(`${this.base}/languages/${id}`);
+  }
+
+  // ── Specializations ────────────────────────────────────────────────────────
+  async addSpecialization(payload: Omit<UserSpecialization, "id" | "user_id" | "created_at" | "updated_at">): Promise<UserSpecialization> {
+    const { data } = await apiClient.post(`${this.base}/specializations`, payload);
+    return data.data;
+  }
+  async updateSpecialization(id: string, payload: Partial<UserSpecialization>): Promise<UserSpecialization> {
+    const { data } = await apiClient.patch(`${this.base}/specializations/${id}`, payload);
+    return data.data;
+  }
+  async deleteSpecialization(id: string): Promise<void> {
+    await apiClient.delete(`${this.base}/specializations/${id}`);
+  }
+
+  // ── Licenses ───────────────────────────────────────────────────────────────
+  async addLicense(payload: Omit<UserLicense, "id" | "user_id" | "created_at" | "updated_at">): Promise<UserLicense> {
+    const { data } = await apiClient.post(`${this.base}/licenses`, payload);
+    return data.data;
+  }
+  async updateLicense(id: string, payload: Partial<UserLicense>): Promise<UserLicense> {
+    const { data } = await apiClient.patch(`${this.base}/licenses/${id}`, payload);
+    return data.data;
+  }
+  async deleteLicense(id: string): Promise<void> {
+    await apiClient.delete(`${this.base}/licenses/${id}`);
+  }
+
+  // ── Identity Documents ─────────────────────────────────────────────────────
+  async addIdentityDocument(payload: Omit<UserIdentityDocument, "id" | "user_id" | "is_verified" | "verified_at" | "verified_by" | "uploaded_at" | "created_at" | "updated_at">): Promise<UserIdentityDocument> {
+    const { data } = await apiClient.post(`${this.base}/identity_documents`, payload);
+    return data.data;
+  }
+  async deleteIdentityDocument(id: string): Promise<void> {
+    await apiClient.delete(`${this.base}/identity_documents/${id}`);
   }
 
   // ── Meta ───────────────────────────────────────────────────────────────────

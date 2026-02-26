@@ -68,6 +68,7 @@ router.get("/:id", verifySupabaseJwt, readLimiter, async (req, res, next) => {
       { data: stats, error: statsError },
       { data: specializations, error: specializationsError },
       { data: rateSettings, error: rateSettingsError },
+      { data: identityDocuments, error: idDocsError },
     ] = await Promise.all([
       supabaseAdmin
         .from("profiles")
@@ -121,6 +122,10 @@ router.get("/:id", verifySupabaseJwt, readLimiter, async (req, res, next) => {
         .select("*")
         .eq("user_id", id)
         .maybeSingle(),
+      supabaseAdmin
+        .from("user_identity_documents")
+        .select("*")
+        .eq("user_id", id),
     ]);
 
     if (profileError) throw profileError;
@@ -139,6 +144,7 @@ router.get("/:id", verifySupabaseJwt, readLimiter, async (req, res, next) => {
         stats: stats ?? null,
         specializations: specializations ?? [],
         rate_settings: rateSettings ?? null,
+        identity_documents: identityDocuments ?? [],
       },
     });
   } catch (error) {
@@ -218,36 +224,42 @@ router.put("/skills", verifySupabaseJwt, writeLimiter, async (req, res, next) =>
 // ─────────────────────────────────────────────────────────────────────────────
 // USER LANGUAGES
 // ─────────────────────────────────────────────────────────────────────────────
-router.put("/languages", verifySupabaseJwt, writeLimiter, async (req, res, next) => {
+router.post("/languages", verifySupabaseJwt, writeLimiter, async (req, res, next) => {
   try {
-    const userId = req.user.id;
-    const { languages } = req.body; // [{ language_id, fluency_level }]
-
-    if (!Array.isArray(languages)) {
-      return res.status(400).json({ error: { message: "languages must be an array" } });
-    }
-
-    await supabaseAdmin.from("user_languages").delete().eq("user_id", userId);
-
-    if (languages.length > 0) {
-      const rows = languages.map((l) => ({
-        user_id: userId,
-        language_id: l.language_id,
-        fluency_level: l.fluency_level ?? "conversational",
-      }));
-      const { error } = await supabaseAdmin.from("user_languages").insert(rows);
-      if (error) throw error;
-    }
-
-    const { data } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from("user_languages")
+      .insert({ ...req.body, user_id: req.user.id })
       .select("id,fluency_level,language:languages(id,name,code)")
-      .eq("user_id", userId);
+      .single();
+    if (error) throw error;
+    res.status(201).json({ data });
+  } catch (error) { next(error); }
+});
 
+router.patch("/languages/:id", verifySupabaseJwt, writeLimiter, async (req, res, next) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("user_languages")
+      .update(req.body)
+      .eq("id", req.params.id)
+      .eq("user_id", req.user.id)
+      .select("id,fluency_level,language:languages(id,name,code)")
+      .single();
+    if (error) throw error;
     res.json({ data });
-  } catch (error) {
-    next(error);
-  }
+  } catch (error) { next(error); }
+});
+
+router.delete("/languages/:id", verifySupabaseJwt, writeLimiter, async (req, res, next) => {
+  try {
+    const { error } = await supabaseAdmin
+      .from("user_languages")
+      .delete()
+      .eq("id", req.params.id)
+      .eq("user_id", req.user.id);
+    if (error) throw error;
+    res.status(204).send();
+  } catch (error) { next(error); }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -437,6 +449,115 @@ router.put("/rate-settings", verifySupabaseJwt, writeLimiter, async (req, res, n
   } catch (error) {
     next(error);
   }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LICENSES
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/licenses", verifySupabaseJwt, writeLimiter, async (req, res, next) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("user_licenses")
+      .insert({ ...req.body, user_id: req.user.id })
+      .select()
+      .single();
+    if (error) throw error;
+    res.status(201).json({ data });
+  } catch (error) { next(error); }
+});
+
+router.patch("/licenses/:id", verifySupabaseJwt, writeLimiter, async (req, res, next) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("user_licenses")
+      .update(req.body)
+      .eq("id", req.params.id)
+      .eq("user_id", req.user.id)
+      .select()
+      .single();
+    if (error) throw error;
+    res.json({ data });
+  } catch (error) { next(error); }
+});
+
+router.delete("/licenses/:id", verifySupabaseJwt, writeLimiter, async (req, res, next) => {
+  try {
+    const { error } = await supabaseAdmin
+      .from("user_licenses")
+      .delete()
+      .eq("id", req.params.id)
+      .eq("user_id", req.user.id);
+    if (error) throw error;
+    res.status(204).send();
+  } catch (error) { next(error); }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SPECIALIZATIONS
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/specializations", verifySupabaseJwt, writeLimiter, async (req, res, next) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("user_specializations")
+      .insert({ ...req.body, user_id: req.user.id })
+      .select()
+      .single();
+    if (error) throw error;
+    res.status(201).json({ data });
+  } catch (error) { next(error); }
+});
+
+router.patch("/specializations/:id", verifySupabaseJwt, writeLimiter, async (req, res, next) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("user_specializations")
+      .update(req.body)
+      .eq("id", req.params.id)
+      .eq("user_id", req.user.id)
+      .select()
+      .single();
+    if (error) throw error;
+    res.json({ data });
+  } catch (error) { next(error); }
+});
+
+router.delete("/specializations/:id", verifySupabaseJwt, writeLimiter, async (req, res, next) => {
+  try {
+    const { error } = await supabaseAdmin
+      .from("user_specializations")
+      .delete()
+      .eq("id", req.params.id)
+      .eq("user_id", req.user.id);
+    if (error) throw error;
+    res.status(204).send();
+  } catch (error) { next(error); }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IDENTITY DOCUMENTS
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/identity_documents", verifySupabaseJwt, writeLimiter, async (req, res, next) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("user_identity_documents")
+      .insert({ ...req.body, user_id: req.user.id })
+      .select()
+      .single();
+    if (error) throw error;
+    res.status(201).json({ data });
+  } catch (error) { next(error); }
+});
+
+router.delete("/identity_documents/:id", verifySupabaseJwt, writeLimiter, async (req, res, next) => {
+  try {
+    const { error } = await supabaseAdmin
+      .from("user_identity_documents")
+      .delete()
+      .eq("id", req.params.id)
+      .eq("user_id", req.user.id);
+    if (error) throw error;
+    res.status(204).send();
+  } catch (error) { next(error); }
 });
 
 module.exports = router;

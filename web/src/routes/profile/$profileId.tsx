@@ -9,7 +9,10 @@ import {
   type UserExperience,
   type UserEducation,
   type UserCertification,
-  type UserPortfolio
+  type UserPortfolio,
+  type UserLanguage,
+  type UserSpecialization,
+  type UserLicense
 } from "@/services/profile.service";
 import { uploadService } from "@/services/upload.service";
 import Header from "@/components/layout/Header";
@@ -19,6 +22,10 @@ import { CertificationModal } from "@/components/profile/CertificationModal";
 import { PortfolioModal } from "@/components/profile/PortfolioModal";
 import { UploadModal } from "@/components/profile/UploadModal";
 import { AboutModal } from "@/components/profile/AboutModal";
+import { LanguageModal } from "@/components/profile/LanguageModal";
+import { SpecializationModal } from "@/components/profile/SpecializationModal";
+import { LicenseModal } from "@/components/profile/LicenseModal";
+import { IdentityDocumentModal } from "@/components/profile/IdentityDocumentModal";
 import {
   User, Camera, BadgeCheck, MapPin, Edit2, Plus, Trash2, Briefcase,
   GraduationCap, Award, Globe, Star, DollarSign, Check, Loader2,
@@ -172,6 +179,44 @@ function ProfilePage() {
   const deletePortfolio = useMutation({ mutationFn: profileService.deletePortfolio.bind(profileService), onSuccess: () => qc.invalidateQueries({ queryKey: profileKeys.full(profileId) }) });
   const updatePortfolio = useMutation({ mutationFn: ({ id, payload }: { id: string; payload: any }) => profileService.updatePortfolio(id, payload), onSuccess: () => { qc.invalidateQueries({ queryKey: profileKeys.full(profileId) }); setPortModalOpen(false); setEditingPort(null); } });
 
+  const addLanguage    = useMutation({ mutationFn: profileService.addLanguage.bind(profileService),    onSuccess: () => { qc.invalidateQueries({ queryKey: profileKeys.full(profileId) }); setLangModalOpen(false); } });
+  const deleteLanguage = useMutation({ mutationFn: profileService.deleteLanguage.bind(profileService), onSuccess: () => qc.invalidateQueries({ queryKey: profileKeys.full(profileId) }) });
+  const updateLanguage = useMutation({ mutationFn: ({ id, payload }: { id: string; payload: any }) => profileService.updateLanguage(id, payload), onSuccess: () => { qc.invalidateQueries({ queryKey: profileKeys.full(profileId) }); setLangModalOpen(false); setEditingLang(null); } });
+
+  const addSpecialization    = useMutation({ mutationFn: profileService.addSpecialization.bind(profileService),    onSuccess: () => { qc.invalidateQueries({ queryKey: profileKeys.full(profileId) }); setSpecModalOpen(false); } });
+  const deleteSpecialization = useMutation({ mutationFn: profileService.deleteSpecialization.bind(profileService), onSuccess: () => qc.invalidateQueries({ queryKey: profileKeys.full(profileId) }) });
+  const updateSpecialization = useMutation({ mutationFn: ({ id, payload }: { id: string; payload: any }) => profileService.updateSpecialization(id, payload), onSuccess: () => { qc.invalidateQueries({ queryKey: profileKeys.full(profileId) }); setSpecModalOpen(false); setEditingSpec(null); } });
+
+  const addLicense    = useMutation({ mutationFn: profileService.addLicense.bind(profileService),    onSuccess: () => { qc.invalidateQueries({ queryKey: profileKeys.full(profileId) }); setLicModalOpen(false); } });
+  const deleteLicense = useMutation({ mutationFn: profileService.deleteLicense.bind(profileService), onSuccess: () => qc.invalidateQueries({ queryKey: profileKeys.full(profileId) }) });
+  const updateLicense = useMutation({ mutationFn: ({ id, payload }: { id: string; payload: any }) => profileService.updateLicense(id, payload), onSuccess: () => { qc.invalidateQueries({ queryKey: profileKeys.full(profileId) }); setLicModalOpen(false); setEditingLic(null); } });
+
+  const addIdentityDoc = useMutation({
+    mutationFn: async ({ payload, file }: { payload: any; file: File }) => {
+      // 1. Upload to private storage
+      const storage_path = await uploadService.upload("identity_documents" as any, file);
+      // 2. Persist to DB
+      return profileService.addIdentityDocument({ ...payload, storage_path });
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: profileKeys.full(profileId) }); setIdDocModalOpen(false); }
+  });
+  const deleteIdentityDoc = useMutation({
+    mutationFn: profileService.deleteIdentityDocument.bind(profileService),
+    onSuccess: () => qc.invalidateQueries({ queryKey: profileKeys.full(profileId) })
+  });
+
+  const metaQuery = useQuery({
+    queryKey: ["profileMeta"],
+    queryFn: async () => {
+      const [skills, languages] = await Promise.all([
+        profileService.getAllSkills(),
+        profileService.getAllLanguages()
+      ]);
+      return { skills, languages };
+    },
+    staleTime: 1000 * 60 * 60 // 1 hour
+  });
+
   // ── ALL state (must be before early returns) ──────────────────────────────
   type EditSection = "header" | "bio" | "contact" | "rate";
   const [editSection, setEditSection] = useState<EditSection | null>(null);
@@ -184,12 +229,19 @@ function ProfilePage() {
   const [certModalOpen, setCertModalOpen] = useState(false);
   const [portModalOpen, setPortModalOpen] = useState(false);
   const [aboutModalOpen, setAboutModalOpen] = useState(false);
+  const [langModalOpen, setLangModalOpen] = useState(false);
+  const [specModalOpen, setSpecModalOpen] = useState(false);
+  const [licModalOpen, setLicModalOpen]   = useState(false);
+  const [idDocModalOpen, setIdDocModalOpen] = useState(false);
 
   // Which existing item is being edited (null = add mode)
   const [editingExp,  setEditingExp]  = useState<UserExperience | null>(null);
   const [editingEdu,  setEditingEdu]  = useState<UserEducation  | null>(null);
   const [editingCert, setEditingCert] = useState<UserCertification | null>(null);
   const [editingPort, setEditingPort] = useState<UserPortfolio  | null>(null);
+  const [editingLang, setEditingLang] = useState<UserLanguage | null>(null);
+  const [editingSpec, setEditingSpec] = useState<UserSpecialization | null>(null);
+  const [editingLic,  setEditingLic]  = useState<UserLicense | null>(null);
 
   // Upload states — must live ABOVE all early returns
   const [avatarModalOpen,   setAvatarModalOpen]   = useState(false);
@@ -496,16 +548,44 @@ function ProfilePage() {
 
               {/* Languages */}
               <Card className="p-5">
-                <h3 className="font-semibold text-gray-900 text-sm mb-3">Languages</h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-gray-900 text-sm">Languages</h3>
+                  {isOwner && (
+                    <button onClick={() => setLangModalOpen(true)} className="p-1.5 rounded-full border border-gray-200 text-gray-400 hover:bg-gray-100 transition-colors">
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
                 {profile.languages.length > 0 ? (
-                  <div className="space-y-2">
+                  <div className="space-y-4">
                     {profile.languages.map(l => (
-                      <div key={l.id} className="flex items-center justify-between">
+                      <div key={l.id} className="flex items-center justify-between group">
                         <div className="flex items-center gap-2">
-                          <Globe className="w-3.5 h-3.5 text-gray-400" />
-                          <span className="text-sm text-gray-700">{l.language.name}</span>
+                          <Globe className="w-4 h-4 text-gray-400 shrink-0" />
+                          <div className="flex flex-col">
+                            <span className="text-sm font-semibold text-gray-900">{l.language.name}</span>
+                            <span className="text-xs text-gray-500 capitalize">{l.fluency_level}</span>
+                          </div>
                         </div>
-                        <span className="text-xs text-gray-400 capitalize">{l.fluency_level}</span>
+                        {isOwner && (
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                            <button
+                              onClick={() => { setEditingLang(l); setLangModalOpen(true); }}
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-[#ff9933] hover:bg-orange-50 transition-colors"
+                              title="Edit"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => deleteLanguage.mutate(l.id)}
+                              disabled={deleteLanguage.isPending}
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                              title="Delete"
+                            >
+                              {deleteLanguage.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -530,6 +610,48 @@ function ProfilePage() {
                       </div>
                     ))}
                   </div>
+                </Card>
+              )}
+              {/* Identity Documents (KYC/KYB) - Only visible to owner/admins */}
+              {isOwner && (
+                <Card className="p-5 border-[#14b8a6]/20 bg-teal-50/10">
+                  <div className="flex items-center justify-between mb-3 border-b border-[#14b8a6]/10 pb-2">
+                    <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-[#14b8a6]" />
+                      Verification Documents
+                    </h3>
+                    <button onClick={() => setIdDocModalOpen(true)} className="p-1.5 rounded-full border border-gray-200 text-gray-400 hover:bg-white transition-colors">
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  {profile.identity_documents?.length > 0 ? (
+                    <div className="space-y-3">
+                      {profile.identity_documents.map(doc => (
+                        <div key={doc.id} className="flex items-center justify-between group bg-white p-2.5 rounded-xl border border-gray-100 shadow-sm">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${doc.is_verified ? 'bg-green-100' : 'bg-gray-100'}`}>
+                              {doc.is_verified ? <Check className="w-4 h-4 text-green-600" /> : <Loader2 className="w-4 h-4 text-gray-400" />}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-semibold text-gray-900 capitalize">{doc.type.replace('_', ' ')}</span>
+                              <span className="text-xs text-gray-500">
+                                {doc.is_verified ? "Verified" : "Pending review"}
+                                {doc.uploaded_at && ` • Uploaded ${new Date(doc.uploaded_at).toLocaleDateString()}`}
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => deleteIdentityDoc.mutate(doc.id)}
+                            disabled={deleteIdentityDoc.isPending}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                            title="Delete Document"
+                          >
+                            {deleteIdentityDoc.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : <EmptyState message="No identity documents provided." />}
                 </Card>
               )}
             </div>
@@ -567,12 +689,50 @@ function ProfilePage() {
                 )}
 
                 {/* Divider */}
-                {(profile.bio || profile.skills.length > 0) && (
+                {(profile.bio || profile.skills.length > 0 || profile.specializations.length > 0) && (
                   <hr className="border-gray-100 mb-4" />
                 )}
 
-                {/* Skills */}
+                {/* Specializations */}
                 <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-gray-700">Specializations</h3>
+                  {isOwner && (
+                    <button onClick={() => setSpecModalOpen(true)} className="text-xs text-[#ff9933] font-semibold hover:underline flex items-center gap-0.5">
+                      <Plus className="w-3 h-3" /> Add specialization
+                    </button>
+                  )}
+                </div>
+                {profile.specializations.length > 0 ? (
+                  <div className="space-y-4 mb-6">
+                    {profile.specializations.map(s => (
+                      <div key={s.id} className="group relative pr-12 border-l-2 border-[#ff9933]/30 pl-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-semibold text-gray-900 text-sm capitalize">{s.category.replace('_', ' ')}</span>
+                          {s.years_of_experience && (
+                            <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{s.years_of_experience} yrs</span>
+                          )}
+                        </div>
+                        {s.sub_category && <p className="text-xs font-medium text-gray-500 mb-1">{s.sub_category}</p>}
+                        {s.description &&  <p className="text-sm text-gray-600 line-clamp-2">{s.description}</p>}
+                        {isOwner && (
+                          <div className="absolute right-0 top-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                            <button onClick={() => { setEditingSpec(s); setSpecModalOpen(true); }} className="p-1 text-gray-400 hover:text-[#ff9933]" title="Edit">
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => deleteSpecialization.mutate(s.id)} className="p-1 text-gray-400 hover:text-red-500" title="Delete">
+                              {deleteSpecialization.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState message="No specializations added." />
+                )}
+
+                {/* Skills */}
+                <div className="flex items-center justify-between mb-3 mt-4">
                   <h3 className="text-sm font-semibold text-gray-700">Skills</h3>
                   {isOwner && profile.skills.length === 0 && (
                     <button onClick={() => setAboutModalOpen(true)} className="text-xs text-[#ff9933] font-semibold hover:underline flex items-center gap-0.5">
@@ -759,6 +919,41 @@ function ProfilePage() {
                 ) : <EmptyState message="No certifications added." />}
               </Card>
 
+              {/* Licenses */}
+              <Card className="p-6">
+                <SectionTitle title="Licenses" icon={BadgeCheck} isOwner={isOwner} onAdd={() => setLicModalOpen(true)} />
+                {profile.licenses.length > 0 ? (
+                  <div className="space-y-4">
+                    {profile.licenses.map(lic => (
+                      <div key={lic.id} className="group relative flex gap-3">
+                        <div className="mt-1 w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
+                          <ShieldCheck className="w-5 h-5 text-indigo-500" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-sm font-bold text-gray-900">{lic.name}</h4>
+                          <p className="text-sm text-gray-600 mb-1">{lic.issuing_authority}</p>
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-400">
+                            {lic.issue_date && <span>Issued: {fmtDate(lic.issue_date)}</span>}
+                            {lic.expiry_date && <span>Expires: {fmtDate(lic.expiry_date)}</span>}
+                            {lic.license_number && <span>ID: {lic.license_number}</span>}
+                          </div>
+                        </div>
+                        {isOwner && (
+                          <div className="absolute top-0 right-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => { setEditingLic(lic); setLicModalOpen(true); }} className="p-1 hover:text-[#ff9933] text-gray-400 transition-colors">
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => deleteLicense.mutate(lic.id)} className="p-1 hover:text-red-500 text-gray-400 transition-colors">
+                              {deleteLicense.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Trash2 className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : <EmptyState message="No licenses added." />}
+              </Card>
+
               {/* Portfolio */}
               {(profile.portfolios.length > 0 || isOwner) && (
                 <Card className="p-6">
@@ -870,6 +1065,43 @@ function ProfilePage() {
         }}
         isSaving={editingPort ? updatePortfolio.isPending : addPortfolio.isPending}
         nextPosition={profile.portfolios.length}
+      />
+      <SpecializationModal
+        isOpen={specModalOpen}
+        onClose={() => { setSpecModalOpen(false); setEditingSpec(null); }}
+        initialData={editingSpec ?? undefined}
+        onSave={payload => {
+          if (editingSpec) updateSpecialization.mutate({ id: editingSpec.id, payload });
+          else addSpecialization.mutate(payload as any);
+        }}
+        isSaving={editingSpec ? updateSpecialization.isPending : addSpecialization.isPending}
+      />
+      <LicenseModal
+        isOpen={licModalOpen}
+        onClose={() => { setLicModalOpen(false); setEditingLic(null); }}
+        initialData={editingLic ?? undefined}
+        onSave={payload => {
+          if (editingLic) updateLicense.mutate({ id: editingLic.id, payload });
+          else addLicense.mutate(payload as any);
+        }}
+        isSaving={editingLic ? updateLicense.isPending : addLicense.isPending}
+      />
+      <LanguageModal
+        isOpen={langModalOpen}
+        onClose={() => { setLangModalOpen(false); setEditingLang(null); }}
+        initialData={editingLang ?? undefined}
+        languagesMeta={metaQuery.data?.languages ?? []}
+        onSave={(payload) => {
+          if (editingLang) updateLanguage.mutate({ id: editingLang.id, payload });
+          else addLanguage.mutate(payload as any);
+        }}
+        isSaving={editingLang ? updateLanguage.isPending : addLanguage.isPending}
+      />
+      <IdentityDocumentModal
+        isOpen={idDocModalOpen}
+        onClose={() => setIdDocModalOpen(false)}
+        onSave={(payload, file) => addIdentityDoc.mutate({ payload, file })}
+        isSaving={addIdentityDoc.isPending}
       />
       <UploadModal
         isOpen={avatarModalOpen}
