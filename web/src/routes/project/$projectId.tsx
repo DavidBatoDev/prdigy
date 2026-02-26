@@ -3,6 +3,7 @@ import {
   Outlet,
   redirect,
   useNavigate,
+  useChildMatches,
 } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/stores/authStore";
@@ -10,7 +11,7 @@ import { projectService, type Project } from "@/services/project.service";
 import { ProjectSidebar } from "@/components/project/ProjectSidebar";
 import { ProjectHeader } from "@/components/project/ProjectHeader";
 import { useProjectSettingsStore } from "@/stores/projectSettingsStore";
-import { useRoadmapStore } from "@/stores/roadmapStore";
+import { roadmapService } from "@/services/roadmap.service";
 import { Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/project/$projectId")({
@@ -28,11 +29,13 @@ function ProjectLayout() {
   const navigate = useNavigate();
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [linkedRoadmapId, setLinkedRoadmapId] = useState<string | null>(null);
   const setSidebarExpanded = useProjectSettingsStore(
     (state) => state.setSidebarExpanded,
   );
-  // Read the currently-loaded roadmap so we can get its id for the Make Project flow
-  const roadmap = useRoadmapStore((state) => state.roadmap);
+  // For the 'n' (roadmap-only) case, read the roadmapId from the nested child route params
+  const childMatches = useChildMatches();
+  const childRoadmapId = (childMatches[0]?.params as any)?.roadmapId as string | undefined;
 
   // Auto-open project sidebar when navigating to project pages (non-roadmap)
   useEffect(() => {
@@ -49,6 +52,9 @@ function ProjectLayout() {
         setIsLoading(true);
         const data = await projectService.get(projectId);
         setProject(data);
+        // Look up the roadmap linked to this project
+        const roadmap = await roadmapService.getByProjectId(projectId);
+        if (roadmap) setLinkedRoadmapId(roadmap.id);
       } catch (err) {
         console.error("Failed to load project:", err);
       } finally {
@@ -69,11 +75,11 @@ function ProjectLayout() {
   const isRoadmapOnly = projectId === "n";
 
   const handleMakeProject = () => {
-    if (!roadmap) return;
+    if (!childRoadmapId) return;
     sessionStorage.setItem("fromRoadmap", "true");
     navigate({
       to: "/client/project-posting",
-      search: { roadmapId: roadmap.id },
+      search: { roadmapId: childRoadmapId },
     });
   };
 
@@ -89,7 +95,7 @@ function ProjectLayout() {
         onMakeProject={isRoadmapOnly ? handleMakeProject : undefined}
       />
       <div className="flex flex-1 overflow-hidden">
-        <ProjectSidebar project={project} projectId={projectId} hasProject={!isRoadmapOnly && !!project} />
+        <ProjectSidebar project={project} projectId={projectId} hasProject={!isRoadmapOnly && !!project} roadmapId={linkedRoadmapId ?? undefined} />
         <main className="flex-1 overflow-hidden">
           <Outlet />
         </main>

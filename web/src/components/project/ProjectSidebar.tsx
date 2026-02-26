@@ -16,9 +16,11 @@ interface ProjectSidebarProps {
   project: Project | null;
   projectId: string;
   hasProject?: boolean;
+  /** The id of the roadmap linked to this project, if any */
+  roadmapId?: string;
 }
 
-export function ProjectSidebar({ project, projectId, hasProject }: ProjectSidebarProps) {
+export function ProjectSidebar({ project, projectId, hasProject, roadmapId }: ProjectSidebarProps) {
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
   
@@ -41,7 +43,9 @@ export function ProjectSidebar({ project, projectId, hasProject }: ProjectSideba
     {
       label: "Roadmap",
       icon: Map,
-      to: `/project/${projectId}/roadmap`,
+      to: roadmapId
+        ? `/project/${projectId}/roadmap/${roadmapId}`
+        : `/project/${projectId}/roadmap`,
       requiresProject: false,
     },
     {

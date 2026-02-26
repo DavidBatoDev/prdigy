@@ -280,6 +280,18 @@ export const roadmapService = {
   },
 
   /**
+   * Get the roadmap linked to a specific project
+   */
+  async getByProjectId(projectId: string): Promise<Roadmap | null> {
+    try {
+      const roadmaps = await roadmapService.getAll();
+      return roadmaps.find((r) => r.project_id === projectId) ?? null;
+    } catch (error) {
+      throw handleServiceError(error, `Get roadmap for project ${projectId}`);
+    }
+  },
+
+  /**
    * Delete a roadmap
    */
   async delete(id: string): Promise<void> {

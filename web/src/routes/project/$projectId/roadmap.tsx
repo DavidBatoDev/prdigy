@@ -2,7 +2,8 @@ import { createFileRoute, Outlet, useNavigate, useChildMatches } from "@tanstack
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Map, ExternalLink, Loader2 } from "lucide-react";
-import { projectService, type Project } from "@/services/project.service";
+import { projectService } from "@/services/project.service";
+import { roadmapService } from "@/services/roadmap.service";
 import { LinkRoadmapModal } from "@/components/roadmap/modals/LinkRoadmapModal";
 
 export const Route = createFileRoute("/project/$projectId/roadmap")({
@@ -35,11 +36,10 @@ function RoadmapPage() {
 
     const load = async () => {
       try {
-        // Only one request needed — the project object carries roadmap_id
         const data = await projectService.get(projectId);
         if (cancelled) return;
-
-        const linkedRoadmapId = (data as Project & { roadmap_id?: string | null }).roadmap_id ?? null;
+        const roadmap = await roadmapService.getByProjectId(projectId);
+        const linkedRoadmapId = roadmap?.id ?? null;
 
         if (linkedRoadmapId) {
           navigate({
