@@ -12,7 +12,8 @@ import {
   type UserPortfolio,
   type UserLanguage,
   type UserSpecialization,
-  type UserLicense
+  type UserLicense,
+  applicationService
 } from "@/services/profile.service";
 import { uploadService } from "@/services/upload.service";
 import Header from "@/components/layout/Header";
@@ -152,6 +153,12 @@ function ProfilePage() {
     queryKey: profileKeys.full(profileId),
     queryFn: () => profileService.getProfile(profileId),
     enabled: !!profileId,
+  });
+
+  const { data: existingApp, isLoading: appLoading } = useQuery({
+    queryKey: ["myApplication"],
+    queryFn: () => applicationService.getMyApplication(),
+    enabled: isOwner,
   });
 
   // ── Mutations ─────────────────────────────────────────────────────────────
@@ -381,12 +388,12 @@ function ProfilePage() {
                 {isOwner && (
                   <div className="flex items-center gap-2 pb-1">
                     {/* Apply as Consultant CTA — only shown when not yet verified */}
-                    {!profile.is_consultant_verified && (
+                    {!profile.is_consultant_verified && !appLoading && (
                       <Link
                         to="/consultant/apply"
                         className="text-sm font-semibold bg-teal-50 border border-teal-400 text-teal-600 px-4 py-1.5 rounded-full hover:bg-teal-100 transition-colors flex items-center gap-1.5"
                       >
-                        Apply as Consultant
+                        {existingApp && existingApp.status !== "draft" ? "View Application Status" : "Apply as Consultant"}
                       </Link>
                     )}
                     <Link

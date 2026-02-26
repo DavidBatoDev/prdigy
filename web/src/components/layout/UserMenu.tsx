@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useAuthStore } from "@/stores/authStore";
 import { useProfileQuery } from "@/hooks/useProfileQuery";
 import { profileKeys } from "@/queries/profile";
-import { User, LogOut, ChevronDown } from "lucide-react";
+import { User, LogOut, ChevronDown, ShieldCheck } from "lucide-react";
 import { switchPersona } from "@/lib/auth-api";
 import { useTutorial } from "@/contexts/TutorialContext";
+import { adminService } from "@/services/admin.service";
 
 export default function UserMenu() {
   const [isOpen, setIsOpen] = useState(false);
@@ -18,6 +19,16 @@ export default function UserMenu() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { isActive } = useTutorial();
+
+  // Check if user is an admin (quiet background fetch)
+  const { data: adminProfile } = useQuery({
+    queryKey: ["adminMe"],
+    queryFn: () => adminService.getMe(),
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5, // 5 min cache
+    retry: false,
+  });
+  const isAdmin = !!adminProfile;
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -206,6 +217,21 @@ export default function UserMenu() {
 
           {/* Menu items */}
           <div className="py-1">
+            {/* Admin Dashboard link — only shown for admins */}
+            {isAdmin && (
+              <>
+                <Link
+                  to="/admin/applications"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center gap-3 px-4 py-2 text-sm text-amber-600 hover:bg-amber-50 transition-colors cursor-pointer font-semibold"
+                >
+                  <ShieldCheck size={16} />
+                  Admin Dashboard
+                </Link>
+                <div className="my-1 border-t border-gray-100" />
+              </>
+            )}
+
             <Link
               to="/profile/$profileId"
               params={{ profileId: user?.id || "" }}
