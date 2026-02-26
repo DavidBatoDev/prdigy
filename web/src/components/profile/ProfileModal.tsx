@@ -2,6 +2,7 @@
  * ProfileModal — lightweight modal shell used across all profile edit modals
  */
 import { useEffect, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 interface ProfileModalProps {
@@ -25,9 +26,9 @@ export function ProfileModal({ isOpen, onClose, title, children, width = "md" }:
 
   const widthClass = { sm: "max-w-sm", md: "max-w-lg", lg: "max-w-2xl" }[width];
 
-  return (
+  const modalContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-9999 flex items-center justify-center p-4"
       aria-modal="true"
       role="dialog"
     >
@@ -55,4 +56,7 @@ export function ProfileModal({ isOpen, onClose, title, children, width = "md" }:
       </div>
     </div>
   );
+
+  // Use createPortal to escape any stacking contexts created by parent DOM elements (e.g. Framer Motion)
+  return createPortal(modalContent, document.body);
 }

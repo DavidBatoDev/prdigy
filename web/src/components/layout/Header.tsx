@@ -21,6 +21,12 @@ const Header = () => {
 
   const getPersonaMenu = () => {
     const persona = profile?.active_persona || 'client';
+    const isConsultantVerified = profile?.is_consultant_verified;
+
+    // Shared CTA — only shown when not yet a verified consultant
+    const applyItem = !isConsultantVerified
+      ? [{ label: "Apply as Consultant", href: "/consultant/apply", divider: true }]
+      : [];
     
     switch (persona) {
       case 'freelancer':
@@ -30,6 +36,7 @@ const Header = () => {
             { label: "Find a Mentor", href: "/mentors" },
             { label: "My Applications", href: "/applications" },
             { label: "Saved Mentors", href: "/saved-mentors" },
+            ...applyItem,
           ]
         };
       case 'consultant':
@@ -50,7 +57,7 @@ const Header = () => {
             { label: "Browse Professional Consultants", href: "/consultant/browse" },
             { label: "My Consultant Pool", href: "/consultant-pool" },
             { label: "Direct Contacts", href: "/direct-contacts" },
-
+            ...applyItem,
           ]
         };
     }
@@ -191,32 +198,37 @@ const Header = () => {
                       }}
                     >
                       {menuConfig.items.map((item) => (
-                      <Link
-                        key={item.label}
-                        to={item.href}
-                        style={{ textDecoration: "none" }}
-                      >
-                        <Box
-                          sx={{
-                            px: 3,
-                            py: 1.5,
-                            cursor: "pointer",
-                            "&:hover": {
-                              bgcolor: "#f5f5f5",
-                            },
-                          }}
+                      <Box key={item.label}>
+                        {/* Divider before special items */}
+                        {(item as any).divider && (
+                          <Box sx={{ my: 1, borderTop: "1px solid #eee", mx: 2 }} />
+                        )}
+                        <Link
+                          to={item.href}
+                          style={{ textDecoration: "none" }}
                         >
-                          <Typography
+                          <Box
                             sx={{
-                              color: "#2F302F",
-                              fontSize: "0.95rem",
-                              fontWeight: 500,
+                              px: 3,
+                              py: 1.5,
+                              cursor: "pointer",
+                              "&:hover": {
+                                bgcolor: "#f5f5f5",
+                              },
                             }}
                           >
-                            {item.label}
-                          </Typography>
-                        </Box>
-                      </Link>
+                            <Typography
+                              sx={{
+                                color: "#2F302F",
+                                fontSize: "0.95rem",
+                                fontWeight: 500,
+                              }}
+                            >
+                              {item.label}
+                            </Typography>
+                          </Box>
+                        </Link>
+                      </Box>
                     ))}
                     </Box>
                   </Box>

@@ -50,6 +50,7 @@ app.use("/api/profile", require("./routes/profile"));
 app.use("/api/uploads", require("./routes/uploads"));
 app.use("/api/guests", require("./routes/guests"));
 app.use("/api/consultants", require("./routes/consultants"));
+app.use("/api/applications", require("./routes/applications"));
 
 // Roadmap Routes
 app.use("/api/roadmaps", require("./routes/roadmaps"));

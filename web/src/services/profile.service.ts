@@ -349,3 +349,44 @@ class ProfileService {
 }
 
 export const profileService = new ProfileService();
+
+// ─── Consultant Application ───────────────────────────────────────────────────
+export type ApplicationStatus = "draft" | "submitted" | "under_review" | "approved" | "rejected";
+
+export interface ConsultantApplication {
+  id: string;
+  user_id: string;
+  status: ApplicationStatus;
+  cover_letter?: string | null;
+  years_of_experience?: number | null;
+  primary_niche?: string | null;
+  linkedin_url?: string | null;
+  website_url?: string | null;
+  why_join?: string | null;
+  rejection_reason?: string | null;
+  submitted_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+class ApplicationService {
+  private base = "/api/applications";
+
+  async getMyApplication(): Promise<ConsultantApplication | null> {
+    const { data } = await apiClient.get(`${this.base}/me`);
+    return data.data;
+  }
+
+  async saveDraft(payload: Partial<Omit<ConsultantApplication, "id" | "user_id" | "status" | "created_at" | "updated_at">>): Promise<ConsultantApplication> {
+    const { data } = await apiClient.post(this.base, payload);
+    return data.data;
+  }
+
+  async submit(): Promise<ConsultantApplication> {
+    const { data } = await apiClient.post(`${this.base}/submit`);
+    return data.data;
+  }
+}
+
+export const applicationService = new ApplicationService();
+

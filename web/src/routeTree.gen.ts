@@ -12,17 +12,24 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LandingRouteImport } from './routes/landing'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as RoadmapSharedWithMeRouteImport } from './routes/roadmap/shared-with-me'
 import { Route as ProjectProjectIdRouteImport } from './routes/project/$projectId'
 import { Route as ProfileProfileIdRouteImport } from './routes/profile/$profileId'
 import { Route as ConsultantBrowseRouteImport } from './routes/consultant/browse'
+import { Route as ConsultantApplyRouteImport } from './routes/consultant/apply'
 import { Route as ConsultantProfileIdRouteImport } from './routes/consultant/$profileId'
 import { Route as ClientProjectPostingRouteImport } from './routes/client/project-posting'
 import { Route as AuthVerifyRouteImport } from './routes/auth/verify'
 import { Route as AuthSignupRouteImport } from './routes/auth/signup'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
+import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
+import { Route as AdminMatchRouteImport } from './routes/admin/match'
+import { Route as AdminApproveAdminRouteImport } from './routes/admin/approve-admin'
+import { Route as AdminApplicationsRouteImport } from './routes/admin/applications'
 import { Route as ProjectRoadmapIndexRouteImport } from './routes/project/roadmap/index'
 import { Route as RoadmapSharedTokenRouteImport } from './routes/roadmap/shared/$token'
 import { Route as ProjectProjectIdWorkItemsRouteImport } from './routes/project/$projectId/work-items'
@@ -50,10 +57,20 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
 } as any)
 const RoadmapSharedWithMeRoute = RoadmapSharedWithMeRouteImport.update({
   id: '/roadmap/shared-with-me',
@@ -73,6 +90,11 @@ const ProfileProfileIdRoute = ProfileProfileIdRouteImport.update({
 const ConsultantBrowseRoute = ConsultantBrowseRouteImport.update({
   id: '/consultant/browse',
   path: '/consultant/browse',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConsultantApplyRoute = ConsultantApplyRouteImport.update({
+  id: '/consultant/apply',
+  path: '/consultant/apply',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConsultantProfileIdRoute = ConsultantProfileIdRouteImport.update({
@@ -104,6 +126,26 @@ const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
   id: '/auth/forgot-password',
   path: '/auth/forgot-password',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminMatchRoute = AdminMatchRouteImport.update({
+  id: '/match',
+  path: '/match',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminApproveAdminRoute = AdminApproveAdminRouteImport.update({
+  id: '/approve-admin',
+  path: '/approve-admin',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminApplicationsRoute = AdminApplicationsRouteImport.update({
+  id: '/applications',
+  path: '/applications',
+  getParentRoute: () => AdminRoute,
 } as any)
 const ProjectRoadmapIndexRoute = ProjectRoadmapIndexRouteImport.update({
   id: '/project/roadmap/',
@@ -167,19 +209,26 @@ const ProjectProjectIdRoadmapRoadmapIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/landing': typeof LandingRoute
   '/onboarding': typeof OnboardingRoute
+  '/admin/applications': typeof AdminApplicationsRoute
+  '/admin/approve-admin': typeof AdminApproveAdminRoute
+  '/admin/match': typeof AdminMatchRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/auth/verify': typeof AuthVerifyRoute
   '/client/project-posting': typeof ClientProjectPostingRoute
   '/consultant/$profileId': typeof ConsultantProfileIdRoute
+  '/consultant/apply': typeof ConsultantApplyRoute
   '/consultant/browse': typeof ConsultantBrowseRoute
   '/profile/$profileId': typeof ProfileProfileIdRoute
   '/project/$projectId': typeof ProjectProjectIdRouteWithChildren
   '/roadmap/shared-with-me': typeof RoadmapSharedWithMeRoute
+  '/admin/': typeof AdminIndexRoute
   '/auth/admin/login': typeof AuthAdminLoginRoute
   '/auth/admin/signin': typeof AuthAdminSigninRoute
   '/project/$projectId/files': typeof ProjectProjectIdFilesRoute
@@ -197,16 +246,22 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/landing': typeof LandingRoute
   '/onboarding': typeof OnboardingRoute
+  '/admin/applications': typeof AdminApplicationsRoute
+  '/admin/approve-admin': typeof AdminApproveAdminRoute
+  '/admin/match': typeof AdminMatchRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/auth/verify': typeof AuthVerifyRoute
   '/client/project-posting': typeof ClientProjectPostingRoute
   '/consultant/$profileId': typeof ConsultantProfileIdRoute
+  '/consultant/apply': typeof ConsultantApplyRoute
   '/consultant/browse': typeof ConsultantBrowseRoute
   '/profile/$profileId': typeof ProfileProfileIdRoute
   '/project/$projectId': typeof ProjectProjectIdRouteWithChildren
   '/roadmap/shared-with-me': typeof RoadmapSharedWithMeRoute
+  '/admin': typeof AdminIndexRoute
   '/auth/admin/login': typeof AuthAdminLoginRoute
   '/auth/admin/signin': typeof AuthAdminSigninRoute
   '/project/$projectId/files': typeof ProjectProjectIdFilesRoute
@@ -222,19 +277,26 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/landing': typeof LandingRoute
   '/onboarding': typeof OnboardingRoute
+  '/admin/applications': typeof AdminApplicationsRoute
+  '/admin/approve-admin': typeof AdminApproveAdminRoute
+  '/admin/match': typeof AdminMatchRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/auth/verify': typeof AuthVerifyRoute
   '/client/project-posting': typeof ClientProjectPostingRoute
   '/consultant/$profileId': typeof ConsultantProfileIdRoute
+  '/consultant/apply': typeof ConsultantApplyRoute
   '/consultant/browse': typeof ConsultantBrowseRoute
   '/profile/$profileId': typeof ProfileProfileIdRoute
   '/project/$projectId': typeof ProjectProjectIdRouteWithChildren
   '/roadmap/shared-with-me': typeof RoadmapSharedWithMeRoute
+  '/admin/': typeof AdminIndexRoute
   '/auth/admin/login': typeof AuthAdminLoginRoute
   '/auth/admin/signin': typeof AuthAdminSigninRoute
   '/project/$projectId/files': typeof ProjectProjectIdFilesRoute
@@ -251,19 +313,26 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/dashboard'
     | '/landing'
     | '/onboarding'
+    | '/admin/applications'
+    | '/admin/approve-admin'
+    | '/admin/match'
+    | '/admin/settings'
     | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/signup'
     | '/auth/verify'
     | '/client/project-posting'
     | '/consultant/$profileId'
+    | '/consultant/apply'
     | '/consultant/browse'
     | '/profile/$profileId'
     | '/project/$projectId'
     | '/roadmap/shared-with-me'
+    | '/admin/'
     | '/auth/admin/login'
     | '/auth/admin/signin'
     | '/project/$projectId/files'
@@ -281,16 +350,22 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/landing'
     | '/onboarding'
+    | '/admin/applications'
+    | '/admin/approve-admin'
+    | '/admin/match'
+    | '/admin/settings'
     | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/signup'
     | '/auth/verify'
     | '/client/project-posting'
     | '/consultant/$profileId'
+    | '/consultant/apply'
     | '/consultant/browse'
     | '/profile/$profileId'
     | '/project/$projectId'
     | '/roadmap/shared-with-me'
+    | '/admin'
     | '/auth/admin/login'
     | '/auth/admin/signin'
     | '/project/$projectId/files'
@@ -305,19 +380,26 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/dashboard'
     | '/landing'
     | '/onboarding'
+    | '/admin/applications'
+    | '/admin/approve-admin'
+    | '/admin/match'
+    | '/admin/settings'
     | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/signup'
     | '/auth/verify'
     | '/client/project-posting'
     | '/consultant/$profileId'
+    | '/consultant/apply'
     | '/consultant/browse'
     | '/profile/$profileId'
     | '/project/$projectId'
     | '/roadmap/shared-with-me'
+    | '/admin/'
     | '/auth/admin/login'
     | '/auth/admin/signin'
     | '/project/$projectId/files'
@@ -333,6 +415,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   LandingRoute: typeof LandingRoute
   OnboardingRoute: typeof OnboardingRoute
@@ -342,6 +425,7 @@ export interface RootRouteChildren {
   AuthVerifyRoute: typeof AuthVerifyRoute
   ClientProjectPostingRoute: typeof ClientProjectPostingRoute
   ConsultantProfileIdRoute: typeof ConsultantProfileIdRoute
+  ConsultantApplyRoute: typeof ConsultantApplyRoute
   ConsultantBrowseRoute: typeof ConsultantBrowseRoute
   ProfileProfileIdRoute: typeof ProfileProfileIdRoute
   ProjectProjectIdRoute: typeof ProjectProjectIdRouteWithChildren
@@ -375,12 +459,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/roadmap/shared-with-me': {
       id: '/roadmap/shared-with-me'
@@ -408,6 +506,13 @@ declare module '@tanstack/react-router' {
       path: '/consultant/browse'
       fullPath: '/consultant/browse'
       preLoaderRoute: typeof ConsultantBrowseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/consultant/apply': {
+      id: '/consultant/apply'
+      path: '/consultant/apply'
+      fullPath: '/consultant/apply'
+      preLoaderRoute: typeof ConsultantApplyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/consultant/$profileId': {
@@ -451,6 +556,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/auth/forgot-password'
       preLoaderRoute: typeof AuthForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/match': {
+      id: '/admin/match'
+      path: '/match'
+      fullPath: '/admin/match'
+      preLoaderRoute: typeof AdminMatchRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/approve-admin': {
+      id: '/admin/approve-admin'
+      path: '/approve-admin'
+      fullPath: '/admin/approve-admin'
+      preLoaderRoute: typeof AdminApproveAdminRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/applications': {
+      id: '/admin/applications'
+      path: '/applications'
+      fullPath: '/admin/applications'
+      preLoaderRoute: typeof AdminApplicationsRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/project/roadmap/': {
       id: '/project/roadmap/'
@@ -532,6 +665,24 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AdminRouteChildren {
+  AdminApplicationsRoute: typeof AdminApplicationsRoute
+  AdminApproveAdminRoute: typeof AdminApproveAdminRoute
+  AdminMatchRoute: typeof AdminMatchRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminApplicationsRoute: AdminApplicationsRoute,
+  AdminApproveAdminRoute: AdminApproveAdminRoute,
+  AdminMatchRoute: AdminMatchRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 interface ProjectProjectIdRoadmapRouteChildren {
   ProjectProjectIdRoadmapRoadmapIdRoute: typeof ProjectProjectIdRoadmapRoadmapIdRoute
 }
@@ -570,6 +721,7 @@ const ProjectProjectIdRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
   DashboardRoute: DashboardRoute,
   LandingRoute: LandingRoute,
   OnboardingRoute: OnboardingRoute,
@@ -579,6 +731,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthVerifyRoute: AuthVerifyRoute,
   ClientProjectPostingRoute: ClientProjectPostingRoute,
   ConsultantProfileIdRoute: ConsultantProfileIdRoute,
+  ConsultantApplyRoute: ConsultantApplyRoute,
   ConsultantBrowseRoute: ConsultantBrowseRoute,
   ProfileProfileIdRoute: ProfileProfileIdRoute,
   ProjectProjectIdRoute: ProjectProjectIdRouteWithChildren,

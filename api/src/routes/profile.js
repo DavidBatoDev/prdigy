@@ -82,7 +82,7 @@ router.get("/:id", verifySupabaseJwt, readLimiter, async (req, res, next) => {
         .order("created_at", { ascending: true }),
       supabaseAdmin
         .from("user_languages")
-        .select("id,fluency_level,language:languages(id,name,code)")
+        .select("id,language_id,fluency_level,language:languages(id,name,code)")
         .eq("user_id", id),
       supabaseAdmin
         .from("user_educations")
@@ -226,10 +226,12 @@ router.put("/skills", verifySupabaseJwt, writeLimiter, async (req, res, next) =>
 // ─────────────────────────────────────────────────────────────────────────────
 router.post("/languages", verifySupabaseJwt, writeLimiter, async (req, res, next) => {
   try {
+    // Only pick scalar columns — strip the nested `language` join object
+    const { language_id, fluency_level } = req.body;
     const { data, error } = await supabaseAdmin
       .from("user_languages")
-      .insert({ ...req.body, user_id: req.user.id })
-      .select("id,fluency_level,language:languages(id,name,code)")
+      .insert({ language_id, fluency_level, user_id: req.user.id })
+      .select("id,language_id,fluency_level,language:languages(id,name,code)")
       .single();
     if (error) throw error;
     res.status(201).json({ data });
@@ -238,12 +240,13 @@ router.post("/languages", verifySupabaseJwt, writeLimiter, async (req, res, next
 
 router.patch("/languages/:id", verifySupabaseJwt, writeLimiter, async (req, res, next) => {
   try {
+    const { language_id, fluency_level } = req.body;
     const { data, error } = await supabaseAdmin
       .from("user_languages")
-      .update(req.body)
+      .update({ language_id, fluency_level })
       .eq("id", req.params.id)
       .eq("user_id", req.user.id)
-      .select("id,fluency_level,language:languages(id,name,code)")
+      .select("id,language_id,fluency_level,language:languages(id,name,code)")
       .single();
     if (error) throw error;
     res.json({ data });

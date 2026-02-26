@@ -380,6 +380,15 @@ function ProfilePage() {
                 {/* Action buttons (top-right, aligned to bottom of avatar row) */}
                 {isOwner && (
                   <div className="flex items-center gap-2 pb-1">
+                    {/* Apply as Consultant CTA — only shown when not yet verified */}
+                    {!profile.is_consultant_verified && (
+                      <Link
+                        to="/consultant/apply"
+                        className="text-sm font-semibold bg-teal-50 border border-teal-400 text-teal-600 px-4 py-1.5 rounded-full hover:bg-teal-100 transition-colors flex items-center gap-1.5"
+                      >
+                        Apply as Consultant
+                      </Link>
+                    )}
                     <Link
                       to="/consultant/$profileId"
                       params={{ profileId }}
