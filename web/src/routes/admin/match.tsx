@@ -9,7 +9,7 @@ import {
 } from "@/services/admin.service";
 import {
   Loader2, Search, X, ChevronRight, Star, Briefcase, Globe,
-  GraduationCap, Award, Building2, DollarSign, Clock,
+  GraduationCap, Award, Building2,
   MapPin, Mail, Check, ExternalLink, BadgeCheck, Link2,
   BookOpen, SlidersHorizontal, CheckCircle2,
 } from "lucide-react";
@@ -268,7 +268,7 @@ function ConsultantProfilePanel({ id, onClose }: { id: string; onClose: () => vo
             {/* Hero card */}
             <div className="relative rounded-xl overflow-hidden border border-gray-200">
               {/* Banner */}
-              <div className={`h-20 w-full ${profile.banner_url ? "" : "bg-gradient-to-br from-amber-100 to-amber-200"}`}>
+              <div className={`h-20 w-full ${profile.banner_url ? "" : "bg-linear-to-br from-amber-100 to-amber-200"}`}>
                 {profile.banner_url && <img src={profile.banner_url} className="w-full h-full object-cover" />}
               </div>
               {/* Avatar overlapping banner */}
@@ -336,7 +336,7 @@ function ConsultantProfilePanel({ id, onClose }: { id: string; onClose: () => vo
                 <div className="flex flex-wrap gap-1.5">
                   {profile.skills.map((s) => (
                     <span key={s.id} className="text-xs bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full font-medium">
-                      {(s as any).skill?.name ?? s.skill_id}
+                      {(s as any).skill?.name ?? (s as any).skill_id}
                     </span>
                   ))}
                 </div>
@@ -408,7 +408,7 @@ function ConsultantProfilePanel({ id, onClose }: { id: string; onClose: () => vo
                     <div key={e.id} className="border-l-2 border-blue-100 pl-3">
                       <p className="text-sm font-semibold text-gray-900">{e.institution}</p>
                       <p className="text-xs text-gray-500">{[e.degree, e.field_of_study].filter(Boolean).join(" · ")}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{fmtDate(e.start_date)} – {e.end_date ? fmtDate(e.end_date) : "Present"}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{e.start_year || "—"} – {e.is_current ? "Present" : (e.end_year || "—")}</p>
                     </div>
                   ))}
                 </div>
