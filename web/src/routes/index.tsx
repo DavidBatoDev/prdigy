@@ -18,7 +18,7 @@ function Index() {
       <main className="pt-20 pb-20">
         <div className="container mx-auto px-6 lg:px-12">
           <HeroSection />
-          <ProjectTypes />
+          {/* <ProjectTypes /> */}
           <TemplatesSection />
           <CTASection />
         </div>

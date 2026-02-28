@@ -131,7 +131,7 @@ export default function UserMenu() {
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
         data-tutorial="user-menu"
-        className="cursor-pointer   flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors"
+        className="cursor-pointer flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-50 transition-colors"
         aria-label="User menu"
       >
         {/* Avatar */}
@@ -139,27 +139,27 @@ export default function UserMenu() {
           <img
             src={profile.avatar_url}
             alt={getDisplayName()}
-            className="w-12 h-12 rounded-full object-cover border-2 border-yellow-400"
+            className="w-8 h-8 rounded-full object-cover border border-yellow-400"
           />
         ) : (
-          <div className="w-12 h-12 rounded-full bg-linear-to-br from-yellow-400 to-yellow-500 text-white flex items-center justify-center font-semibold text-lg border-2 border-yellow-400">
+          <div className="w-8 h-8 rounded-full bg-linear-to-br from-yellow-400 to-yellow-500 text-white flex items-center justify-center font-medium text-sm border border-yellow-400">
             {getDisplayName().charAt(0).toUpperCase()}
           </div>
         )}
 
         {/* User Info */}
-        <div className="flex flex-col items-start">
+        <div className="flex flex-col items-start leading-tight">
           <span className="text-sm font-semibold text-gray-900">
             {getDisplayName()}
           </span>
-          <span className="text-xs text-gray-500">
+          <span className="text-[10px] text-gray-500">
             {getPersonaLabel(profile?.active_persona || "client")}
           </span>
         </div>
 
         {/* Dropdown Icon */}
         <ChevronDown
-          size={20}
+          size={16}
           className={`transition-transform ${isOpen ? "rotate-180" : ""} text-gray-600`}
         />
       </button>

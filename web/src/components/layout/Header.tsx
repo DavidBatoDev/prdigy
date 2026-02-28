@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { AppBar, Toolbar, Box, Typography, Stack, IconButton, InputBase } from "@mui/material";
 import { Button } from "../../ui/button";
-import Logo from "/prodigylogos/light/logo1.svg";
+import Logo from "/prodigylogos/light/logovector.svg";
 import { useAuthStore, useIsLoading } from "@/stores/authStore";
 import UserMenu from "./UserMenu";
 import { MessageCircle, Bell, Search, ChevronDown } from "lucide-react";
@@ -67,12 +67,14 @@ const Header = () => {
 
   return (
     <AppBar
-      position="static"
+      position="fixed"
       data-tutorial="header"
       sx={{
-        bgcolor: "transparent",
-        boxShadow: 0,
-        height: "80px",
+        bgcolor: "rgba(255, 255, 255, 0.9)",
+        backdropFilter: "blur(8px)",
+        borderBottom: "1px solid #EAEAEA",
+        boxShadow: "none",
+        height: "56px",
         justifyContent: "center",
         top: 0,
         zIndex: 1000,
@@ -103,7 +105,7 @@ const Header = () => {
             {/* Logo */}
             <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
               <Link to="/" className="cursor-pointer">
-                <img src={Logo} alt="Prodigy Logo" style={{ height: "60px" }} />
+                <img src={Logo} alt="Prodigy Logo" style={{ height: "24px" }} />
               </Link>
             </Box>
 
@@ -127,7 +129,7 @@ const Header = () => {
                       color: "#2F302F",
                       cursor: "pointer",
                       whiteSpace: "nowrap",
-                      fontSize: { xs: "0.9rem", md: "1rem" },
+                      fontSize: { xs: "0.8rem", md: "0.85rem" },
                       fontWeight: 600,
                       "&:hover": {
                         color: "var(--primary)",
@@ -158,7 +160,7 @@ const Header = () => {
                     sx={{
                       color: "#2F302F",
                       whiteSpace: "nowrap",
-                      fontSize: { xs: "0.9rem", md: "1rem" },
+                      fontSize: { xs: "0.8rem", md: "0.85rem" },
                       fontWeight: 600,
                       "&:hover": {
                         color: "var(--primary)",
@@ -246,17 +248,17 @@ const Header = () => {
                 <Box
                   sx={{
                     width: { xs: "150px", md: "250px" },
-                    height: "40px",
+                    height: "32px",
                     bgcolor: "rgba(0,0,0,0.05)",
-                    borderRadius: "24px",
+                    borderRadius: "16px",
                   }}
                   className="animate-pulse"
                 />
                 {/* Icons Skeleton */}
-                <Box sx={{ width: 40, height: 40, bgcolor: "rgba(0,0,0,0.05)", borderRadius: "50%" }} className="animate-pulse" />
-                <Box sx={{ width: 40, height: 40, bgcolor: "rgba(0,0,0,0.05)", borderRadius: "50%" }} className="animate-pulse" />
+                <Box sx={{ width: 32, height: 32, bgcolor: "rgba(0,0,0,0.05)", borderRadius: "50%" }} className="animate-pulse" />
+                <Box sx={{ width: 32, height: 32, bgcolor: "rgba(0,0,0,0.05)", borderRadius: "50%" }} className="animate-pulse" />
                 {/* Avatar Skeleton */}
-                <Box sx={{ width: 40, height: 40, bgcolor: "rgba(0,0,0,0.05)", borderRadius: "50%" }} className="animate-pulse" />
+                <Box sx={{ width: 32, height: 32, bgcolor: "rgba(0,0,0,0.05)", borderRadius: "50%" }} className="animate-pulse" />
               </Stack>
             ) : isAuthenticated ? (
               <>
@@ -266,9 +268,9 @@ const Header = () => {
                     display: "flex",
                     alignItems: "center",
                     backgroundColor: "#F5F5F5",
-                    borderRadius: "24px",
-                    px: 2,
-                    py: 0.75,
+                    borderRadius: "16px",
+                    px: 1.5,
+                    py: 0.5,
                     minWidth: { xs: "150px", md: "250px" },
                     transition: "all 0.3s ease",
                     "&:hover": {
@@ -280,12 +282,12 @@ const Header = () => {
                     },
                   }}
                 >
-                  <Search size={20} style={{ color: "#666", marginRight: "8px" }} />
+                  <Search size={18} style={{ color: "#666", marginRight: "6px" }} />
                   <InputBase
                     placeholder="Search..."
                     sx={{
                       flex: 1,
-                      fontSize: "0.95rem",
+                      fontSize: "0.85rem",
                       color: "#2F302F",
                       "& input::placeholder": {
                         color: "#999",
@@ -305,7 +307,7 @@ const Header = () => {
                   }}
                   aria-label="Messages"
                 >
-                  <MessageCircle size={24} />
+                  <MessageCircle size={20} />
                 </IconButton>
 
                 {/* Notification Icon */}
@@ -318,7 +320,7 @@ const Header = () => {
                   }}
                   aria-label="Notifications"
                 >
-                  <Bell size={24} />
+                  <Bell size={20} />
                 </IconButton>
 
                 {/* User Menu */}
