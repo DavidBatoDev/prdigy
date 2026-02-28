@@ -28,7 +28,7 @@ const Header = () => {
       sx={{
         bgcolor: "white",
         boxShadow: 3,
-        height: "102px",
+        height: "80px",
         justifyContent: "center",
         top: 0,
         zIndex: 1000,
@@ -40,7 +40,7 @@ const Header = () => {
           maxWidth: "1400px",
           width: "100%",
           margin: "0 auto",
-          px: { xs: 2, sm: 4, md: 6 },
+          px: { xs: 2, sm: 3, md: 4 },
         }}
       >
         <Box
@@ -49,49 +49,50 @@ const Header = () => {
             alignItems: "center",
             justifyContent: "space-between",
             width: "100%",
-            gap: { xs: 2, md: 4, lg: 6 },
+            gap: { xs: 2, md: 3 },
           }}
         >
-          {/* Logo */}
-          <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
-            <img src={Logo} alt="Prodigy Logo" />
+          {/* Left Side: Logo + Navigation */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 2, md: 3, lg: 4 } }}>
+            {/* Logo */}
+            <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+              <img src={Logo} alt="Prodigy Logo" style={{ height: "60px" }} />
+            </Box>
+
+            {/* Navigation Items */}
+            <Stack
+              direction="row"
+              spacing={{ xs: 1.5, md: 2, lg: 3 }}
+              sx={{
+                alignItems: "center",
+              }}
+            >
+              {navItems.map((item) => (
+                <Typography
+                  key={item.target}
+                  component="button"
+                  sx={{
+                    color: "#2F302F",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    fontSize: { xs: "0.9rem", md: "1rem" },
+                    fontWeight: 600,
+                    "&:hover": {
+                      color: "var(--primary)",
+                    },
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                  }}
+                  onClick={() => handleScroll(item.target)}
+                >
+                  {item.label}
+                </Typography>
+              ))}
+            </Stack>
           </Box>
 
-          {/* Navigation Items */}
-          <Stack
-            direction="row"
-            spacing={{ xs: 2, md: 3, lg: 4 }}
-            sx={{
-              alignItems: "center",
-              flex: "1",
-              justifyContent: "center",
-            }}
-          >
-            {navItems.map((item) => (
-              <Typography
-                key={item.target}
-                component="button"
-                sx={{
-                  color: "#2F302F",
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
-                  fontSize: { xs: "0.9rem", md: "1rem" },
-                  fontWeight: 600,
-                  "&:hover": {
-                    color: "var(--primary)",
-                  },
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                }}
-                onClick={() => handleScroll(item.target)}
-              >
-                {item.label}
-              </Typography>
-            ))}
-          </Stack>
-
-          {/* Auth Buttons */}
+          {/* Right Side: Auth Buttons */}
           <Stack direction="row" spacing={2} sx={{ flexShrink: 0, alignItems: "center" }}>
             {isAuthenticated ? (
               <>

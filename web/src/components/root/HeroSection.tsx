@@ -1,115 +1,99 @@
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/ui/button";
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
-
-const typingPhrases = [
-  "Hire structured teams curated by expert consultants who understand your vision.",
-  "Build your startup with a readily structured team that grows with your success.",
-  "Get comprehensive product management & team leadership expertise all in one place.",
-  "Connect with experienced consultants who assemble and manage complete teams for you.",
-  "Transform your vision into a thriving, managed startup with professional guidance.",
-];
-
-const useTypingEffect = (
-  phrases: string[],
-  typingSpeed = 30,
-  deletingSpeed = 20,
-  pauseDuration = 1500
-) => {
-  const [displayText, setDisplayText] = useState("");
-  const [phraseIndex, setPhraseIndex] = useState(0);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  useEffect(() => {
-    const currentPhrase = phrases[phraseIndex];
-    let timeout: NodeJS.Timeout;
-
-    if (!isDeleting && displayText === currentPhrase) {
-      // Pause at the end of the phrase
-      timeout = setTimeout(() => setIsDeleting(true), pauseDuration);
-    } else if (isDeleting && displayText === "") {
-      // Move to next phrase
-      setIsDeleting(false);
-      setPhraseIndex((prev) => (prev + 1) % phrases.length);
-    } else {
-      // Type or delete characters
-      const speed = isDeleting ? deletingSpeed : typingSpeed;
-      timeout = setTimeout(() => {
-        setDisplayText(
-          isDeleting
-            ? currentPhrase.substring(0, displayText.length - 1)
-            : currentPhrase.substring(0, displayText.length + 1)
-        );
-      }, speed);
-    }
-
-    return () => clearTimeout(timeout);
-  }, [
-    displayText,
-    isDeleting,
-    phraseIndex,
-    phrases,
-    typingSpeed,
-    deletingSpeed,
-    pauseDuration,
-  ]);
-
-  return displayText;
-};
+import { ShieldCheck, Award, Star } from "lucide-react";
+import { HeroRoadmapAnimation } from "./HeroRoadmapAnimation";
 
 export const HeroSection = () => {
-  const typedText = useTypingEffect(typingPhrases);
-
   return (
-    <div className="text-center max-w-5xl mx-auto mt-16 mb-16 min-h-[400px] flex flex-col justify-center">
-      <motion.h1
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className="text-5xl md:text-7xl font-bold text-gray-900 mb-6"
-      >
-        Work with Expert
-        <br />
-        <span className="text-primary">Consultants</span>
-      </motion.h1>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
-        className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed min-h-[3.5rem] flex items-center justify-center"
-      >
-        <span>
-          {typedText}
-          <span className="animate-pulse text-primary">|</span>
-        </span>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
-        className="flex justify-center gap-4 mt-12"
-      >
-        <Link to="/project/roadmap">
-          <Button
-            variant="contained"
-            colorScheme="primary"
-            size="lg"
-            className="text-lg px-8 py-4"
+    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 md:px-8 pt-10 pb-16 lg:pb-24">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center lg:items-center">
+        {/* Left Column: Text & Search */}
+        <div className="flex flex-col space-y-8 justify-center py-4 lg:py-10">
+          {/* Trust Badge */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="flex items-center gap-3 bg-gray-50/80 backdrop-blur-sm px-4 py-2 rounded-full w-fit border border-gray-100"
           >
-            Create Your Roadmap
-          </Button>
-        </Link>
-        <Button
-          variant="outlined"
-          colorScheme="primary"
-          size="lg"
-          className="text-lg px-8 py-4"
+            <div className="flex -space-x-2">
+              <img className="w-6 h-6 rounded-full border border-white" src="https://i.pravatar.cc/100?img=1" alt="Avatar" />
+              <img className="w-6 h-6 rounded-full border border-white" src="https://i.pravatar.cc/100?img=2" alt="Avatar" />
+              <img className="w-6 h-6 rounded-full border border-white" src="https://i.pravatar.cc/100?img=3" alt="Avatar" />
+            </div>
+            <span className="text-sm font-medium text-gray-600">Trusted by 100+ Startups & Companies</span>
+          </motion.div>
+
+          {/* Headline */}
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 leading-[1.1] tracking-tight"
+          >
+            The platform for <span className="text-primary">freelancers</span> and <span className="text-secondary">expert consultants.</span>
+          </motion.h1>
+
+          {/* Subheadline */}
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="text-sm md:text-base text-gray-600 max-w-2xl leading-relaxed"
+          >
+            Connect with verified professional talent for your projects. From tech mentorship to business strategy and execution, get it done with confidence, and manage your project with a roadmap cultivated by professional consultants and freelancers.
+          </motion.p>
+
+          {/* Action Button */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="pt-2"
+          >
+            <Link to="/project/roadmap">
+              <Button
+                variant="contained"
+                colorScheme="primary"
+                className="rounded-full px-8 py-5 text-lg font-semibold shadow-md hover:shadow-lg transition-all"
+              >
+                Create your own roadmap to get started
+              </Button>
+            </Link>
+          </motion.div>
+          {/* Trust Indicators */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="flex flex-wrap items-center gap-6 text-sm text-gray-500 font-medium pt-2"
+          >
+            <div className="flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-secondary" />
+              <span>Verified Pros</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Award className="w-4 h-4 text-secondary" />
+              <span>Licensed Experts</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Star className="w-4 h-4 text-secondary" />
+              <span>4.9/5 Average Rating</span>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Right Column: Animated Roadmap */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="relative lg:h-[600px] w-full flex items-center justify-center rounded-[40px] overflow-hidden"
         >
-          Find Professional Consultant
-        </Button>
-      </motion.div>
+          <HeroRoadmapAnimation />
+        </motion.div>
+      </div>
     </div>
   );
 };

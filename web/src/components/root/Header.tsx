@@ -18,53 +18,57 @@ export const Header = () => {
   ];
 
   return (
-    <header className="fixed top-0 left-0 right-0 bg-white shadow-sm z-50">
-      <nav className="container mx-auto px-6 lg:px-12">
+    <header className="fixed top-0 left-0 right-0 bg-white shadow-[0_0_15px_rgba(0,0,0,0.05)] z-50">
+      <nav className="max-w-[1400px] w-full mx-auto px-4 sm:px-6 md:px-8">
         <div className="flex items-center justify-between h-20">
-          {/* Logo */}
-          <Link to="/" className="flex items-center">
-            <img src={Logo} alt="Prodigy Logo" className="h-8" />
-          </Link>
+          {/* Left Side: Logo + Navigation */}
+          <div className="flex items-center gap-6 lg:gap-12">
+            {/* Logo */}
+            <Link to="/" className="flex items-center shrink-0">
+              <img src={Logo} alt="Prodigy Logo" className="h-[60px]" />
+            </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
-            {navItems.map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
-                className="text-gray-700 hover:text-primary transition-colors font-medium"
-              >
-                {item.label}
-              </a>
-            ))}
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center space-x-6 lg:space-x-8">
+              {navItems.map((item) => (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  className="text-[#2F302F] hover:text-primary transition-colors font-semibold text-[0.9rem] md:text-base whitespace-nowrap"
+                >
+                  {item.label}
+                </a>
+              ))}
+            </div>
           </div>
 
-          {/* Auth Buttons */}
-          <div className="hidden md:flex items-center space-x-4">
-            {isAuthenticated ? (
-              <>
-                <UserMenu />
-                <Link to="/dashboard">
-                  <Button variant="contained" colorScheme="primary">
-                    Dashboard
-                  </Button>
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link to="/auth/login">
-                  <Button variant="text" colorScheme="primary">
-                    Login
-                  </Button>
-                </Link>
-                <Link to="/auth/signup" search={{ redirect: undefined }}>
-                  <Button variant="contained" colorScheme="primary">
-                    Get Started
-                  </Button>
-                </Link>
-              </>
-            )}
-          </div>
+          {/* Right Side: Auth Buttons + Mobile Button */}
+          <div className="flex items-center space-x-4">
+            <div className="hidden md:flex items-center space-x-4">
+              {isAuthenticated ? (
+                <>
+                  <UserMenu />
+                  <Link to="/dashboard">
+                    <Button variant="contained" colorScheme="primary" className="h-12">
+                      Dashboard
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link to="/auth/login">
+                    <Button variant="outlined" colorScheme="primary">
+                      Login
+                    </Button>
+                  </Link>
+                  <Link to="/auth/signup" search={{ redirect: undefined }}>
+                    <Button variant="contained" colorScheme="primary">
+                      Get Started
+                    </Button>
+                  </Link>
+                </>
+              )}
+            </div>
 
           {/* Mobile Menu Button */}
           <button
@@ -73,6 +77,7 @@ export const Header = () => {
           >
             <Menu className="w-6 h-6 text-gray-700" />
           </button>
+          </div>
         </div>
 
         {/* Mobile Menu */}

@@ -346,8 +346,9 @@ function ExplorerPanel({
       return;
     }
 
-    setExpandedEpics(new Set(collapsableEpicIds));
-    setExpandedFeatures(new Set(collapsableFeatureIds));
+    // Default to collapsed by initializing with empty sets
+    setExpandedEpics(new Set());
+    setExpandedFeatures(new Set());
     hasInitializedExpansion.current = true;
   }, [collapsableEpicIds, collapsableFeatureIds]);
 
