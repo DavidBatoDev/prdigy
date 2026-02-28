@@ -1,6 +1,5 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useAuthStore } from "@/stores/authStore";
-import Header from "@/components/layout/Header";
 import { fetchProfile } from "@/queries/profile";
 import { LeftSide } from "@/components/home/LeftSide";
 import { RightSide } from "@/components/home/RightSide";
@@ -77,8 +76,6 @@ function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#f6f7f8]">
-      <Header />
-
       <div className="max-w-[1440px] mx-auto px-10 pt-[88px] pb-8">
         {/* Main Content Grid */}
         <div className="grid grid-cols-[1fr_372px] gap-6">

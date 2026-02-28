@@ -6,11 +6,9 @@ import {
   Clock,
   CreditCard,
   FolderOpen,
-  PanelLeftClose,
-  PanelLeftOpen,
 } from "lucide-react";
+import { useState } from "react";
 import type { Project } from "@/services/project.service";
-import { useProjectSettingsStore } from "@/stores/projectSettingsStore";
 
 interface ProjectSidebarProps {
   project: Project | null;
@@ -24,8 +22,7 @@ export function ProjectSidebar({ project, projectId, hasProject, roadmapId }: Pr
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
   
-  const isExpanded = useProjectSettingsStore((state) => state.isSidebarExpanded);
-  const toggleSidebar = useProjectSettingsStore((state) => state.toggleSidebar);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // If we're on a project route (like /project/.../overview), we should show tabs.
   // We can assume it's a project if `hasProject` is strictly true or false,
@@ -79,35 +76,16 @@ export function ProjectSidebar({ project, projectId, hasProject, roadmapId }: Pr
   );
 
   return (
-    <aside 
-      className={`h-full flex bg-gray-50 border-r border-gray-200 transition-all duration-300 ease-in-out z-10 ${
-        isExpanded ? "w-64" : "w-14"
-      }`}
-    >
-      <div className="w-full flex flex-col py-4 gap-1 overflow-hidden"> 
-        {/* Toggle Button */}
-        <button
-          onClick={toggleSidebar}
-          className={`flex items-center gap-3 px-2 py-2 mx-2 rounded-lg text-gray-500 hover:bg-gray-200 hover:text-gray-900 transition-all ${
-            !isExpanded ? "justify-center" : ""
-          }`}
-          title={isExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
-        >
-          {isExpanded ? (
-            <PanelLeftClose className="w-5 h-5 shrink-0" />
-          ) : (
-            <PanelLeftOpen className="w-5 h-5 shrink-0" />
-          )}
-          {isExpanded && (
-            <span className="text-sm font-medium whitespace-nowrap">
-              Collapse
-            </span>
-          )}
-        </button>
-
-        <div className="h-px bg-gray-200 mx-2 my-2 shrink-0" />
-
-        {/* Project nav items */}
+    <div className="relative w-14 shrink-0 z-50 h-full">
+      <aside 
+        onMouseEnter={() => setIsExpanded(true)}
+        onMouseLeave={() => setIsExpanded(false)}
+        className={`absolute top-0 left-0 h-full flex bg-gray-50 border-r border-gray-200 transition-all duration-300 ease-in-out overflow-hidden shadow-sm ${
+          isExpanded ? "w-56 shadow-xl" : "w-14"
+        }`}
+      >
+        <div className="w-full flex flex-col py-4 gap-1 overflow-hidden"> 
+          {/* Project nav items */}
         {visibleNavItems.map((item) => {
           const Icon = item.icon;
           const isActive = 
@@ -118,22 +96,27 @@ export function ProjectSidebar({ project, projectId, hasProject, roadmapId }: Pr
               key={item.label}
               to={item.to}
               title={!isExpanded ? item.label : undefined}
-              className={`flex items-center gap-3 px-2 py-2 mx-2 rounded-lg transition-all ${
+              className={`flex items-center p-2 mx-2 rounded-lg transition-all overflow-hidden ${
                 isActive
                   ? "bg-[#ff9933] text-white shadow-sm"
                   : "text-gray-500 hover:bg-gray-200 hover:text-gray-900"
-              } ${!isExpanded ? "justify-center" : ""}`}
+              }`}
             >
-              <Icon className="w-5 h-5 shrink-0" />
-              {isExpanded && (
-                <span className="text-sm font-medium whitespace-nowrap">
-                  {item.label}
-                </span>
-              )}
+              <div className="flex items-center justify-center w-6 h-6 shrink-0">
+                <Icon className="w-5 h-5" />
+              </div>
+              <span 
+                className={`text-sm font-medium transition-all duration-300 ml-3 whitespace-nowrap ${
+                  isExpanded ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4"
+                }`}
+              >
+                {item.label}
+              </span>
             </Link>
           );
         })}
       </div>
     </aside>
+  </div>
   );
 }

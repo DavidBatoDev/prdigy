@@ -1,6 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import Header from "@/components/layout/Header";
 import {
   Upload,
   Check,
@@ -248,8 +247,7 @@ function ProjectPostingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f6f7f8] relative overflow-hidden">
-      <Header />
+    <div className="min-h-screen bg-[#f6f7f8] pt-16 relative overflow-hidden">
 
       {/* Decorative Background Elements */}
       <div className="absolute inset-0 pointer-events-none">

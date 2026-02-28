@@ -16,7 +16,6 @@ import {
   applicationService
 } from "@/services/profile.service";
 import { uploadService } from "@/services/upload.service";
-import Header from "@/components/layout/Header";
 import { EducationModal } from "@/components/profile/EducationModal";
 import { ExperienceModal } from "@/components/profile/ExperienceModal";
 import { CertificationModal } from "@/components/profile/CertificationModal";
@@ -321,7 +320,6 @@ function ProfilePage() {
   );
   if (error || !profile) return (
     <>
-      <Header />
       <div className="min-h-screen bg-[#f3f2ee] flex items-center justify-center pt-20">
         <div className="text-center bg-white p-12 rounded-2xl border border-gray-200 max-w-sm">
           <User className="w-12 h-12 text-gray-300 mx-auto mb-3" />
@@ -338,8 +336,7 @@ function ProfilePage() {
   // ─── RENDER ────────────────────────────────────────────────────────────────
   return (
     <>
-      <Header />
-      <div className="min-h-screen bg-[#f3f2ee] pt-4 pb-16">
+      <div className="min-h-screen bg-[#f3f2ee] pt-[72px] pb-16">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
 
           {/* ══ HEADER CARD (banner + avatar overlap, LinkedIn-style) ═══════ */}

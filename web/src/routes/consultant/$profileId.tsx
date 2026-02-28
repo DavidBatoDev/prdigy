@@ -3,7 +3,6 @@ import { useConsultantProfileQuery } from "@/hooks/useConsultants";
 import { MapPin, BadgeCheck, User, ArrowLeft } from "lucide-react";
 import { Button } from "@/ui/button";
 import { useAuthStore } from "@/stores/authStore";
-import Header from "../../components/layout/Header";
 
 export const Route = createFileRoute("/consultant/$profileId")({
   component: ConsultantProfile,
@@ -57,7 +56,6 @@ function ConsultantProfile() {
 
   return (
     <>
-      <Header />
       <div className="min-h-screen bg-white pb-12 pt-28 px-4 sm:px-6 lg:px-8">
       <div className="max-w-[1100px] mx-auto">
         

@@ -5,6 +5,7 @@ import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 import { ToastProvider } from "../contexts/ToastContext";
 import { MigrationHandler } from "../components/migration";
+import Header from "../components/layout/Header";
 
 interface MyRouterContext {
   queryClient: QueryClient;
@@ -13,7 +14,7 @@ interface MyRouterContext {
 export const Route = createRootRouteWithContext<MyRouterContext>()({
   component: () => (
     <ToastProvider>
-      {/* <Header /> */}
+      <Header />
       <Outlet />
       <MigrationHandler />
       <TanStackDevtools

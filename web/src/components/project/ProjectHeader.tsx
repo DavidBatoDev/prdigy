@@ -1,5 +1,9 @@
-import { Briefcase, Settings, Home, Share2, Download } from "lucide-react";
-import { Link } from "@tanstack/react-router";
+import { Briefcase, Search, MessageCircle, Bell, ChevronRight, ChevronsUpDown, Boxes } from "lucide-react";
+import { Link, useParams, useChildMatches, useNavigate, useLocation } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
+import { projectService, type Project } from "@/services/project.service";
+import Logo from "/prodigylogos/light/logovector.svg";
+import ProjectUserMenu from "./ProjectUserMenu";
 
 type ViewingRole = "CLIENT" | "CONSULTANT" | "OWNER" | "VIEWER" | string;
 
@@ -10,97 +14,91 @@ const roleBadgeColor: Record<string, string> = {
   VIEWER: "bg-gray-100 text-gray-600 border-gray-200",
 };
 
-interface ProjectHeaderProps {
-  title?: string;
-  /** Optional metadata shown as a subtitle row */
-  projectId?: string;
-  clientName?: string;
-  clientId?: string;
-  consultantName?: string;
-  consultantId?: string;
-  /** Right-side: who the current user is viewing as */
-  viewingAs?: ViewingRole;
-  /** Show "Make this a Project" button */
-  showMakeProject?: boolean;
-  onMakeProject?: () => void;
-  onEditBrief?: () => void;
-  onSettings?: () => void;
-  onShare?: () => void;
-  onExport?: () => void;
-}
+export function ProjectHeader() {
+  const params: any = useParams({ strict: false });
+  const projectId = params.projectId;
+  const navigate = useNavigate();
+  const location = useLocation();
 
-export function ProjectHeader({
-  title,
-  projectId,
-  clientName,
-  clientId,
-  consultantName,
-  consultantId,
-  viewingAs,
-  showMakeProject = false,
-  onMakeProject,
-  onEditBrief,
-  onSettings,
-  onShare,
-  onExport,
-}: ProjectHeaderProps) {
-  const hasSubtitle = projectId || clientName || consultantName;
+  const [project, setProject] = useState<Project | null>(null);
+
+  // For the 'n' (roadmap-only) case
+  const childMatches = useChildMatches();
+  const childRoadmapId = (childMatches[0]?.params as any)?.roadmapId as string | undefined;
+
+  const isRoadmapOnly = projectId === "n";
+
+  useEffect(() => {
+    if (!projectId || isRoadmapOnly) return;
+    const loadProject = async () => {
+      try {
+        const data = await projectService.get(projectId);
+        setProject(data);
+      } catch (err) {}
+    };
+    loadProject();
+  }, [projectId, isRoadmapOnly]);
+
+  const handleMakeProject = () => {
+    if (!childRoadmapId) return;
+    sessionStorage.setItem("fromRoadmap", "true");
+    navigate({
+      to: "/client/project-posting",
+      search: { roadmapId: childRoadmapId },
+    });
+  };
+
+  const title = project?.title ?? (isRoadmapOnly ? "Roadmap" : "Project");
+  const showMakeProject = isRoadmapOnly;
+  const viewingAs = isRoadmapOnly ? undefined : (project?.consultant_id ? "CONSULTANT" : "CLIENT");
+  
   const badgeClass =
     roleBadgeColor[(viewingAs ?? "").toUpperCase()] ??
     roleBadgeColor["VIEWER"];
 
   return (
-    <div className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0 z-10">
-      {/* Left: Home + title + subtitle */}
-      <div className="flex flex-row items-center gap-3 min-w-0">
-        <Link
-          to="/dashboard"
-          className="w-10 h-10 shrink-0 rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-200 hover:text-gray-900 transition-all"
-          title="Dashboard"
-        >
-          <Home className="w-5 h-5" />
+    <div className="w-full h-full flex items-center justify-between px-6 shrink-0 z-10">
+      {/* Left: Logo + Breadcrumbs */}
+      <div className="flex flex-row items-center gap-4 min-w-0">
+        <Link to="/" className="cursor-pointer flex items-center shrink-0 border-r border-gray-200 pr-4">
+          <img src={Logo} alt="Prodigy Logo" className="h-[24px]" />
         </Link>
-        <div className="flex flex-col justify-center min-w-0">
-          <h1 className="text-sm font-bold text-gray-900 leading-tight truncate">
-            {title || "Untitled Project"}
-          </h1>
-          {hasSubtitle && (
-            <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-500">
-              {projectId && (
-                <span>
-                  <span className="font-medium text-gray-700">ID:</span>{" "}
-                  {projectId}
-                </span>
-              )}
-              {clientName && (
-                <span>
-                  <span className="font-medium text-gray-700">Client:</span>{" "}
-                  {clientName}
-                  {clientId && (
-                    <span className="text-gray-400 ml-1">(ID: {clientId})</span>
-                  )}
-                </span>
-              )}
-              {consultantName && (
-                <span>
-                  <span className="font-medium text-gray-700">Consultant:</span>{" "}
-                  {consultantName}
-                  {consultantId && (
-                    <span className="text-gray-400 ml-1">(ID: {consultantId})</span>
-                  )}
-                </span>
-              )}
-            </div>
-          )}
+        <div className="flex items-center text-sm font-medium text-gray-900 min-w-0 gap-2">
+          {/* Project Dropdown Button */}
+          <button className="flex items-center gap-2 hover:bg-gray-100 px-2 py-1.5 rounded-lg transition-colors truncate max-w-[250px]">
+            <Boxes className="w-5 h-5 text-gray-500 shrink-0" />
+            <span className="truncate text-[15px]">{title || "Untitled Project"}</span>
+            <ChevronsUpDown className="w-4 h-4 text-gray-400 shrink-0 ml-1" />
+          </button>
+          
+          <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
+          
+          {/* Current Page */}
+          <span className="text-gray-600 truncate px-2 text-[15px] capitalize">
+            {(() => {
+              if (isRoadmapOnly) return "Roadmap";
+              const path = location.pathname;
+              if (path.includes("/roadmap")) return "Roadmap";
+              if (path.includes("/settings")) return "Settings";
+              if (path.includes("/team")) return "Team";
+              if (path.includes("/files")) return "Files";
+              if (path.includes("/task-items") || path.includes("/tasks")) return "Tasks";
+              if (path.includes("/meetings")) return "Meetings";
+              if (path.includes("/overview") || path.endsWith(projectId)) return "Overview";
+              // Fallback
+              const segment = path.split("/").pop() || "Overview";
+              return segment.length > 20 ? "Overview" : segment.replace("-", " ");
+            })()}
+          </span>
         </div>
       </div>
 
       {/* Right: actions */}
       <div className="flex items-center gap-3 shrink-0">
-        {showMakeProject && onMakeProject && (
+        {showMakeProject && (
           <button
-            onClick={onMakeProject}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm text-white bg-linear-to-r from-orange-500 to-orange-600 hover:shadow-lg rounded-lg transition-all font-medium"
+            onClick={handleMakeProject}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm text-white bg-linear-to-r from-orange-500 to-orange-600 hover:shadow-lg rounded-lg transition-all font-medium whitespace-nowrap"
             title="Convert to Project for Consultant Bidding"
           >
             <Briefcase className="w-4 h-4" />
@@ -108,61 +106,46 @@ export function ProjectHeader({
           </button>
         )}
 
-        {onEditBrief && (
-          <button
-            onClick={onEditBrief}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors border border-gray-300"
-            title="Edit Project Brief"
-          >
-            <Settings className="w-4 h-4" />
-            Project Brief
-          </button>
-        )}
-
-        {onShare && (
-          <button
-            onClick={onShare}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors border border-gray-300"
-            title="Share"
-          >
-            <Share2 className="w-4 h-4" />
-            Share
-          </button>
-        )}
-
-        {onExport && (
-          <button
-            onClick={onExport}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors"
-            title="Export"
-          >
-            <Download className="w-4 h-4" />
-            Export
-          </button>
-        )}
-
         {viewingAs && (
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400 font-medium uppercase tracking-wide">
-              Viewing as
-            </span>
+          <div className="flex items-center gap-2 mr-2">
             <span
-              className={`text-xs font-semibold px-2.5 py-1 rounded border uppercase tracking-wide ${badgeClass}`}
+              className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${badgeClass}`}
             >
               {viewingAs}
             </span>
           </div>
         )}
 
-        {onSettings && (
-          <button
-            onClick={onSettings}
-            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Settings"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
-        )}
+        {/* Search Bar */}
+        <div className="hidden md:flex items-center bg-[#F5F5F5] hover:bg-[#EBEBEB] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#ff9933] rounded-2xl px-3 py-1.5 min-w-[200px] lg:min-w-[250px] transition-all duration-300">
+          <Search size={18} className="text-[#666] mr-2 shrink-0" />
+          <input 
+            type="text" 
+            placeholder="Search..." 
+            className="flex-1 bg-transparent border-none focus:outline-none text-[0.85rem] text-[#2F302F] placeholder-[#999] min-w-0" 
+          />
+        </div>
+
+        {/* Message Icon */}
+        <button 
+          className="text-[#2F302F] hover:bg-black/5 p-2 rounded-full transition-colors flex items-center justify-center"
+          aria-label="Messages"
+        >
+          <MessageCircle size={20} />
+        </button>
+
+        {/* Notification Icon */}
+        <button 
+          className="text-[#2F302F] hover:bg-black/5 p-2 rounded-full transition-colors flex items-center justify-center"
+          aria-label="Notifications"
+        >
+          <Bell size={20} />
+        </button>
+
+        {/* User Menu */}
+        <div className="ml-1">
+          <ProjectUserMenu />
+        </div>
       </div>
     </div>
   );

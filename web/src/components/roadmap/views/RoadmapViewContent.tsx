@@ -320,10 +320,10 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
           className="relative h-full border-r border-gray-200 bg-white"
           initial={false}
           animate={{
-            width: (isProjectSidebarExpanded ? 256 : 56) + (isSidebarOpen ? 320 : 0)
+            width: isSidebarOpen ? 320 : 0
           }}
           transition={{ duration: 0.3, ease: "easeInOut" }}
-          style={{ minWidth: 56 }}
+          style={{ minWidth: isSidebarOpen ? 320 : 0 }}
         >
           <LeftSidePanel
             messages={messages}

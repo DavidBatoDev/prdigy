@@ -2,7 +2,6 @@ import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import Header from "@/components/layout/Header";
 import {
   Check, Loader2, ExternalLink, Globe, Edit2, Plus, Trash2,
   Briefcase, GraduationCap, BadgeCheck, ShieldCheck,
@@ -625,7 +624,6 @@ function ConsultantApplyPage() {
   if (existingApp && existingApp.status !== "draft") {
     return (
       <div className="min-h-screen bg-[#f6f7f8]">
-        <Header />
         <div className="max-w-xl mx-auto px-6 py-24 text-center">
           <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <UserCheck className="w-8 h-8 text-[#ff9933]" />
@@ -653,7 +651,6 @@ function ConsultantApplyPage() {
 
   return (
     <div className="min-h-screen bg-[#f6f7f8] relative overflow-hidden">
-      <Header />
 
       {/* Background — same as project-posting */}
       <div className="absolute inset-0 pointer-events-none">
