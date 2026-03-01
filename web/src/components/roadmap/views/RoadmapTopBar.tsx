@@ -149,7 +149,7 @@ export function RoadmapTopBar({ onShare, onExport }: RoadmapTopBarProps) {
                 : "text-gray-600 hover:text-gray-900 border-transparent"
             }`}
           >
-            Milestones
+            Timeline
           </button>
         </div>
 

@@ -50,19 +50,22 @@ const getLayoutedElements = (
 
   const EPIC_X = 100;
   const FEATURE_X_OFFSET = 650; // Distance from epic to feature column
-  const NODE_WIDTH = 500;
-  const BASE_EPIC_HEIGHT = 220;
-  const MAX_EPIC_HEIGHT = 420;
-  const DESCRIPTION_LINE_HEIGHT = 16;
-  const DESCRIPTION_CHARS_PER_LINE = 80;
-  const BASE_FEATURE_HEIGHT = 150;
-  const MAX_FEATURE_HEIGHT = 320;
-  const FEATURE_DESCRIPTION_LINE_HEIGHT = 16;
-  const FEATURE_DESCRIPTION_CHARS_PER_LINE = 70;
+  const NODE_WIDTH = 500; // Fixed width for all nodes to simplify layout calculations
+  const BASE_EPIC_HEIGHT = 220; // Base height for epics without descriptions or features
+  const MAX_EPIC_HEIGHT = 420; // Max height for epics to prevent excessively tall nodes
+  const DESCRIPTION_LINE_HEIGHT = 16; // Estimated line height for descriptions to calculate node height based on content
+  const DESCRIPTION_CHARS_PER_LINE = 80; // Estimated characters per line for description text to calculate node height
+  const BASE_FEATURE_HEIGHT = 150; // Base height for features without descriptions or tasks
+  const MAX_FEATURE_HEIGHT = 300; // Max height for features to prevent excessively tall nodes
+  const FEATURE_DESCRIPTION_LINE_HEIGHT = 16; // Estimated line height for feature descriptions to calculate node height based on content
+  const FEATURE_DESCRIPTION_CHARS_PER_LINE = 70; // Estimated characters per line for feature description text to calculate node height
   const BASE_FEATURE_SPACING = 80; // Fallback spacing
-  const MIN_FEATURE_SPACING = 0;
-  const MAX_FEATURE_SPACING = 110;
-
+  const MIN_FEATURE_SPACING = 40; // Minimum spacing when there are many features with large descriptions
+  const MAX_FEATURE_SPACING = 200; // Maximum spacing when there are few features with small descriptions to prevent excessive gaps
+  const FEATURE_SPACING_SCALE = 0.35; // Multiplier applied to average feature height when computing spacing
+  const FEATURE_SPACING_BASE = 40; // Flat offset added to scaled height to compute spacing
+  const GROUP_GAP_MIN = 120; // Minimum vertical gap between epic groups
+  const GROUP_GAP_SCALE = 0.30; // Fraction of groupHeight added as gap between epic groups
   const sortedEpics = [...epics].sort((a, b) => a.position - b.position);
   const featureNodeMap = new Map(featureNodes.map((node) => [node.id, node]));
 
@@ -119,7 +122,7 @@ const getLayoutedElements = (
             MAX_FEATURE_SPACING,
             Math.max(
               MIN_FEATURE_SPACING,
-              Math.round(averageFeatureHeight * 0.32 + 14),
+              Math.round(averageFeatureHeight * FEATURE_SPACING_SCALE + FEATURE_SPACING_BASE),
             ),
           )
         : 0;
@@ -129,7 +132,7 @@ const getLayoutedElements = (
           featureSpacing * (featureCount - 1)
         : 0;
     const groupHeight = Math.max(epicHeight, totalFeatureHeight);
-    const groupGap = Math.max(40, Math.round(groupHeight * 0.15));
+    const groupGap = Math.max(GROUP_GAP_MIN, Math.round(groupHeight * GROUP_GAP_SCALE));
     const epicCenterY = currentY + groupHeight / 2;
     const epicY = epicCenterY - epicHeight / 2;
 

@@ -258,6 +258,7 @@ const RoadmapCanvas = ({
           <MilestonesView
             roadmap={roadmap}
             milestones={milestones}
+            epics={epics}
             onUpdateMilestone={onUpdateMilestone}
             onDeleteMilestone={onDeleteMilestone}
           />
