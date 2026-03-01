@@ -68,7 +68,7 @@ function SharedRoadmapPage() {
         setMilestones(data.milestones || []);
         setEpics(data.epics || []);
         setCurrentUserRole(data.currentUserRole as ShareRole);
-        
+
         // Populate store with shared roadmap data for RoadmapLeftSidePanel to subscribe
         useRoadmapStore.setState({
           roadmap: data,
@@ -91,7 +91,7 @@ function SharedRoadmapPage() {
     };
 
     loadSharedRoadmap();
-    
+
     // Cleanup store on unmount
     return () => {
       useRoadmapStore.getState().resetRoadmap();
@@ -183,62 +183,62 @@ function SharedRoadmapPage() {
         <RoadmapTopBar />
 
         <div className="flex-1 flex overflow-hidden">
-        {/* Left: Chat Sidebar (Info Only) — hidden in milestones view */}
-        {canvasViewMode !== "milestones" && (
-          <motion.div
-            id="roadmap-info-panel"
-          className="relative h-full border-r border-gray-200 bg-white overflow-x-hidden"
-          initial={{ width: "30%" }}
-          animate={{ width: isSidebarOpen ? "30%" : "56px" }}
-          transition={{ duration: 0.25, ease: "easeInOut" }}
-          style={{ minWidth: 56 }}
-          >
-            <RoadmapLeftSidePanel
-              messages={messages}
-              onSendMessage={() => {}} // Disabled for shared view
-              isGenerating={false}
-              isCollapsed={!isSidebarOpen}
-            />
-          </motion.div>
-        )}
-
-        {/* Toggle button - positioned outside motion.div to avoid clipping */}
-        {canvasViewMode !== "milestones" && (
-        <motion.button
-          type="button"
-          aria-controls="roadmap-info-panel"
-          aria-expanded={isSidebarOpen}
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="absolute top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center hover:bg-gray-50"
-          title={isSidebarOpen ? "Collapse panel" : "Expand panel"}
-          initial={{ left: "calc(30% - 12px)" }}
-          animate={{ left: isSidebarOpen ? "calc(30% - 12px)" : "44px" }}
-          transition={{ duration: 0.25, ease: "easeInOut" }}
-        >
-          {isSidebarOpen ? (
-            <ChevronLeft className="w-4 h-4 text-gray-600" />
-          ) : (
-            <ChevronRight className="w-4 h-4 text-gray-600" />
+          {/* Left: Chat Sidebar (Info Only) — hidden in milestones view */}
+          {canvasViewMode !== "milestones" && (
+            <motion.div
+              id="roadmap-info-panel"
+              className="relative h-full border-r border-gray-200 bg-white overflow-x-hidden"
+              initial={{ width: "30%" }}
+              animate={{ width: isSidebarOpen ? "30%" : "56px" }}
+              transition={{ duration: 0.25, ease: "easeInOut" }}
+              style={{ minWidth: 56 }}
+            >
+              <RoadmapLeftSidePanel
+                messages={messages}
+                onSendMessage={() => {}} // Disabled for shared view
+                isGenerating={false}
+                isCollapsed={!isSidebarOpen}
+              />
+            </motion.div>
           )}
-        </motion.button>
-        )}
 
-        {/* Right: Roadmap Canvas */}
-        <div className="flex-1">
-          <RoadmapCanvas
-            projectTitle={roadmap.name}
-            roadmap={roadmap}
-            milestones={milestones}
-            epics={epics}
-            onUpdateRoadmap={canEdit ? () => {} : noOpHandler}
-            onAddMilestone={canEdit ? () => {} : noOpHandler}
-            onUpdateMilestone={canEdit ? () => {} : noOpHandler}
-            onDeleteMilestone={canEdit ? () => {} : noOpHandler}
-            // Note: Epic/Feature/Task CRUD now handled by roadmapStore
-            // No share or export for shared view
-          />
+          {/* Toggle button - positioned outside motion.div to avoid clipping */}
+          {canvasViewMode !== "milestones" && (
+            <motion.button
+              type="button"
+              aria-controls="roadmap-info-panel"
+              aria-expanded={isSidebarOpen}
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="absolute top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center hover:bg-gray-50"
+              title={isSidebarOpen ? "Collapse panel" : "Expand panel"}
+              initial={{ left: "calc(30% - 12px)" }}
+              animate={{ left: isSidebarOpen ? "calc(30% - 12px)" : "44px" }}
+              transition={{ duration: 0.25, ease: "easeInOut" }}
+            >
+              {isSidebarOpen ? (
+                <ChevronLeft className="w-4 h-4 text-gray-600" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-gray-600" />
+              )}
+            </motion.button>
+          )}
+
+          {/* Right: Roadmap Canvas */}
+          <div className="flex-1">
+            <RoadmapCanvas
+              projectTitle={roadmap.name}
+              roadmap={roadmap}
+              milestones={milestones}
+              epics={epics}
+              onUpdateRoadmap={canEdit ? () => {} : noOpHandler}
+              onAddMilestone={canEdit ? () => {} : noOpHandler}
+              onUpdateMilestone={canEdit ? () => {} : noOpHandler}
+              onDeleteMilestone={canEdit ? () => {} : noOpHandler}
+              // Note: Epic/Feature/Task CRUD now handled by roadmapStore
+              // No share or export for shared view
+            />
+          </div>
         </div>
-      </div>
       </div>
     </div>
   );

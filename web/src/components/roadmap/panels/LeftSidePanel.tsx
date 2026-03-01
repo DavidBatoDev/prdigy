@@ -15,7 +15,7 @@ import { useEpics, useRoadmapStore } from "@/stores/roadmapStore";
 
 export type { Message } from "./ChatPanel";
 
-interface RoadmapLeftSidePanelProps {
+interface LeftSidePanelProps {
   messages: Message[];
   onSendMessage: (message: string) => void;
   isGenerating?: boolean;
@@ -33,7 +33,7 @@ interface RoadmapLeftSidePanelProps {
 
 const TASK_NAVIGATE_OFFSET_X = 620;
 
-export function RoadmapLeftSidePanel({
+export function LeftSidePanel({
   messages: _messages,
   onSendMessage: _onSendMessage,
   isGenerating: _isGenerating = false,
@@ -47,7 +47,7 @@ export function RoadmapLeftSidePanel({
   onNavigateToNode,
   onNavigateToEpicTab,
   highlightedEpicId,
-}: RoadmapLeftSidePanelProps) {
+}: LeftSidePanelProps) {
   return (
     <div className="h-full w-full flex bg-white">
       {/* Main Content Area - Hidden when collapsed */}

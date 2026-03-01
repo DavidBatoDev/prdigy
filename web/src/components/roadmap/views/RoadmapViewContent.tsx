@@ -20,7 +20,6 @@ interface RoadmapViewContentProps {
 }
 
 export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
-
   // Roadmap data and actions from store
   const roadmap = useRoadmapStore((state) => state.roadmap);
   const isLoadingRoadmap = useRoadmapStore((state) => state.isLoadingRoadmap);
@@ -306,7 +305,6 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
 
   return (
     <div className="flex flex-col h-full bg-[#f6f7f8] overflow-hidden">
-
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -328,7 +326,7 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
             className="relative h-full border-r border-gray-200 bg-white"
             initial={false}
             animate={{
-              width: isSidebarOpen ? 320 : 0
+              width: isSidebarOpen ? 320 : 0,
             }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
             style={{ minWidth: isSidebarOpen ? 320 : 0 }}

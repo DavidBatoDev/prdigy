@@ -113,7 +113,9 @@ interface RoadmapActions {
   // Canvas view-mode actions
   setCanvasViewMode: (mode: CanvasViewMode) => void;
   setCanvasSelectedEpicId: (epicId: string | null) => void;
-  setCanvasOpenEpicTabs: (tabs: string[] | ((prev: string[]) => string[])) => void;
+  setCanvasOpenEpicTabs: (
+    tabs: string[] | ((prev: string[]) => string[]),
+  ) => void;
   closeCanvasEpicTab: (epicId: string) => void;
 }
 

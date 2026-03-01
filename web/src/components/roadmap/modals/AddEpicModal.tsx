@@ -1,12 +1,5 @@
 import { useEffect, useState, useRef, type FormEvent } from "react";
-import {
-  Plus,
-  Edit2,
-  ChevronDown,
-  ChevronUp,
-  Calendar,
-  X,
-} from "lucide-react";
+import { Plus, Edit2, ChevronDown, ChevronUp, Calendar, X } from "lucide-react";
 import type {
   EpicPriority,
   RoadmapFeature,

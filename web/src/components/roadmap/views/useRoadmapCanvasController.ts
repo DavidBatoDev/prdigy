@@ -202,7 +202,14 @@ export function useRoadmapCanvasController({
         : [...prevTabs, navigateToEpicId],
     );
     onNavigateToEpicHandled?.();
-  }, [epics, navigateToEpicId, onNavigateToEpicHandled, setOpenEpicTabs, setSelectedEpic, setViewMode]);
+  }, [
+    epics,
+    navigateToEpicId,
+    onNavigateToEpicHandled,
+    setOpenEpicTabs,
+    setSelectedEpic,
+    setViewMode,
+  ]);
 
   useEffect(() => {
     if (!navigateToFeature) {
@@ -225,7 +232,14 @@ export function useRoadmapCanvasController({
         : [...prevTabs, navigateToFeature.epicId],
     );
     setScrollToFeatureId(navigateToFeature.featureId);
-  }, [epics, navigateToFeature, onNavigateToFeatureHandled, setOpenEpicTabs, setSelectedEpic, setViewMode]);
+  }, [
+    epics,
+    navigateToFeature,
+    onNavigateToFeatureHandled,
+    setOpenEpicTabs,
+    setSelectedEpic,
+    setViewMode,
+  ]);
 
   useEffect(() => {
     onActiveEpicChangeResolved(viewMode === "epic" ? selectedEpic : null);
