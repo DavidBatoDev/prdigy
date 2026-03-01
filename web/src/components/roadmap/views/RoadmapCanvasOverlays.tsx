@@ -54,24 +54,32 @@ interface RoadmapCanvasOverlaysProps {
     description: string;
     priority: EpicPriority;
     tags: string[];
+    start_date?: string;
+    end_date?: string;
   }) => Promise<void>;
   handleUpdateEpicFromModal: (data: {
     title: string;
     description: string;
     priority: EpicPriority;
     tags: string[];
+    start_date?: string;
+    end_date?: string;
   }) => Promise<void>;
   handleCreateFeature: (data: {
     title: string;
     description: string;
     status: FeatureStatus;
     is_deliverable: boolean;
+    start_date?: string;
+    end_date?: string;
   }) => Promise<void>;
   handleUpdateFeatureFromModal: (data: {
     title: string;
     description: string;
     status: FeatureStatus;
     is_deliverable: boolean;
+    start_date?: string;
+    end_date?: string;
   }) => Promise<void>;
   handleOpenEditFeatureModal: (epicId: string, featureId: string) => void;
   handleConfirmDelete: () => void;
@@ -185,17 +193,25 @@ export function RoadmapCanvasOverlays({
         }}
         initialData={
           editingEpicId
-            ? {
-                title: epics.find((epic) => epic.id === editingEpicId)?.title,
-                description: epics.find((epic) => epic.id === editingEpicId)
-                  ?.description,
-                priority: epics.find((epic) => epic.id === editingEpicId)
-                  ?.priority,
-                tags: epics.find((epic) => epic.id === editingEpicId)?.tags,
-                labels: epics.find((epic) => epic.id === editingEpicId)?.labels,
-                features: epics.find((epic) => epic.id === editingEpicId)
-                  ?.features,
-              }
+            ? (() => {
+                const epic = epics.find((e) => e.id === editingEpicId);
+                return epic
+                  ? {
+                      title: epic.title,
+                      description: epic.description,
+                      priority: epic.priority,
+                      tags: epic.tags,
+                      labels: epic.labels,
+                      features: epic.features,
+                      start_date: epic.start_date
+                        ? epic.start_date.slice(0, 10)
+                        : undefined,
+                      end_date: epic.end_date
+                        ? epic.end_date.slice(0, 10)
+                        : undefined,
+                    }
+                  : undefined;
+              })()
             : undefined
         }
         titleText="Edit Epic"

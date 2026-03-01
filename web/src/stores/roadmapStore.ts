@@ -19,6 +19,8 @@ import type {
   FeatureStatus,
 } from "@/types/roadmap";
 
+export type CanvasViewMode = "roadmap" | "epic" | "milestones";
+
 interface RoadmapState {
   // Data
   roadmap: Roadmap | null;
@@ -34,6 +36,11 @@ interface RoadmapState {
   openFeatureEditor: { epicId: string; featureId: string } | null;
   openTaskDetailId: string | null;
   activeEpicId: string | null;
+
+  // UI State - Canvas View Mode (shared so RoadmapViewContent can react)
+  canvasViewMode: CanvasViewMode;
+  canvasSelectedEpicId: string | null;
+  canvasOpenEpicTabs: string[];
 
   // UI State - Modal Triggers
   addFeatureEpicId: string | null;
@@ -51,6 +58,8 @@ interface FeatureData {
   description: string;
   status: FeatureStatus;
   is_deliverable: boolean;
+  start_date?: string;
+  end_date?: string;
 }
 
 interface RoadmapActions {
@@ -100,6 +109,12 @@ interface RoadmapActions {
   openTaskDetail: (taskId: string) => void;
   clearOpenTaskDetail: () => void;
   setActiveEpicId: (epicId: string | null) => void;
+
+  // Canvas view-mode actions
+  setCanvasViewMode: (mode: CanvasViewMode) => void;
+  setCanvasSelectedEpicId: (epicId: string | null) => void;
+  setCanvasOpenEpicTabs: (tabs: string[] | ((prev: string[]) => string[])) => void;
+  closeCanvasEpicTab: (epicId: string) => void;
 }
 
 type RoadmapStore = RoadmapState & RoadmapActions;
@@ -123,6 +138,9 @@ export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
   isLoadingEpic: false,
   isLoadingFeature: false,
   isLoadingTask: false,
+  canvasViewMode: "roadmap",
+  canvasSelectedEpicId: null,
+  canvasOpenEpicTabs: [],
 
   // Initialize - Load full roadmap data
   loadRoadmap: async (roadmapId: string) => {
@@ -158,6 +176,9 @@ export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
       activeEpicId: null,
       addFeatureEpicId: null,
       addTaskFeatureId: null,
+      canvasViewMode: "roadmap",
+      canvasSelectedEpicId: null,
+      canvasOpenEpicTabs: [],
     });
   },
 
@@ -193,7 +214,7 @@ export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
         color: epicInput?.color,
         estimated_hours: epicInput?.estimated_hours,
         start_date: epicInput?.start_date,
-        due_date: epicInput?.due_date,
+        end_date: epicInput?.end_date,
         tags: epicInput?.tags,
         labels: epicInput?.labels,
       });
@@ -238,7 +259,7 @@ export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
         estimated_hours: updatedEpic.estimated_hours,
         actual_hours: updatedEpic.actual_hours,
         start_date: updatedEpic.start_date,
-        due_date: updatedEpic.due_date,
+        end_date: updatedEpic.end_date,
         completed_date: updatedEpic.completed_date,
         tags: updatedEpic.tags,
         labels: updatedEpic.labels,
@@ -293,6 +314,8 @@ export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
         status: data.status,
         position: epic.features?.length || 0,
         is_deliverable: data.is_deliverable,
+        start_date: data.start_date,
+        end_date: data.end_date,
       });
 
       set({
@@ -324,6 +347,8 @@ export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
         is_deliverable: feature.is_deliverable,
         estimated_hours: feature.estimated_hours,
         actual_hours: feature.actual_hours,
+        start_date: feature.start_date,
+        end_date: feature.end_date,
       });
 
       set({
@@ -578,6 +603,37 @@ export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
 
   setActiveEpicId: (epicId: string | null) => {
     set({ activeEpicId: epicId });
+  },
+
+  setCanvasViewMode: (mode: CanvasViewMode) => {
+    set({ canvasViewMode: mode });
+  },
+
+  setCanvasSelectedEpicId: (epicId: string | null) => {
+    set({ canvasSelectedEpicId: epicId });
+  },
+
+  setCanvasOpenEpicTabs: (tabs: string[] | ((prev: string[]) => string[])) => {
+    if (typeof tabs === "function") {
+      set((state) => ({ canvasOpenEpicTabs: tabs(state.canvasOpenEpicTabs) }));
+    } else {
+      set({ canvasOpenEpicTabs: tabs });
+    }
+  },
+
+  closeCanvasEpicTab: (epicId: string) => {
+    const { canvasOpenEpicTabs, canvasSelectedEpicId } = get();
+    const newTabs = canvasOpenEpicTabs.filter((id) => id !== epicId);
+    const updates: Partial<RoadmapStore> = { canvasOpenEpicTabs: newTabs };
+    if (canvasSelectedEpicId === epicId) {
+      if (newTabs.length > 0) {
+        updates.canvasSelectedEpicId = newTabs[newTabs.length - 1];
+      } else {
+        updates.canvasViewMode = "roadmap";
+        updates.canvasSelectedEpicId = null;
+      }
+    }
+    set(updates);
   },
 }));
 

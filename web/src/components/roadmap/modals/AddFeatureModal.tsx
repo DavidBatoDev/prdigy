@@ -1,5 +1,12 @@
 import { useState, useEffect, useRef, type FormEvent } from "react";
-import { Plus, Edit2, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Plus,
+  Edit2,
+  ChevronDown,
+  ChevronUp,
+  Calendar,
+  X,
+} from "lucide-react";
 import type {
   FeatureStatus,
   RoadmapFeature,
@@ -26,6 +33,8 @@ interface AddFeatureModalProps {
     description: string;
     status: FeatureStatus;
     is_deliverable: boolean;
+    start_date?: string;
+    end_date?: string;
   }) => void;
   isLoading?: boolean;
 }
@@ -49,6 +58,11 @@ export const AddFeatureModal = ({
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<FeatureStatus>("not_started");
   const [isDeliverable, setIsDeliverable] = useState(false);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [draftStartDate, setDraftStartDate] = useState("");
+  const [draftEndDate, setDraftEndDate] = useState("");
+  const [isDateMenuOpen, setIsDateMenuOpen] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showReadMore, setShowReadMore] = useState(false);
@@ -61,6 +75,13 @@ export const AddFeatureModal = ({
       setDescription(initialData?.description ?? "");
       setStatus(initialData?.status ?? "not_started");
       setIsDeliverable(initialData?.is_deliverable ?? false);
+      const initialStartDate = initialData?.start_date?.slice(0, 10) ?? "";
+      const initialEndDate = initialData?.end_date?.slice(0, 10) ?? "";
+      setStartDate(initialStartDate);
+      setEndDate(initialEndDate);
+      setDraftStartDate(initialStartDate);
+      setDraftEndDate(initialEndDate);
+      setIsDateMenuOpen(false);
       setIsEditingDescription(false);
       setIsExpanded(false);
     }
@@ -90,6 +111,8 @@ export const AddFeatureModal = ({
       description,
       status,
       is_deliverable: isDeliverable,
+      start_date: startDate || undefined,
+      end_date: endDate || undefined,
     });
 
     // Reset form only if not in edit mode
@@ -101,18 +124,40 @@ export const AddFeatureModal = ({
     }
   };
 
-  if (!isOpen) return null;
+  const hasDates = Boolean(startDate || endDate);
 
-  const getStatusLabel = (s: FeatureStatus) => {
-    const statusMap = {
-      not_started: { label: "Not Started", color: "bg-gray-100 text-gray-800" },
-      in_progress: { label: "In Progress", color: "bg-blue-100 text-blue-800" },
-      in_review: { label: "In Review", color: "bg-purple-100 text-purple-800" },
-      completed: { label: "Completed", color: "bg-green-100 text-green-800" },
-      blocked: { label: "Blocked", color: "bg-red-100 text-red-800" },
-    } as const;
-    return statusMap[s];
+  const formatDate = (value?: string) => {
+    if (!value) return "";
+    return new Date(value).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
   };
+
+  const displayDateRange = `${startDate ? formatDate(startDate) : "No start"} - ${endDate ? formatDate(endDate) : "No end"}`;
+
+  const openDateMenu = () => {
+    setDraftStartDate(startDate);
+    setDraftEndDate(endDate);
+    setIsDateMenuOpen(true);
+  };
+
+  const saveDates = () => {
+    setStartDate(draftStartDate);
+    setEndDate(draftEndDate);
+    setIsDateMenuOpen(false);
+  };
+
+  const removeDates = () => {
+    setStartDate("");
+    setEndDate("");
+    setDraftStartDate("");
+    setDraftEndDate("");
+    setIsDateMenuOpen(false);
+  };
+
+  if (!isOpen) return null;
 
   const body = (
     <>
@@ -149,6 +194,81 @@ export const AddFeatureModal = ({
             <span className="text-sm text-gray-700">Milestone progress</span>
           </label>
         </div>
+      </div>
+
+      {/* Dates */}
+      <div
+        className={`relative ${hasDates || isDateMenuOpen ? "mb-6" : "mb-0"}`}
+      >
+        {hasDates && (
+          <button
+            type="button"
+            onClick={openDateMenu}
+            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+          >
+            <Calendar className="w-4 h-4 text-gray-500" />
+            {displayDateRange}
+            <ChevronDown className="w-4 h-4 text-gray-500" />
+          </button>
+        )}
+
+        {isDateMenuOpen && (
+          <div className="absolute z-20 mt-2 w-full max-w-[420px] rounded-xl border border-gray-200 bg-white shadow-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-900">Dates</h3>
+              <button
+                type="button"
+                onClick={() => setIsDateMenuOpen(false)}
+                className="p-1 rounded hover:bg-gray-100"
+              >
+                <X className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Start date
+                </label>
+                <input
+                  type="date"
+                  value={draftStartDate}
+                  onChange={(e) => setDraftStartDate(e.target.value)}
+                  className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  End date
+                </label>
+                <input
+                  type="date"
+                  value={draftEndDate}
+                  onChange={(e) => setDraftEndDate(e.target.value)}
+                  min={draftStartDate || undefined}
+                  className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                />
+              </div>
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={removeDates}
+                className="px-3 py-1.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                Remove
+              </button>
+              <button
+                type="button"
+                onClick={saveDates}
+                className="px-3 py-1.5 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary/90 transition-colors"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Description */}
@@ -351,6 +471,17 @@ export const AddFeatureModal = ({
     },
   ];
 
+  const dateActionButton = !hasDates ? (
+    <button
+      type="button"
+      onClick={openDateMenu}
+      className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+    >
+      <Calendar className="w-4 h-4" />
+      Dates
+    </button>
+  ) : null;
+
   return (
     <RoadmapModalLayout
       isOpen={isOpen}
@@ -359,6 +490,8 @@ export const AddFeatureModal = ({
       onTitleChange={setTitle}
       titlePlaceholder="Feature title"
       onSubmit={handleSubmit}
+      actionButtons={dateActionButton}
+      showDefaultDatesAction={false}
       body={body}
       footer={footer}
       canComment={Boolean(user)}

@@ -2,7 +2,6 @@ import { Plus } from "lucide-react";
 import { RoadmapView } from "./RoadmapView";
 import { EpicTab } from "./EpicTab";
 import { MilestonesView } from "./MilestonesView";
-import { RoadmapCanvasHeader } from "./RoadmapCanvasHeader";
 import { RoadmapCanvasOverlays } from "./RoadmapCanvasOverlays";
 import { useRoadmapCanvasController } from "./useRoadmapCanvasController";
 import type { RoadmapCanvasProps } from "./RoadmapCanvas.types";
@@ -25,8 +24,8 @@ const RoadmapCanvas = ({
   onAddTask: onAddTaskProp,
   onUpdateTask: onUpdateTaskProp,
   onDeleteTask: onDeleteTaskProp,
-  onShare,
-  onExport,
+  onShare: _onShare,
+  onExport: _onExport,
   focusNodeId: focusNodeIdProp,
   focusNodeOffsetX: focusNodeOffsetXProp,
   onFocusComplete: onFocusCompleteProp,
@@ -78,7 +77,6 @@ const RoadmapCanvas = ({
     milestones,
     epics,
     viewMode,
-    selectedEpic,
     openEpicTabs,
     selectedTaskId,
     sidePanelOpen,
@@ -112,9 +110,9 @@ const RoadmapCanvas = ({
     setViewMode,
     setSelectedEpic,
     setOpenEpicTabs,
-    setSelectedTaskId,
     setTargetFeatureForTask,
     setSidePanelOpen,
+    setSelectedTaskId,
     setIsAddEpicModalOpen,
     setIsEditEpicModalOpen,
     setEditingEpicId,
@@ -125,7 +123,6 @@ const RoadmapCanvas = ({
     setEditingFeatureEpicId,
     setDeleteConfirm,
     setScrollToFeatureId,
-    handleCloseEpicTab,
     handleDeleteEpic,
     handleDeleteFeature,
     handleCreateEpic,
@@ -148,19 +145,6 @@ const RoadmapCanvas = ({
 
   return (
     <div className="relative h-full bg-white flex flex-col">
-      <RoadmapCanvasHeader
-        viewMode={viewMode}
-        selectedEpic={selectedEpic}
-        openEpicTabs={openEpicTabs}
-        epics={epics}
-        setViewMode={setViewMode}
-        setSelectedEpic={setSelectedEpic}
-        setOpenEpicTabs={setOpenEpicTabs}
-        onCloseEpicTab={handleCloseEpicTab}
-        onShare={onShare}
-        onExport={onExport}
-      />
-
       {/* View Content */}
       <div className="flex-1 relative overflow-hidden">
         {viewMode === "roadmap" && epics.length === 0 ? (

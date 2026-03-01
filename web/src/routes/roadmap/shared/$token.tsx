@@ -9,9 +9,10 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
-  LeftSidePanel,
+  RoadmapLeftSidePanel,
   type Message,
   RoadmapCanvas,
+  RoadmapTopBar,
 } from "@/components/roadmap";
 import { roadmapSharesServiceAPI } from "@/services/roadmap-shares.service";
 import { useUser } from "@/stores/authStore";
@@ -40,6 +41,7 @@ function SharedRoadmapPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const canvasViewMode = useRoadmapStore((state) => state.canvasViewMode);
 
   // Messages for the AI chat panel (read-only for shared viewers)
   const [messages] = useState<Message[]>([
@@ -67,7 +69,7 @@ function SharedRoadmapPage() {
         setEpics(data.epics || []);
         setCurrentUserRole(data.currentUserRole as ShareRole);
         
-        // Populate store with shared roadmap data for LeftSidePanel to subscribe
+        // Populate store with shared roadmap data for RoadmapLeftSidePanel to subscribe
         useRoadmapStore.setState({
           roadmap: data,
           epics: data.epics || [],
@@ -176,25 +178,32 @@ function SharedRoadmapPage() {
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
 
-      <div className="fixed top-12 left-0 right-0 bottom-0 flex">
-        {/* Left: Chat Sidebar (Info Only) */}
-        <motion.div
-          id="roadmap-info-panel"
+      <div className="fixed top-12 left-0 right-0 bottom-0 flex flex-col">
+        {/* Canvas navigation tabs */}
+        <RoadmapTopBar />
+
+        <div className="flex-1 flex overflow-hidden">
+        {/* Left: Chat Sidebar (Info Only) — hidden in milestones view */}
+        {canvasViewMode !== "milestones" && (
+          <motion.div
+            id="roadmap-info-panel"
           className="relative h-full border-r border-gray-200 bg-white overflow-x-hidden"
           initial={{ width: "30%" }}
           animate={{ width: isSidebarOpen ? "30%" : "56px" }}
           transition={{ duration: 0.25, ease: "easeInOut" }}
           style={{ minWidth: 56 }}
-        >
-          <LeftSidePanel
-            messages={messages}
-            onSendMessage={() => {}} // Disabled for shared view
-            isGenerating={false}
-            isCollapsed={!isSidebarOpen}
-          />
-        </motion.div>
+          >
+            <RoadmapLeftSidePanel
+              messages={messages}
+              onSendMessage={() => {}} // Disabled for shared view
+              isGenerating={false}
+              isCollapsed={!isSidebarOpen}
+            />
+          </motion.div>
+        )}
 
         {/* Toggle button - positioned outside motion.div to avoid clipping */}
+        {canvasViewMode !== "milestones" && (
         <motion.button
           type="button"
           aria-controls="roadmap-info-panel"
@@ -212,6 +221,7 @@ function SharedRoadmapPage() {
             <ChevronRight className="w-4 h-4 text-gray-600" />
           )}
         </motion.button>
+        )}
 
         {/* Right: Roadmap Canvas */}
         <div className="flex-1">
@@ -228,6 +238,7 @@ function SharedRoadmapPage() {
             // No share or export for shared view
           />
         </div>
+      </div>
       </div>
     </div>
   );

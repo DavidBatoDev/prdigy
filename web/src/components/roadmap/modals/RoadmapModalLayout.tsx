@@ -17,6 +17,7 @@ interface RoadmapModalLayoutProps {
   titlePlaceholder: string;
   onSubmit: (e: FormEvent) => void;
   actionButtons?: ReactNode;
+  showDefaultDatesAction?: boolean;
   body: ReactNode;
   footer: ReactNode;
   canComment: boolean;
@@ -34,6 +35,7 @@ export const RoadmapModalLayout = ({
   titlePlaceholder,
   onSubmit,
   actionButtons,
+  showDefaultDatesAction = true,
   body,
   footer,
   canComment,
@@ -130,7 +132,7 @@ export const RoadmapModalLayout = ({
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <button
                 type="button"
-                className="w-5 h-5 rounded-full border-2 border-gray-300 hover:border-gray-400 transition-colors flex-shrink-0"
+                className="w-5 h-5 rounded-full border-2 border-gray-300 hover:border-gray-400 transition-colors shrink-0"
                 aria-label="Mark complete"
               />
               <h2 className="text-lg font-semibold text-gray-900 truncate">
@@ -149,7 +151,7 @@ export const RoadmapModalLayout = ({
             <div className="flex items-center gap-3 mb-6">
               <button
                 type="button"
-                className="w-6 h-6 rounded-full border-2 border-gray-300 hover:border-gray-400 transition-colors flex-shrink-0"
+                className="w-6 h-6 rounded-full border-2 border-gray-300 hover:border-gray-400 transition-colors shrink-0"
                 aria-label="Mark complete"
               />
               <input
@@ -172,13 +174,15 @@ export const RoadmapModalLayout = ({
                 <Plus className="w-4 h-4" />
                 Add
               </button>
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-              >
-                <Calendar className="w-4 h-4" />
-                Dates
-              </button>
+              {showDefaultDatesAction && (
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  <Calendar className="w-4 h-4" />
+                  Dates
+                </button>
+              )}
               <button
                 type="button"
                 className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
@@ -214,14 +218,14 @@ export const RoadmapModalLayout = ({
                 >
                   {tab.label}
                   {activeTabId === tab.id && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary to-primary/80" />
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-linear-to-r from-primary to-primary/80" />
                   )}
                 </button>
               ))}
             </div>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-md hover:bg-gray-100 transition-colors flex-shrink-0"
+              className="p-1.5 rounded-md hover:bg-gray-100 transition-colors shrink-0"
               aria-label="Close"
             >
               <X className="w-5 h-5 text-gray-400 hover:text-gray-600" />

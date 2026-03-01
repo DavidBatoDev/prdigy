@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  List,
   ChevronRight,
   FolderOpen,
   Layers,
@@ -9,16 +8,14 @@ import {
   X,
   Folder,
   ExternalLink,
-  Sparkles,
   Plus,
 } from "lucide-react";
-import { ChatPanel } from "./ChatPanel";
 import type { Message } from "./ChatPanel";
 import { useEpics, useRoadmapStore } from "@/stores/roadmapStore";
 
 export type { Message } from "./ChatPanel";
 
-interface LeftSidePanelProps {
+interface RoadmapLeftSidePanelProps {
   messages: Message[];
   onSendMessage: (message: string) => void;
   isGenerating?: boolean;
@@ -36,10 +33,10 @@ interface LeftSidePanelProps {
 
 const TASK_NAVIGATE_OFFSET_X = 620;
 
-export function LeftSidePanel({
-  messages,
-  onSendMessage,
-  isGenerating = false,
+export function RoadmapLeftSidePanel({
+  messages: _messages,
+  onSendMessage: _onSendMessage,
+  isGenerating: _isGenerating = false,
   isCollapsed = false,
   onSelectEpic,
   onSelectFeature,
@@ -50,66 +47,23 @@ export function LeftSidePanel({
   onNavigateToNode,
   onNavigateToEpicTab,
   highlightedEpicId,
-}: LeftSidePanelProps) {
-  const [activeTab, setActiveTab] = useState<"assistant" | "explorer">(
-    "explorer",
-  );
-
+}: RoadmapLeftSidePanelProps) {
   return (
     <div className="h-full w-full flex bg-white">
       {/* Main Content Area - Hidden when collapsed */}
       {!isCollapsed && (
         <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
-          {/* Tabs */}
-          <div className="flex border-b border-gray-200 bg-gray-50">
-            <button
-              onClick={() => setActiveTab("explorer")}
-              className={`flex-1 px-4 py-3 font-medium text-sm flex items-center justify-center gap-2 transition-colors ${
-                activeTab === "explorer"
-                  ? "text-primary border-b-2 border-primary bg-white"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              <List className="w-4 h-4" />
-              Explorer
-            </button>
-            <button
-              onClick={() => setActiveTab("assistant")}
-              className={`flex-1 px-4 py-3 font-medium text-sm flex items-center justify-center gap-2 transition-colors ${
-                activeTab === "assistant"
-                  ? "text-transparent bg-clip-text bg-linear-to-r from-purple-600 to-pink-600 border-b-2 border-purple-600 bg-white"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              <Sparkles
-                className={`w-4 h-4 ${
-                  activeTab === "assistant" ? "text-purple-600" : ""
-                }`}
-              />
-              Try AI
-            </button>
-          </div>
-
-          {/* Content */}
-          {activeTab === "explorer" ? (
-            <ExplorerPanel
-              onSelectEpic={onSelectEpic}
-              onSelectFeature={onSelectFeature}
-              onSelectTask={onSelectTask}
-              onOpenEpicEditor={onOpenEpicEditor}
-              onOpenFeatureEditor={onOpenFeatureEditor}
-              onOpenTaskDetail={onOpenTaskDetail}
-              onNavigateToNode={onNavigateToNode}
-              onNavigateToEpicTab={onNavigateToEpicTab}
-              highlightedEpicId={highlightedEpicId}
-            />
-          ) : (
-            <ChatPanel
-              messages={messages}
-              onSendMessage={onSendMessage}
-              isGenerating={isGenerating}
-            />
-          )}
+          <ExplorerPanel
+            onSelectEpic={onSelectEpic}
+            onSelectFeature={onSelectFeature}
+            onSelectTask={onSelectTask}
+            onOpenEpicEditor={onOpenEpicEditor}
+            onOpenFeatureEditor={onOpenFeatureEditor}
+            onOpenTaskDetail={onOpenTaskDetail}
+            onNavigateToNode={onNavigateToNode}
+            onNavigateToEpicTab={onNavigateToEpicTab}
+            highlightedEpicId={highlightedEpicId}
+          />
         </div>
       )}
     </div>

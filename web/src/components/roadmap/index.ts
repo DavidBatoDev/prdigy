@@ -8,11 +8,16 @@ export { TaskListItem } from "./widgets/TaskListItem";
 export { RoadmapCanvas } from "./views/RoadmapCanvas";
 export { RoadmapView } from "./views/RoadmapView";
 export { RoadmapViewContent } from "./views/RoadmapViewContent";
+export { RoadmapTopBar } from "./views/RoadmapTopBar";
 export { EpicTab } from "./views/EpicTab";
 export { MilestonesView } from "./views/MilestonesView";
 
 // Panel components
-export { LeftSidePanel, type Message } from "./panels/LeftSidePanel";
+export {
+  RoadmapLeftSidePanel,
+  RoadmapLeftSidePanel as LeftSidePanel,
+  type Message,
+} from "./panels/RoadmapLeftSidePanel";
 export { SidePanel } from "./panels/SidePanel";
 export { ChatPanel } from "./panels/ChatPanel";
 

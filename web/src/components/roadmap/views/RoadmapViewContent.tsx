@@ -3,13 +3,14 @@ import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Link } from "@tanstack/react-router";
 import {
-  LeftSidePanel,
+  RoadmapLeftSidePanel,
   type Message,
   RoadmapCanvas,
   ShareRoadmapModal,
   ProjectBriefModal,
   type FormData,
 } from "@/components/roadmap";
+import { RoadmapTopBar } from "./RoadmapTopBar";
 import { callGeminiAPI } from "@/lib/gemini";
 import { useRoadmapStore } from "@/stores/roadmapStore";
 import { useProjectSettingsStore } from "@/stores/projectSettingsStore";
@@ -39,11 +40,9 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
     (state) => state.openFeatureEditorModal,
   );
   const openTaskDetail = useRoadmapStore((state) => state.openTaskDetail);
+  const canvasViewMode = useRoadmapStore((state) => state.canvasViewMode);
   const [roadmapError, setRoadmapError] = useState<string | null>(null);
 
-  const isProjectSidebarExpanded = useProjectSettingsStore(
-    (state) => state.isSidebarExpanded,
-  );
   const setSidebarExpanded = useProjectSettingsStore(
     (state) => state.setSidebarExpanded,
   );
@@ -313,63 +312,67 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left: Sidebar */}
-        <motion.div
-          id="roadmap-left-panel"
-          className="relative h-full border-r border-gray-200 bg-white"
-          initial={false}
-          animate={{
-            width: isSidebarOpen ? 320 : 0
-          }}
-          transition={{ duration: 0.3, ease: "easeInOut" }}
-          style={{ minWidth: isSidebarOpen ? 320 : 0 }}
-        >
-          <LeftSidePanel
-            messages={messages}
-            onSendMessage={handleSendMessage}
-            isGenerating={isGenerating}
-            isCollapsed={!isSidebarOpen}
-            onSelectFeature={(epicId, featureId) => {
-              if (activeEpicId) {
-                navigateToFeatureNode(epicId, featureId);
-                return;
-              }
-              navigateToNode(featureId);
-            }}
-            onOpenEpicEditor={openEpicEditor}
-            onOpenFeatureEditor={openFeatureEditor}
-            onOpenTaskDetail={openTaskDetail}
-            onNavigateToNode={navigateToNode}
-            onNavigateToEpicTab={navigateToEpicTab}
-            highlightedEpicId={activeEpicId}
-          />
+      {/* Top navigation bar: view tabs + share/export */}
+      <RoadmapTopBar
+        onShare={() => setIsShareModalOpen(true)}
+        onExport={() => {
+          /* TODO: Export functionality */
+        }}
+      />
 
-          <button
-            type="button"
-            aria-controls="roadmap-left-panel"
-            aria-expanded={isSidebarOpen}
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="absolute -right-3 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center hover:bg-gray-50"
-            title={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left: Sidebar — hidden in milestones view */}
+        {canvasViewMode !== "milestones" && (
+          <motion.div
+            id="roadmap-left-panel"
+            className="relative h-full border-r border-gray-200 bg-white"
+            initial={false}
+            animate={{
+              width: isSidebarOpen ? 320 : 0
+            }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            style={{ minWidth: isSidebarOpen ? 320 : 0 }}
           >
-            {isSidebarOpen ? (
-              <ChevronLeft className="w-4 h-4 text-gray-600" />
-            ) : (
-              <ChevronRight className="w-4 h-4 text-gray-600" />
-            )}
-          </button>
-        </motion.div>
+            <RoadmapLeftSidePanel
+              messages={messages}
+              onSendMessage={handleSendMessage}
+              isGenerating={isGenerating}
+              isCollapsed={!isSidebarOpen}
+              onSelectFeature={(epicId, featureId) => {
+                if (activeEpicId) {
+                  navigateToFeatureNode(epicId, featureId);
+                  return;
+                }
+                navigateToNode(featureId);
+              }}
+              onOpenEpicEditor={openEpicEditor}
+              onOpenFeatureEditor={openFeatureEditor}
+              onOpenTaskDetail={openTaskDetail}
+              onNavigateToNode={navigateToNode}
+              onNavigateToEpicTab={navigateToEpicTab}
+              highlightedEpicId={activeEpicId}
+            />
+
+            <button
+              type="button"
+              aria-controls="roadmap-left-panel"
+              aria-expanded={isSidebarOpen}
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="absolute -right-3 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center hover:bg-gray-50"
+              title={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+            >
+              {isSidebarOpen ? (
+                <ChevronLeft className="w-4 h-4 text-gray-600" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-gray-600" />
+              )}
+            </button>
+          </motion.div>
+        )}
 
         {/* Right: Roadmap Canvas */}
         <div className="flex-1 relative">
-          <RoadmapCanvas
-            roadmap={roadmap}
-            onShare={() => setIsShareModalOpen(true)}
-            onExport={() => {
-              /* TODO: Export functionality */
-            }}
-          />
+          <RoadmapCanvas roadmap={roadmap} />
         </div>
       </div>
 

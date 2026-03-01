@@ -9,6 +9,7 @@ import {
   AlertCircle,
   List,
   Plus,
+  Calendar,
 } from "lucide-react";
 import type { RoadmapFeature, RoadmapTask } from "@/types/roadmap";
 import { TaskListItem } from "./TaskListItem";
@@ -226,6 +227,28 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
           {feature.estimated_hours && (
             <div className="mt-2 text-xs text-gray-500 text-right">
               ~{feature.estimated_hours}h
+            </div>
+          )}
+
+          {/* Date range */}
+          {(feature.start_date || feature.end_date) && (
+            <div className="flex items-center gap-1 mt-2 text-xs text-gray-400">
+              <Calendar className="w-3 h-3 shrink-0" />
+              <span>
+                {feature.start_date
+                  ? new Date(feature.start_date).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                    })
+                  : "—"}
+                {" → "}
+                {feature.end_date
+                  ? new Date(feature.end_date).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                    })
+                  : "—"}
+              </span>
             </div>
           )}
         </div>

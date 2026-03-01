@@ -116,7 +116,7 @@ export interface CreateEpicDto {
   color?: string;
   estimated_hours?: number;
   start_date?: string;
-  due_date?: string;
+  end_date?: string;
   tags?: string[];
   labels?: Array<{ id: string; name: string; color: string }>;
 }
@@ -131,7 +131,7 @@ export interface UpdateEpicDto {
   estimated_hours?: number;
   actual_hours?: number;
   start_date?: string;
-  due_date?: string;
+  end_date?: string;
   completed_date?: string;
   tags?: string[];
   labels?: Array<{ id: string; name: string; color: string }>;
@@ -152,6 +152,8 @@ export interface CreateFeatureDto {
   position?: number;
   is_deliverable?: boolean;
   estimated_hours?: number;
+  start_date?: string;
+  end_date?: string;
 }
 
 export interface UpdateFeatureDto {
@@ -162,6 +164,8 @@ export interface UpdateFeatureDto {
   is_deliverable?: boolean;
   estimated_hours?: number;
   actual_hours?: number;
+  start_date?: string;
+  end_date?: string;
 }
 
 export interface ReorderFeatureDto {

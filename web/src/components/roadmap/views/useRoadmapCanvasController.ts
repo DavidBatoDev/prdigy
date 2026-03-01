@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import type { EpicPriority, FeatureStatus, RoadmapTask } from "@/types/roadmap";
-import { useRoadmapStore } from "@/stores/roadmapStore";
+import { useRoadmapStore, type CanvasViewMode } from "@/stores/roadmapStore";
 import type { UseRoadmapCanvasControllerArgs } from "./RoadmapCanvas.types";
 
-export type ViewMode = "roadmap" | "epic" | "milestones";
+/** @deprecated Use CanvasViewMode from roadmapStore instead */
+export type ViewMode = CanvasViewMode;
 
 export function useRoadmapCanvasController({
   roadmap: roadmapProp,
@@ -91,6 +92,22 @@ export function useRoadmapCanvasController({
   const storeSetActiveEpicId = useRoadmapStore(
     (state) => state.setActiveEpicId,
   );
+
+  // Canvas view-mode — sourced from store so RoadmapTopBar / RoadmapViewContent can react
+  const viewMode = useRoadmapStore((state) => state.canvasViewMode);
+  const selectedEpic = useRoadmapStore((state) => state.canvasSelectedEpicId);
+  const openEpicTabs = useRoadmapStore((state) => state.canvasOpenEpicTabs);
+  const setViewMode = useRoadmapStore((state) => state.setCanvasViewMode);
+  const setSelectedEpic = useRoadmapStore(
+    (state) => state.setCanvasSelectedEpicId,
+  );
+  const setOpenEpicTabs = useRoadmapStore(
+    (state) => state.setCanvasOpenEpicTabs,
+  );
+  const closeCanvasEpicTab = useRoadmapStore(
+    (state) => state.closeCanvasEpicTab,
+  );
+
   const addFeatureEpicId = useRoadmapStore((state) => state.addFeatureEpicId);
   const addTaskFeatureId = useRoadmapStore((state) => state.addTaskFeatureId);
   const closeAddFeatureModal = useRoadmapStore(
@@ -132,9 +149,6 @@ export function useRoadmapCanvasController({
     onOpenTaskDetailHandledProp ?? storeClearOpenTaskDetail;
   const onActiveEpicChangeResolved = onActiveEpicChange ?? storeSetActiveEpicId;
 
-  const [viewMode, setViewMode] = useState<ViewMode>("roadmap");
-  const [selectedEpic, setSelectedEpic] = useState<string | null>(null);
-  const [openEpicTabs, setOpenEpicTabs] = useState<string[]>([]);
   const [selectedFeature, setSelectedFeature] = useState<string | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [sidePanelOpen, setSidePanelOpen] = useState(false);
@@ -188,7 +202,7 @@ export function useRoadmapCanvasController({
         : [...prevTabs, navigateToEpicId],
     );
     onNavigateToEpicHandled?.();
-  }, [epics, navigateToEpicId, onNavigateToEpicHandled]);
+  }, [epics, navigateToEpicId, onNavigateToEpicHandled, setOpenEpicTabs, setSelectedEpic, setViewMode]);
 
   useEffect(() => {
     if (!navigateToFeature) {
@@ -211,23 +225,14 @@ export function useRoadmapCanvasController({
         : [...prevTabs, navigateToFeature.epicId],
     );
     setScrollToFeatureId(navigateToFeature.featureId);
-  }, [epics, navigateToFeature, onNavigateToFeatureHandled]);
+  }, [epics, navigateToFeature, onNavigateToFeatureHandled, setOpenEpicTabs, setSelectedEpic, setViewMode]);
 
   useEffect(() => {
     onActiveEpicChangeResolved(viewMode === "epic" ? selectedEpic : null);
   }, [onActiveEpicChangeResolved, selectedEpic, viewMode]);
 
   const handleCloseEpicTab = (epicId: string) => {
-    const newTabs = openEpicTabs.filter((id) => id !== epicId);
-    setOpenEpicTabs(newTabs);
-    if (selectedEpic === epicId) {
-      if (newTabs.length > 0) {
-        setSelectedEpic(newTabs[newTabs.length - 1]);
-      } else {
-        setViewMode("roadmap");
-        setSelectedEpic(null);
-      }
-    }
+    closeCanvasEpicTab(epicId);
   };
 
   const handleCreateEpic = async (data: {
@@ -235,6 +240,8 @@ export function useRoadmapCanvasController({
     description: string;
     priority: EpicPriority;
     tags: string[];
+    start_date?: string;
+    end_date?: string;
   }) => {
     setIsEpicLoading(true);
     try {
@@ -254,6 +261,8 @@ export function useRoadmapCanvasController({
         tags: data.tags,
         status: "backlog",
         position,
+        start_date: data.start_date,
+        end_date: data.end_date,
       });
       setIsAddEpicModalOpen(false);
       setTargetEpicForAddBelow(null);
@@ -282,6 +291,8 @@ export function useRoadmapCanvasController({
     description: string;
     priority: EpicPriority;
     tags: string[];
+    start_date?: string;
+    end_date?: string;
   }) => {
     if (!editingEpicId) return;
     const epic = epics.find((item) => item.id === editingEpicId);
@@ -295,6 +306,8 @@ export function useRoadmapCanvasController({
         description: data.description,
         priority: data.priority,
         tags: data.tags,
+        start_date: data.start_date,
+        end_date: data.end_date,
         updated_at: new Date().toISOString(),
       });
       setIsEditEpicModalOpen(false);
@@ -309,6 +322,8 @@ export function useRoadmapCanvasController({
     description: string;
     status: FeatureStatus;
     is_deliverable: boolean;
+    start_date?: string;
+    end_date?: string;
   }) => {
     if (targetEpicForFeature) {
       setIsFeatureLoading(true);
@@ -402,6 +417,8 @@ export function useRoadmapCanvasController({
     description: string;
     status: FeatureStatus;
     is_deliverable: boolean;
+    start_date?: string;
+    end_date?: string;
   }) => {
     if (!editingFeatureId || !editingFeatureEpicId) return;
     const epic = epics.find((item) => item.id === editingFeatureEpicId);
@@ -418,6 +435,8 @@ export function useRoadmapCanvasController({
         description: data.description,
         status: data.status,
         is_deliverable: data.is_deliverable,
+        start_date: data.start_date,
+        end_date: data.end_date,
         updated_at: new Date().toISOString(),
       });
       setIsEditFeatureModalOpen(false);

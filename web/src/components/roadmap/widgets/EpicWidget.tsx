@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { motion } from "framer-motion";
-import { Edit2, Trash2, Plus, ExternalLink } from "lucide-react";
+import { Edit2, Trash2, Plus, ExternalLink, Calendar } from "lucide-react";
 import type { RoadmapEpic } from "@/types/roadmap";
 
 export interface EpicWidgetData extends Record<string, unknown> {
@@ -221,6 +221,30 @@ export const EpicWidget = memo(({ data }: NodeProps<EpicWidgetNode>) => {
           </span>
           {epic.estimated_hours && <span>~{epic.estimated_hours}h</span>}
         </div>
+
+        {/* Date range */}
+        {(epic.start_date || epic.end_date) && (
+          <div className="flex items-center gap-1 mt-2 text-xs text-gray-400 shrink-0">
+            <Calendar className="w-3 h-3 flex-shrink-0" />
+            <span>
+              {epic.start_date
+                ? new Date(epic.start_date).toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })
+                : "—"}
+              {" → "}
+              {epic.end_date
+                ? new Date(epic.end_date).toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })
+                : "—"}
+            </span>
+          </div>
+        )}
       </div>
     </motion.div>
   );

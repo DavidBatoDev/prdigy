@@ -89,7 +89,7 @@ export interface RoadmapEpic {
   estimated_hours?: number;
   actual_hours?: number;
   start_date?: string;
-  due_date?: string;
+  end_date?: string;
   completed_date?: string;
   tags?: string[]; // Legacy: kept for backward compatibility
   labels?: Array<{ id: string; name: string; color: string }>; // New: label objects with colors
@@ -120,6 +120,8 @@ export interface RoadmapFeature {
   is_deliverable: boolean; // v2.0: Whether this feature counts toward milestone progress
   estimated_hours?: number;
   actual_hours?: number;
+  start_date?: string;
+  end_date?: string;
   created_at: string;
   updated_at: string;
   // Computed fields
