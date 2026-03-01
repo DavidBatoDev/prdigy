@@ -9,6 +9,10 @@ import { useUser } from "@/auth";
 import { RoadmapModalLayout } from "./RoadmapModalLayout";
 import { RichTextEditor } from "@/components/common/RichTextEditor";
 import { TaskListItem } from "../widgets/TaskListItem";
+import {
+  calculateFeatureProgressFromTasks,
+  getCompletedTaskCount,
+} from "../shared/featureProgress";
 
 interface AddFeatureModalProps {
   isOpen: boolean;
@@ -152,6 +156,12 @@ export const AddFeatureModal = ({
 
   if (!isOpen) return null;
 
+  const tasks: RoadmapTask[] =
+    (initialData?.tasks as RoadmapTask[] | undefined) ?? [];
+  const featureId = initialData?.id;
+  const autoProgress = calculateFeatureProgressFromTasks(tasks);
+  const completedTasks = getCompletedTaskCount(tasks);
+
   const body = (
     <>
       {/* Status and Deliverable Row */}
@@ -187,6 +197,23 @@ export const AddFeatureModal = ({
             <span className="text-sm text-gray-700">Milestone progress</span>
           </label>
         </div>
+      </div>
+
+      {/* Progress (auto-calculated from task statuses) */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between text-sm text-gray-700 mb-1.5">
+          <h3 className="font-semibold text-gray-900">Progress</h3>
+          <span className="font-medium">{autoProgress}%</span>
+        </div>
+        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-primary transition-all duration-300"
+            style={{ width: `${autoProgress}%` }}
+          />
+        </div>
+        <p className="mt-1 text-xs text-gray-500">
+          Auto-calculated from tasks: {completedTasks}/{tasks.length} done
+        </p>
       </div>
 
       {/* Dates */}
@@ -378,10 +405,6 @@ export const AddFeatureModal = ({
       </button>
     </div>
   );
-
-  const tasks: RoadmapTask[] =
-    (initialData?.tasks as RoadmapTask[] | undefined) ?? [];
-  const featureId = initialData?.id;
 
   const rightPanelTabs = [
     {

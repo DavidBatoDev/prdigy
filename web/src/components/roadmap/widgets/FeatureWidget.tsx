@@ -13,6 +13,10 @@ import {
 } from "lucide-react";
 import type { RoadmapFeature, RoadmapTask } from "@/types/roadmap";
 import { TaskListItem } from "./TaskListItem";
+import {
+  calculateFeatureProgressFromTasks,
+  getCompletedTaskCount,
+} from "../shared/featureProgress";
 
 export interface FeatureWidgetData extends Record<string, unknown> {
   feature: RoadmapFeature;
@@ -72,8 +76,8 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
   };
 
   const taskCount = feature.tasks?.length || 0;
-  const completedTasks =
-    feature.tasks?.filter((t) => t.status === "done").length || 0;
+  const completedTasks = getCompletedTaskCount(feature.tasks);
+  const autoProgress = calculateFeatureProgressFromTasks(feature.tasks);
 
   useEffect(() => {
     const el = descriptionRef.current;
@@ -188,19 +192,17 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
             </span>
           </div>
 
-          {/* Progress Bar */}
-          {feature.progress !== undefined && (
+          {/* Progress Bar (auto-calculated from task statuses) */}
+          {taskCount > 0 && (
             <div className="mb-2">
               <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
                 <span>Progress</span>
-                <span className="font-medium">
-                  {Math.round(feature.progress)}%
-                </span>
+                <span className="font-medium">{autoProgress}%</span>
               </div>
               <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-amber-500 transition-all duration-300"
-                  style={{ width: `${feature.progress}%` }}
+                  style={{ width: `${autoProgress}%` }}
                 />
               </div>
             </div>

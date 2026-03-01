@@ -6,6 +6,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import type { Roadmap, RoadmapEpic, RoadmapMilestone } from "@/types/roadmap";
+import { calculateFeatureProgressFromTasks } from "../shared/featureProgress";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,13 +31,15 @@ const PX_PER_DAY: Record<Granularity, number> = {
 
 const MS_PER_DAY = 86_400_000;
 const LEFT_WIDTH = 320;
-const ROW_HEIGHT = 52;
+const ROW_HEIGHT = 44;
 const SUPER_ROW_H = 22;
 const SUB_ROW_H = 30;
 const HEADER_HEIGHT = SUPER_ROW_H + SUB_ROW_H;
-const FEATURE_BAR_HEIGHT = 36;
+const FEATURE_BAR_HEIGHT = 28;
 const FEATURE_BAR_ROUNDED_CLASS = "rounded-sm";
-const FEATURE_BAR_OPACITY = 0.82;
+const FEATURE_BAR_TRACK_COLOR = "#cbd5e1";
+const FEATURE_BAR_FILL_COLOR = "#2563eb";
+const FEATURE_BAR_BORDER_COLOR = "#94a3b8";
 const FEATURE_LABEL_CHAR_PX = 6;
 const FEATURE_LABEL_HORIZONTAL_PADDING = 16;
 const FEATURE_LABEL_MIN_INSIDE_WIDTH = 52;
@@ -506,7 +509,7 @@ export const MilestonesView = ({ epics }: MilestonesViewProps) => {
                         epicRange.start,
                         epicRange.end,
                       );
-                      const epicLabel = `${epic.title} • ${fmtEpicDateRange(epicRange.start, epicRange.end)} • ${durationDays} day${durationDays > 1 ? "s" : ""}`;
+                      const epicLabel = `${epic.title} • ${fmtEpicDateRange(epicRange.start, epicRange.end)} • (${durationDays} day${durationDays > 1 ? "s" : ""})`;
                       return (
                         <div
                           className="absolute top-1/2 -translate-y-1/2 pointer-events-none"
@@ -536,6 +539,13 @@ export const MilestonesView = ({ epics }: MilestonesViewProps) => {
               {!isCollapsed &&
                 features.map((feature) => {
                   const hasDates = !!(feature.start_date && feature.end_date);
+                  const taskProgress = calculateFeatureProgressFromTasks(
+                    feature.tasks,
+                  );
+                  const clampedProgress = Math.max(
+                    0,
+                    Math.min(100, taskProgress),
+                  );
                   const barLeft = hasDates
                     ? toPx(new Date(feature.start_date!), rangeStart, pxPerDay)
                     : 0;
@@ -543,6 +553,9 @@ export const MilestonesView = ({ epics }: MilestonesViewProps) => {
                     ? toPx(new Date(feature.end_date!), rangeStart, pxPerDay)
                     : 0;
                   const barWidth = Math.max(6, barRight - barLeft);
+                  const rawFillWidth = (barWidth * clampedProgress) / 100;
+                  const fillWidth =
+                    clampedProgress > 0 ? Math.max(3, rawFillWidth) : 0;
                   const estimatedLabelWidth =
                     feature.title.length * FEATURE_LABEL_CHAR_PX +
                     FEATURE_LABEL_HORIZONTAL_PADDING;
@@ -553,7 +566,7 @@ export const MilestonesView = ({ epics }: MilestonesViewProps) => {
                       estimatedLabelWidth,
                     );
                   const tooltip = hasDates
-                    ? `${fmtShort(feature.start_date!)} → ${fmtShort(feature.end_date!)}`
+                    ? `${fmtShort(feature.start_date!)} → ${fmtShort(feature.end_date!)} • ${clampedProgress}%`
                     : "No dates set";
 
                   return (
@@ -611,10 +624,19 @@ export const MilestonesView = ({ epics }: MilestonesViewProps) => {
                                 left: Math.max(0, barLeft),
                                 width: barWidth,
                                 height: FEATURE_BAR_HEIGHT,
-                                backgroundColor: epicColor,
-                                opacity: FEATURE_BAR_OPACITY,
+                                backgroundColor: FEATURE_BAR_TRACK_COLOR,
+                                borderColor: FEATURE_BAR_BORDER_COLOR,
+                                borderWidth: 1,
                               }}
                             >
+                              <div
+                                className={`absolute left-0 top-0 bottom-0 ${FEATURE_BAR_ROUNDED_CLASS}`}
+                                style={{
+                                  width: fillWidth,
+                                  backgroundColor: FEATURE_BAR_FILL_COLOR,
+                                }}
+                              />
+
                               {/* Tooltip */}
                               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
                                 <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-1.5 whitespace-nowrap shadow-xl">
@@ -629,7 +651,7 @@ export const MilestonesView = ({ epics }: MilestonesViewProps) => {
 
                               {/* Inline label when title fits in the bar */}
                               {labelFitsInside && (
-                                <span className="absolute inset-0 flex items-center px-2 text-[10px] text-white font-medium truncate select-none">
+                                <span className="absolute inset-0 flex items-center px-2 text-[10px] text-gray-800 font-medium truncate select-none">
                                   {feature.title}
                                 </span>
                               )}
