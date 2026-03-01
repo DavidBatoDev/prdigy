@@ -15,7 +15,7 @@ export class TaskExtrasRepositorySupabase implements ITaskExtrasRepository {
   async findComments(taskId: string): Promise<any[]> {
     const { data, error } = await this.db
       .from('task_comments')
-      .select('*, author:profiles(id, full_name, avatar_url)')
+      .select('*, author:profiles(id, display_name, avatar_url)')
       .eq('task_id', taskId)
       .order('created_at', { ascending: true });
     if (error) throw new Error(error.message);
@@ -30,7 +30,7 @@ export class TaskExtrasRepositorySupabase implements ITaskExtrasRepository {
     const { data, error } = await this.db
       .from('task_comments')
       .insert({ task_id: taskId, content: dto.content, author_id: userId })
-      .select('*, author:profiles(id, full_name, avatar_url)')
+      .select('*, author:profiles(id, display_name, avatar_url)')
       .single();
     if (error) throw new Error(error.message);
     return data;
@@ -55,11 +55,10 @@ export class TaskExtrasRepositorySupabase implements ITaskExtrasRepository {
       .from('task_comments')
       .update({
         content: dto.content,
-        updated_at: new Date().toISOString(),
-        is_edited: true,
+        edited_at: new Date().toISOString(),
       })
       .eq('id', commentId)
-      .select('*, author:profiles(id, full_name, avatar_url)')
+      .select('*, author:profiles(id, display_name, avatar_url)')
       .single();
     if (error) throw new Error(error.message);
     return data;

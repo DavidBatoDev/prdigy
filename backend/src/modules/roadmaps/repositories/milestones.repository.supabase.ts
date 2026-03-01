@@ -14,7 +14,7 @@ export class MilestonesRepositorySupabase implements IMilestonesRepository {
 
   async findByRoadmap(roadmapId: string): Promise<any[]> {
     const { data, error } = await this.db
-      .from('milestones')
+      .from('roadmap_milestones')
       .select('*')
       .eq('roadmap_id', roadmapId)
       .order('position', { ascending: true });
@@ -24,7 +24,7 @@ export class MilestonesRepositorySupabase implements IMilestonesRepository {
 
   async findById(id: string): Promise<any | null> {
     const { data, error } = await this.db
-      .from('milestones')
+      .from('roadmap_milestones')
       .select('*')
       .eq('id', id)
       .single();
@@ -38,8 +38,8 @@ export class MilestonesRepositorySupabase implements IMilestonesRepository {
     userId: string,
   ): Promise<any> {
     const { data, error } = await this.db
-      .from('milestones')
-      .insert({ ...dto, roadmap_id: roadmapId, created_by: userId })
+      .from('roadmap_milestones')
+      .insert({ ...dto, roadmap_id: roadmapId })
       .select()
       .single();
     if (error) throw new Error(error.message);
@@ -48,7 +48,7 @@ export class MilestonesRepositorySupabase implements IMilestonesRepository {
 
   async update(id: string, dto: UpdateMilestoneDto): Promise<any> {
     const { data, error } = await this.db
-      .from('milestones')
+      .from('roadmap_milestones')
       .update({ ...dto, updated_at: new Date().toISOString() })
       .eq('id', id)
       .select()
@@ -59,7 +59,7 @@ export class MilestonesRepositorySupabase implements IMilestonesRepository {
 
   async reorder(id: string, dto: ReorderDto): Promise<any> {
     const { data, error } = await this.db
-      .from('milestones')
+      .from('roadmap_milestones')
       .update({ position: dto.position, updated_at: new Date().toISOString() })
       .eq('id', id)
       .select()
@@ -69,7 +69,10 @@ export class MilestonesRepositorySupabase implements IMilestonesRepository {
   }
 
   async remove(id: string): Promise<void> {
-    const { error } = await this.db.from('milestones').delete().eq('id', id);
+    const { error } = await this.db
+      .from('roadmap_milestones')
+      .delete()
+      .eq('id', id);
     if (error) throw new Error(error.message);
   }
 }

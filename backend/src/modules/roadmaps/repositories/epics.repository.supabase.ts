@@ -14,7 +14,7 @@ export class EpicsRepositorySupabase implements IEpicsRepository {
 
   async findByRoadmap(roadmapId: string): Promise<any[]> {
     const { data, error } = await this.db
-      .from('epics')
+      .from('roadmap_epics')
       .select('*')
       .eq('roadmap_id', roadmapId)
       .order('position', { ascending: true });
@@ -24,7 +24,7 @@ export class EpicsRepositorySupabase implements IEpicsRepository {
 
   async findById(id: string): Promise<any | null> {
     const { data, error } = await this.db
-      .from('epics')
+      .from('roadmap_epics')
       .select('*')
       .eq('id', id)
       .single();
@@ -34,8 +34,8 @@ export class EpicsRepositorySupabase implements IEpicsRepository {
 
   async create(dto: CreateEpicDto, userId: string): Promise<any> {
     const { data, error } = await this.db
-      .from('epics')
-      .insert({ ...dto, created_by: userId })
+      .from('roadmap_epics')
+      .insert({ ...dto })
       .select()
       .single();
     if (error) throw new Error(error.message);
@@ -43,9 +43,12 @@ export class EpicsRepositorySupabase implements IEpicsRepository {
   }
 
   async update(id: string, dto: UpdateEpicDto): Promise<any> {
+    // Strip frontend-only fields that have no DB column
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { labels, ...dbFields } = dto as UpdateEpicDto & { labels?: unknown };
     const { data, error } = await this.db
-      .from('epics')
-      .update({ ...dto, updated_at: new Date().toISOString() })
+      .from('roadmap_epics')
+      .update({ ...dbFields, updated_at: new Date().toISOString() })
       .eq('id', id)
       .select()
       .single();
@@ -56,7 +59,7 @@ export class EpicsRepositorySupabase implements IEpicsRepository {
   async bulkReorder(roadmapId: string, dto: BulkReorderDto): Promise<void> {
     const updates = dto.items.map((item) =>
       this.db
-        .from('epics')
+        .from('roadmap_epics')
         .update({
           position: item.position,
           updated_at: new Date().toISOString(),
@@ -71,7 +74,7 @@ export class EpicsRepositorySupabase implements IEpicsRepository {
   }
 
   async remove(id: string): Promise<void> {
-    const { error } = await this.db.from('epics').delete().eq('id', id);
+    const { error } = await this.db.from('roadmap_epics').delete().eq('id', id);
     if (error) throw new Error(error.message);
   }
 }

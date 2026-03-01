@@ -30,6 +30,7 @@ export interface Profile {
   email: string;
   display_name: string | null;
   avatar_url: string | null;
+  banner_url: string | null;
   is_consultant_verified: boolean;
   active_persona: PersonaType;
   bio: string | null;
@@ -55,8 +56,8 @@ export interface Profile {
 export interface ProfileInsert {
   id: string;
   email: string;
-  display_name?: string | null;
   avatar_url?: string | null;
+  banner_url?: string | null;
   is_consultant_verified?: boolean;
   active_persona?: PersonaType;
   bio?: string | null;
@@ -79,6 +80,7 @@ export interface ProfileUpdate {
   email?: string;
   display_name?: string | null;
   avatar_url?: string | null;
+  banner_url?: string | null;
   is_consultant_verified?: boolean;
   active_persona?: PersonaType;
   bio?: string | null;

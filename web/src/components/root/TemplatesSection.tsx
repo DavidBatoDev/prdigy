@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { getRoadmapsPreview } from "@/api";
 import { ProjectTypes } from "./ProjectTypes";
 import type { RoadmapPreview } from "@/api/endpoints/roadmap";
+import { useAuthStore } from "@/stores/authStore";
 
 interface Template {
   id: string;
@@ -46,23 +47,23 @@ const EpicOverview = ({ preview }: { preview: RoadmapPreview }) => {
           const featureCount = epic.features?.length || 0;
           const isLast = index === displayedEpics.length - 1;
           return (
-              <div
-                key={epic.id}
-                className="flex items-start gap-2 px-2 hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex flex-col items-center shrink-0 pt-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                  {!isLast && <div className="w-px h-4 bg-gray-200 mt-1" />}
-                </div>
-                <div className="flex items-start justify-between flex-1 min-w-0 pb-1">
-                  <span className="text-xs font-medium text-gray-900 truncate">
-                    {epic.title}
-                  </span>
-                  <span className="text-[9px] text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded-full whitespace-nowrap ml-1 shrink-0">
-                    {featureCount} {featureCount === 1 ? "feat" : "feats"}
-                  </span>
-                </div>
+            <div
+              key={epic.id}
+              className="flex items-start gap-2 px-2 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex flex-col items-center shrink-0 pt-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                {!isLast && <div className="w-px h-4 bg-gray-200 mt-1" />}
               </div>
+              <div className="flex items-start justify-between flex-1 min-w-0 pb-1">
+                <span className="text-xs font-medium text-gray-900 truncate">
+                  {epic.title}
+                </span>
+                <span className="text-[9px] text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded-full whitespace-nowrap ml-1 shrink-0">
+                  {featureCount} {featureCount === 1 ? "feat" : "feats"}
+                </span>
+              </div>
+            </div>
           );
         })}
       </div>
@@ -93,15 +94,31 @@ const mockProfessionalTemplates = [
     preview: {
       id: "mock-1",
       name: "E-Commerce MVP",
-      description: "Complete roadmap for launching a scalable e-commerce platform.",
+      description:
+        "Complete roadmap for launching a scalable e-commerce platform.",
       status: "published",
       epics: [
-        { id: "e1", title: "User Authentication", position: 1, features: [1, 2, 3] },
-        { id: "e2", title: "Product Catalog", position: 2, features: [1, 2, 3, 4] },
+        {
+          id: "e1",
+          title: "User Authentication",
+          position: 1,
+          features: [1, 2, 3],
+        },
+        {
+          id: "e2",
+          title: "Product Catalog",
+          position: 2,
+          features: [1, 2, 3, 4],
+        },
         { id: "e3", title: "Shopping Cart", position: 3, features: [1, 2] },
-        { id: "e4", title: "Payment Integration", position: 4, features: [1, 2, 3] },
-      ]
-    } as unknown as RoadmapPreview
+        {
+          id: "e4",
+          title: "Payment Integration",
+          position: 4,
+          features: [1, 2, 3],
+        },
+      ],
+    } as unknown as RoadmapPreview,
   },
   {
     id: "temp-2",
@@ -118,14 +135,30 @@ const mockProfessionalTemplates = [
     preview: {
       id: "mock-2",
       name: "SaaS Onboarding Flow",
-      description: "Optimize user activation and retention with this onboarding plan.",
+      description:
+        "Optimize user activation and retention with this onboarding plan.",
       status: "published",
       epics: [
-        { id: "e1", title: "Welcome Screen & Survey", position: 1, features: [1, 2] },
-        { id: "e2", title: "Interactive Product Tour", position: 2, features: [1, 2, 3, 4] },
-        { id: "e3", title: "Activation Email Sequence", position: 3, features: [1, 2, 3] },
-      ]
-    } as unknown as RoadmapPreview
+        {
+          id: "e1",
+          title: "Welcome Screen & Survey",
+          position: 1,
+          features: [1, 2],
+        },
+        {
+          id: "e2",
+          title: "Interactive Product Tour",
+          position: 2,
+          features: [1, 2, 3, 4],
+        },
+        {
+          id: "e3",
+          title: "Activation Email Sequence",
+          position: 3,
+          features: [1, 2, 3],
+        },
+      ],
+    } as unknown as RoadmapPreview,
   },
   {
     id: "temp-3",
@@ -145,13 +178,28 @@ const mockProfessionalTemplates = [
       description: "HIPAA-compliant mobile application roadmap.",
       status: "published",
       epics: [
-        { id: "e1", title: "Secure Auth (HIPAA)", position: 1, features: [1, 2, 3] },
+        {
+          id: "e1",
+          title: "Secure Auth (HIPAA)",
+          position: 1,
+          features: [1, 2, 3],
+        },
         { id: "e2", title: "Patient Dashboard", position: 2, features: [1, 2] },
-        { id: "e3", title: "Appointment Scheduling", position: 3, features: [1, 2, 3, 4] },
-        { id: "e4", title: "Telehealth Video SDK", position: 4, features: [1, 2, 3, 4, 5] },
+        {
+          id: "e3",
+          title: "Appointment Scheduling",
+          position: 3,
+          features: [1, 2, 3, 4],
+        },
+        {
+          id: "e4",
+          title: "Telehealth Video SDK",
+          position: 4,
+          features: [1, 2, 3, 4, 5],
+        },
         { id: "e5", title: "Medical Records", position: 5, features: [1, 2] },
-      ]
-    } as unknown as RoadmapPreview
+      ],
+    } as unknown as RoadmapPreview,
   },
   {
     id: "temp-4",
@@ -171,11 +219,26 @@ const mockProfessionalTemplates = [
       description: "Scalable microservices architecture for fintech.",
       status: "published",
       epics: [
-        { id: "e1", title: "Data Ingestion Pipeline", position: 1, features: [1, 2, 3] },
-        { id: "e2", title: "Real-time Analytics Engine", position: 2, features: [1, 2, 3, 4] },
-        { id: "e3", title: "GraphQL API Layer", position: 3, features: [1, 2, 3] },
-      ]
-    } as unknown as RoadmapPreview
+        {
+          id: "e1",
+          title: "Data Ingestion Pipeline",
+          position: 1,
+          features: [1, 2, 3],
+        },
+        {
+          id: "e2",
+          title: "Real-time Analytics Engine",
+          position: 2,
+          features: [1, 2, 3, 4],
+        },
+        {
+          id: "e3",
+          title: "GraphQL API Layer",
+          position: 3,
+          features: [1, 2, 3],
+        },
+      ],
+    } as unknown as RoadmapPreview,
   },
   {
     id: "temp-5",
@@ -195,12 +258,32 @@ const mockProfessionalTemplates = [
       description: "Embed LLM-powered support agents into existing platforms.",
       status: "published",
       epics: [
-        { id: "e1", title: "Model Fine-tuning", position: 1, features: [1, 2, 3] },
-        { id: "e2", title: "Knowledge Base Sync", position: 2, features: [1, 2] },
-        { id: "e3", title: "Chat Widget UI", position: 3, features: [1, 2, 3, 4] },
-        { id: "e4", title: "Deployment & Monitoring", position: 4, features: [1, 2] },
-      ]
-    } as unknown as RoadmapPreview
+        {
+          id: "e1",
+          title: "Model Fine-tuning",
+          position: 1,
+          features: [1, 2, 3],
+        },
+        {
+          id: "e2",
+          title: "Knowledge Base Sync",
+          position: 2,
+          features: [1, 2],
+        },
+        {
+          id: "e3",
+          title: "Chat Widget UI",
+          position: 3,
+          features: [1, 2, 3, 4],
+        },
+        {
+          id: "e4",
+          title: "Deployment & Monitoring",
+          position: 4,
+          features: [1, 2],
+        },
+      ],
+    } as unknown as RoadmapPreview,
   },
   {
     id: "temp-6",
@@ -217,14 +300,25 @@ const mockProfessionalTemplates = [
     preview: {
       id: "mock-6",
       name: "NFT Marketplace",
-      description: "End-to-end decentralized application for minting and trading.",
+      description:
+        "End-to-end decentralized application for minting and trading.",
       status: "published",
       epics: [
-        { id: "e1", title: "Smart Contract Audits", position: 1, features: [1, 2, 3] },
-        { id: "e2", title: "Wallet Integation", position: 2, features: [1, 2, 3, 4] },
+        {
+          id: "e1",
+          title: "Smart Contract Audits",
+          position: 1,
+          features: [1, 2, 3],
+        },
+        {
+          id: "e2",
+          title: "Wallet Integation",
+          position: 2,
+          features: [1, 2, 3, 4],
+        },
         { id: "e3", title: "Minting Engine", position: 3, features: [1, 2] },
-      ]
-    } as unknown as RoadmapPreview
+      ],
+    } as unknown as RoadmapPreview,
   },
   {
     id: "temp-7",
@@ -241,14 +335,30 @@ const mockProfessionalTemplates = [
     preview: {
       id: "mock-7",
       name: "Brand Strategy Refresh",
-      description: "Comprehensive brand identity overhaul and market positioning.",
+      description:
+        "Comprehensive brand identity overhaul and market positioning.",
       status: "published",
       epics: [
-        { id: "e1", title: "Market Research", position: 1, features: [1, 2, 3] },
-        { id: "e2", title: "Visual Identity System", position: 2, features: [1, 2, 3, 4, 5] },
-        { id: "e3", title: "Guidelines Production", position: 3, features: [1, 2] },
-      ]
-    } as unknown as RoadmapPreview
+        {
+          id: "e1",
+          title: "Market Research",
+          position: 1,
+          features: [1, 2, 3],
+        },
+        {
+          id: "e2",
+          title: "Visual Identity System",
+          position: 2,
+          features: [1, 2, 3, 4, 5],
+        },
+        {
+          id: "e3",
+          title: "Guidelines Production",
+          position: 3,
+          features: [1, 2],
+        },
+      ],
+    } as unknown as RoadmapPreview,
   },
   {
     id: "temp-8",
@@ -268,12 +378,27 @@ const mockProfessionalTemplates = [
       description: "Automated inbound marketing funnel for B2B services.",
       status: "published",
       epics: [
-        { id: "e1", title: "Landing Page Optimization", position: 1, features: [1, 2] },
-        { id: "e2", title: "Lead Magnet Creation", position: 2, features: [1, 2, 3] },
+        {
+          id: "e1",
+          title: "Landing Page Optimization",
+          position: 1,
+          features: [1, 2],
+        },
+        {
+          id: "e2",
+          title: "Lead Magnet Creation",
+          position: 2,
+          features: [1, 2, 3],
+        },
         { id: "e3", title: "CRM Automation", position: 3, features: [1, 2] },
-        { id: "e4", title: "Reporting Dashboard", position: 4, features: [1, 2, 3] },
-      ]
-    } as unknown as RoadmapPreview
+        {
+          id: "e4",
+          title: "Reporting Dashboard",
+          position: 4,
+          features: [1, 2, 3],
+        },
+      ],
+    } as unknown as RoadmapPreview,
   },
   {
     id: "temp-9",
@@ -293,11 +418,26 @@ const mockProfessionalTemplates = [
       description: "SOC2 and ISO27001 readiness assessment roadmap.",
       status: "published",
       epics: [
-        { id: "e1", title: "Gap Analysis", position: 1, features: [1, 2, 3, 4] },
-        { id: "e2", title: "Policy Remediation", position: 2, features: [1, 2, 3] },
-        { id: "e3", title: "Penetration Testing", position: 3, features: [1, 2] },
-      ]
-    } as unknown as RoadmapPreview
+        {
+          id: "e1",
+          title: "Gap Analysis",
+          position: 1,
+          features: [1, 2, 3, 4],
+        },
+        {
+          id: "e2",
+          title: "Policy Remediation",
+          position: 2,
+          features: [1, 2, 3],
+        },
+        {
+          id: "e3",
+          title: "Penetration Testing",
+          position: 3,
+          features: [1, 2],
+        },
+      ],
+    } as unknown as RoadmapPreview,
   },
   {
     id: "temp-10",
@@ -317,11 +457,26 @@ const mockProfessionalTemplates = [
       description: "Risk-free organic traffic migration for platform changes.",
       status: "published",
       epics: [
-        { id: "e1", title: "Pre-migration Audit", position: 1, features: [1, 2, 3] },
-        { id: "e2", title: "301 Redirect Mapping", position: 2, features: [1, 2, 3, 4] },
-        { id: "e3", title: "Post-launch Monitoring", position: 3, features: [1, 2] },
-      ]
-    } as unknown as RoadmapPreview
+        {
+          id: "e1",
+          title: "Pre-migration Audit",
+          position: 1,
+          features: [1, 2, 3],
+        },
+        {
+          id: "e2",
+          title: "301 Redirect Mapping",
+          position: 2,
+          features: [1, 2, 3, 4],
+        },
+        {
+          id: "e3",
+          title: "Post-launch Monitoring",
+          position: 3,
+          features: [1, 2],
+        },
+      ],
+    } as unknown as RoadmapPreview,
   },
   {
     id: "temp-11",
@@ -341,12 +496,32 @@ const mockProfessionalTemplates = [
       description: "Architecture and setup for a cross-platform mobile app.",
       status: "published",
       epics: [
-        { id: "e1", title: "Project Initialization", position: 1, features: [1, 2] },
-        { id: "e2", title: "Navigation Setup", position: 2, features: [1, 2, 3] },
-        { id: "e3", title: "State Management", position: 3, features: [1, 2, 3, 4] },
-        { id: "e4", title: "UI Component Library", position: 4, features: [1, 2, 3] },
-      ]
-    } as unknown as RoadmapPreview
+        {
+          id: "e1",
+          title: "Project Initialization",
+          position: 1,
+          features: [1, 2],
+        },
+        {
+          id: "e2",
+          title: "Navigation Setup",
+          position: 2,
+          features: [1, 2, 3],
+        },
+        {
+          id: "e3",
+          title: "State Management",
+          position: 3,
+          features: [1, 2, 3, 4],
+        },
+        {
+          id: "e4",
+          title: "UI Component Library",
+          position: 4,
+          features: [1, 2, 3],
+        },
+      ],
+    } as unknown as RoadmapPreview,
   },
   {
     id: "temp-12",
@@ -366,21 +541,48 @@ const mockProfessionalTemplates = [
       description: "Cloud data warehouse implementation using Snowflake/dbt.",
       status: "published",
       epics: [
-        { id: "e1", title: "Infrastructure as Code", position: 1, features: [1, 2, 3] },
-        { id: "e2", title: "ELT Pipeline Design", position: 2, features: [1, 2, 3, 4] },
-        { id: "e3", title: "dbt Model Architecture", position: 3, features: [1, 2] },
-        { id: "e4", title: "BI Tool Integration", position: 4, features: [1, 2, 3] },
-      ]
-    } as unknown as RoadmapPreview
-  }
+        {
+          id: "e1",
+          title: "Infrastructure as Code",
+          position: 1,
+          features: [1, 2, 3],
+        },
+        {
+          id: "e2",
+          title: "ELT Pipeline Design",
+          position: 2,
+          features: [1, 2, 3, 4],
+        },
+        {
+          id: "e3",
+          title: "dbt Model Architecture",
+          position: 3,
+          features: [1, 2],
+        },
+        {
+          id: "e4",
+          title: "BI Tool Integration",
+          position: 4,
+          features: [1, 2, 3],
+        },
+      ],
+    } as unknown as RoadmapPreview,
+  },
 ];
 
 export const TemplatesSection = () => {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { isAuthenticated } = useAuthStore();
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setLoading(false);
+      setTemplates([]);
+      return;
+    }
+
     const fetchRoadmaps = async () => {
       try {
         setLoading(true);
@@ -420,23 +622,26 @@ export const TemplatesSection = () => {
     };
 
     fetchRoadmaps();
-  }, []);
+  }, [isAuthenticated]);
   return (
     <div className="mt-24 space-y-24">
       {/* Professional Templates Section */}
       <div>
         <div className="flex flex-col mb-8">
           <div className="flex items-center">
-            <h2 className="text-2xl font-bold text-gray-900 mr-4 whitespace-nowrap">Templates by Professional Consultants</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mr-4 whitespace-nowrap">
+              Templates by Professional Consultants
+            </h2>
             <div className="flex-1 h-px bg-gray-200"></div>
           </div>
           <p className="text-base text-gray-600 mt-2">
-            Kickstart your project by borrowing complete roadmaps from industry-leading experts.
+            Kickstart your project by borrowing complete roadmaps from
+            industry-leading experts.
           </p>
         </div>
-        
+
         <ProjectTypes />
-        
+
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
           {mockProfessionalTemplates.map((template) => (
             <div
@@ -445,13 +650,21 @@ export const TemplatesSection = () => {
             >
               <div className="aspect-4/3 overflow-hidden bg-linear-to-br from-[#f0f7f9] to-[#ffffff] p-2 relative">
                 <EpicOverview preview={template.preview} />
-                
+
                 {/* Consultant Badge Overlay */}
                 <div className="absolute bottom-2 left-2 right-2 bg-white/95 backdrop-blur-sm rounded-lg p-1.5 flex items-center gap-2 shadow-sm border border-gray-100">
-                  <img src={template.author.avatar} alt={template.author.name} className="w-5 h-5 rounded-full object-cover shrink-0" />
+                  <img
+                    src={template.author.avatar}
+                    alt={template.author.name}
+                    className="w-5 h-5 rounded-full object-cover shrink-0"
+                  />
                   <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-semibold text-gray-900 truncate leading-none">{template.author.name}</p>
-                    <p className="text-[8px] text-gray-500 truncate leading-tight mt-0.5">{template.author.role}</p>
+                    <p className="text-[10px] font-semibold text-gray-900 truncate leading-none">
+                      {template.author.name}
+                    </p>
+                    <p className="text-[8px] text-gray-500 truncate leading-tight mt-0.5">
+                      {template.author.role}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -486,7 +699,9 @@ export const TemplatesSection = () => {
       {/* User Roadmaps Section */}
       <div>
         <div className="flex items-center mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mr-4 whitespace-nowrap">Your Roadmaps</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mr-4 whitespace-nowrap">
+            Your Roadmaps
+          </h2>
           <div className="flex-1 h-px bg-gray-200"></div>
         </div>
 
@@ -513,7 +728,10 @@ export const TemplatesSection = () => {
               <Link
                 key={template.id}
                 to="/project/$projectId/roadmap/$roadmapId"
-                params={{ projectId: template.preview.project_id || "n", roadmapId: template.id }}
+                params={{
+                  projectId: template.preview.project_id || "n",
+                  roadmapId: template.id,
+                }}
                 className="group relative bg-white border-2 border-gray-200 rounded-xl overflow-hidden hover:border-primary hover:shadow-xl transition-all block"
               >
                 <div className="aspect-4/3 overflow-hidden bg-linear-to-br from-blue-50 to-indigo-50 p-2">

@@ -16,9 +16,9 @@ export class FeaturesRepositorySupabase implements IFeaturesRepository {
 
   async findByEpic(epicId: string): Promise<any[]> {
     const { data, error } = await this.db
-      .from('features')
+      .from('roadmap_features')
       .select(
-        '*, milestone_features(milestone_id, milestone:milestones(id, title, status, target_date))',
+        '*, milestone_features(milestone_id, milestone:roadmap_milestones(id, title, status, target_date))',
       )
       .eq('epic_id', epicId)
       .order('position', { ascending: true });
@@ -28,8 +28,8 @@ export class FeaturesRepositorySupabase implements IFeaturesRepository {
 
   async findByRoadmap(roadmapId: string): Promise<any[]> {
     const { data, error } = await this.db
-      .from('features')
-      .select('*, epic:epics(id, title)')
+      .from('roadmap_features')
+      .select('*, epic:roadmap_epics(id, title)')
       .eq('roadmap_id', roadmapId)
       .order('position', { ascending: true });
     if (error) throw new Error(error.message);
@@ -38,9 +38,9 @@ export class FeaturesRepositorySupabase implements IFeaturesRepository {
 
   async findById(id: string): Promise<any | null> {
     const { data, error } = await this.db
-      .from('features')
+      .from('roadmap_features')
       .select(
-        '*, milestone_features(milestone_id, milestone:milestones(id, title))',
+        '*, milestone_features(milestone_id, milestone:roadmap_milestones(id, title))',
       )
       .eq('id', id)
       .single();
@@ -50,8 +50,8 @@ export class FeaturesRepositorySupabase implements IFeaturesRepository {
 
   async create(dto: CreateFeatureDto, userId: string): Promise<any> {
     const { data, error } = await this.db
-      .from('features')
-      .insert({ ...dto, created_by: userId })
+      .from('roadmap_features')
+      .insert({ ...dto })
       .select()
       .single();
     if (error) throw new Error(error.message);
@@ -60,7 +60,7 @@ export class FeaturesRepositorySupabase implements IFeaturesRepository {
 
   async update(id: string, dto: UpdateFeatureDto): Promise<any> {
     const { data, error } = await this.db
-      .from('features')
+      .from('roadmap_features')
       .update({ ...dto, updated_at: new Date().toISOString() })
       .eq('id', id)
       .select()
@@ -72,7 +72,7 @@ export class FeaturesRepositorySupabase implements IFeaturesRepository {
   async bulkReorder(epicId: string, dto: BulkReorderDto): Promise<void> {
     const updates = dto.items.map((item) =>
       this.db
-        .from('features')
+        .from('roadmap_features')
         .update({
           position: item.position,
           updated_at: new Date().toISOString(),
@@ -106,7 +106,10 @@ export class FeaturesRepositorySupabase implements IFeaturesRepository {
   }
 
   async remove(id: string): Promise<void> {
-    const { error } = await this.db.from('features').delete().eq('id', id);
+    const { error } = await this.db
+      .from('roadmap_features')
+      .delete()
+      .eq('id', id);
     if (error) throw new Error(error.message);
   }
 }

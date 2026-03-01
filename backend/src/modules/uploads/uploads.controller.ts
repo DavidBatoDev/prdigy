@@ -73,7 +73,17 @@ export class UploadsService {
       .createSignedUploadUrl(path);
 
     if (error) throw new BadRequestException(error.message);
-    return { signedUrl: data.signedUrl, path, token: data.token };
+
+    const { data: publicData } = this.supabase.storage
+      .from(dto.bucket)
+      .getPublicUrl(path);
+
+    return {
+      signedUrl: data.signedUrl,
+      path,
+      token: data.token,
+      publicUrl: publicData.publicUrl,
+    };
   }
 
   async confirmAvatar(userId: string, dto: ConfirmAvatarDto) {

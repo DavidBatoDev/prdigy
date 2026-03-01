@@ -30,9 +30,10 @@ class UploadService {
       `${this.base}/signed-url`,
       {
         bucket,
-        contentType: file.type,
+        fileType: file.type,
         fileName: file.name,
-      }
+        fileSize: file.size,
+      },
     );
     const { signedUrl, publicUrl } = meta.data;
 
@@ -55,7 +56,9 @@ class UploadService {
    */
   async uploadAvatar(file: File): Promise<string> {
     const publicUrl = await this.upload("avatars", file);
-    await apiClient.post(`${this.base}/confirm-avatar`, { publicUrl });
+    await apiClient.post(`${this.base}/confirm-avatar`, {
+      avatar_url: publicUrl,
+    });
     return publicUrl;
   }
 
@@ -64,7 +67,9 @@ class UploadService {
    */
   async uploadBanner(file: File): Promise<string> {
     const publicUrl = await this.upload("banners", file);
-    await apiClient.post(`${this.base}/confirm-banner`, { publicUrl });
+    await apiClient.post(`${this.base}/confirm-banner`, {
+      banner_url: publicUrl,
+    });
     return publicUrl;
   }
 

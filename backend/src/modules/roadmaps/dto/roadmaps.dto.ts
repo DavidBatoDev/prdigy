@@ -110,12 +110,15 @@ export class UpdateEpicDto {
   ])
   @IsOptional()
   status?: string;
+  @IsNumber() @IsOptional() @Min(0) position?: number;
   @IsString() @IsOptional() color?: string;
   @IsNumber() @IsOptional() @Min(0) estimated_hours?: number;
   @IsNumber() @IsOptional() @Min(0) actual_hours?: number;
   @IsDateString() @IsOptional() start_date?: string;
   @IsDateString() @IsOptional() due_date?: string;
+  @IsDateString() @IsOptional() completed_date?: string;
   @IsArray() @IsOptional() tags?: string[];
+  @IsArray() @IsOptional() labels?: any[];
 }
 
 // Feature DTOs
@@ -138,6 +141,7 @@ export class UpdateFeatureDto {
   @IsEnum(['not_started', 'in_progress', 'in_review', 'completed', 'blocked'])
   @IsOptional()
   status?: string;
+  @IsNumber() @IsOptional() @Min(0) position?: number;
   @IsBoolean() @IsOptional() is_deliverable?: boolean;
   @IsNumber() @IsOptional() @Min(0) estimated_hours?: number;
   @IsNumber() @IsOptional() @Min(0) actual_hours?: number;
@@ -154,10 +158,10 @@ export class UnlinkMilestoneDto {
 }
 
 // Task DTOs
+// roadmap_tasks columns: title, status, priority, position, due_date, completed_at
 export class CreateTaskDto {
   @IsUUID() feature_id: string;
   @IsString() @MaxLength(200) title: string;
-  @IsString() @IsOptional() description?: string;
   @IsEnum(['urgent', 'high', 'medium', 'low']) @IsOptional() priority?: string;
   @IsEnum(['todo', 'in_progress', 'in_review', 'done', 'blocked'])
   @IsOptional()
@@ -168,16 +172,13 @@ export class CreateTaskDto {
 
 export class UpdateTaskDto {
   @IsString() @IsOptional() @MaxLength(200) title?: string;
-  @IsString() @IsOptional() description?: string;
   @IsEnum(['urgent', 'high', 'medium', 'low']) @IsOptional() priority?: string;
   @IsEnum(['todo', 'in_progress', 'in_review', 'done', 'blocked'])
   @IsOptional()
   status?: string;
+  @IsNumber() @IsOptional() @Min(0) position?: number;
   @IsDateString() @IsOptional() due_date?: string;
-  @IsNumber() @IsOptional() @Min(0) estimated_hours?: number;
-  @IsNumber() @IsOptional() @Min(0) actual_hours?: number;
-  @IsArray() @IsOptional() labels?: string[];
-  @IsOptional() checklist?: unknown[];
+  @IsDateString() @IsOptional() completed_at?: string;
 }
 
 // Comment/Attachment DTOs

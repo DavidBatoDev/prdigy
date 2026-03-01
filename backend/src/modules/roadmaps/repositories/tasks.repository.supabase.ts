@@ -14,7 +14,7 @@ export class TasksRepositorySupabase implements ITasksRepository {
 
   async findByFeature(featureId: string): Promise<any[]> {
     const { data, error } = await this.db
-      .from('tasks')
+      .from('roadmap_tasks')
       .select('*')
       .eq('feature_id', featureId)
       .order('position', { ascending: true });
@@ -24,7 +24,7 @@ export class TasksRepositorySupabase implements ITasksRepository {
 
   async findById(id: string): Promise<any | null> {
     const { data, error } = await this.db
-      .from('tasks')
+      .from('roadmap_tasks')
       .select('*')
       .eq('id', id)
       .single();
@@ -33,9 +33,18 @@ export class TasksRepositorySupabase implements ITasksRepository {
   }
 
   async create(dto: CreateTaskDto, userId: string): Promise<any> {
+    // Only persist columns that exist in roadmap_tasks
+    const dbPayload = {
+      feature_id: dto.feature_id,
+      title: dto.title,
+      priority: dto.priority,
+      status: dto.status,
+      due_date: dto.due_date,
+      position: dto.position,
+    };
     const { data, error } = await this.db
-      .from('tasks')
-      .insert({ ...dto, created_by: userId })
+      .from('roadmap_tasks')
+      .insert(dbPayload)
       .select()
       .single();
     if (error) throw new Error(error.message);
@@ -43,9 +52,19 @@ export class TasksRepositorySupabase implements ITasksRepository {
   }
 
   async update(id: string, dto: UpdateTaskDto): Promise<any> {
+    // Only persist columns that exist in roadmap_tasks
+    const dbPayload = {
+      ...(dto.title !== undefined && { title: dto.title }),
+      ...(dto.priority !== undefined && { priority: dto.priority }),
+      ...(dto.status !== undefined && { status: dto.status }),
+      ...(dto.position !== undefined && { position: dto.position }),
+      ...(dto.due_date !== undefined && { due_date: dto.due_date }),
+      ...(dto.completed_at !== undefined && { completed_at: dto.completed_at }),
+      updated_at: new Date().toISOString(),
+    };
     const { data, error } = await this.db
-      .from('tasks')
-      .update({ ...dto, updated_at: new Date().toISOString() })
+      .from('roadmap_tasks')
+      .update(dbPayload)
       .eq('id', id)
       .select()
       .single();
@@ -56,7 +75,7 @@ export class TasksRepositorySupabase implements ITasksRepository {
   async bulkReorder(featureId: string, dto: BulkReorderDto): Promise<void> {
     const updates = dto.items.map((item) =>
       this.db
-        .from('tasks')
+        .from('roadmap_tasks')
         .update({
           position: item.position,
           updated_at: new Date().toISOString(),
@@ -71,7 +90,7 @@ export class TasksRepositorySupabase implements ITasksRepository {
   }
 
   async remove(id: string): Promise<void> {
-    const { error } = await this.db.from('tasks').delete().eq('id', id);
+    const { error } = await this.db.from('roadmap_tasks').delete().eq('id', id);
     if (error) throw new Error(error.message);
   }
 }

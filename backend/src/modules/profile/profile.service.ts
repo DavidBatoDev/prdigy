@@ -45,10 +45,13 @@ export class ProfileService {
     @Inject(PROFILE_REPOSITORY) private readonly profileRepo: ProfileRepository,
   ) {}
 
-  async getFullProfile(userId: string): Promise<FullProfile> {
-    const profile = await this.profileRepo.getFullProfile(userId);
-    if (!profile) throw new NotFoundException('Profile not found');
-    return profile;
+  async getFullProfile(userId: string): Promise<Record<string, unknown>> {
+    const result = await this.profileRepo.getFullProfile(userId);
+    if (!result) throw new NotFoundException('Profile not found');
+    // Flatten: spread core profile fields to top level so the frontend can
+    // access profile.avatar_url, profile.headline, etc. directly.
+    const { profile, ...rest } = result;
+    return { ...profile, ...rest };
   }
 
   async updateBasic(userId: string, dto: UpdateProfileBasicDto) {
