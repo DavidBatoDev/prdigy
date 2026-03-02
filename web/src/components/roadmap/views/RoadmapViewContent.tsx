@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { Link } from "@tanstack/react-router";
 import {
@@ -11,6 +11,7 @@ import {
   type FormData,
 } from "@/components/roadmap";
 import { RoadmapTopBar } from "./RoadmapTopBar";
+import { RoadmapPageSkeleton } from "./RoadmapPageSkeleton";
 import { callGeminiAPI } from "@/lib/gemini";
 import { useRoadmapStore } from "@/stores/roadmapStore";
 import { useProjectSettingsStore } from "@/stores/projectSettingsStore";
@@ -124,10 +125,13 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
     };
 
     fetchRoadmap();
+  }, [loadRoadmap, roadmapId]);
+
+  useEffect(() => {
     return () => {
       resetRoadmap();
     };
-  }, [loadRoadmap, resetRoadmap, roadmapId]);
+  }, [resetRoadmap]);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -269,15 +273,8 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
   };
 
   // Loading roadmap data
-  if (isLoadingRoadmap) {
-    return (
-      <div className="flex-1 min-h-full bg-[#f6f7f8] flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-gray-600">Loading roadmap...</p>
-        </div>
-      </div>
-    );
+  if (isLoadingRoadmap && !roadmap) {
+    return <RoadmapPageSkeleton />;
   }
 
   // Error state

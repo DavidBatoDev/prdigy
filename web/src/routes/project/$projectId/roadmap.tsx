@@ -1,10 +1,16 @@
-import { createFileRoute, Outlet, useNavigate, useChildMatches } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Outlet,
+  useNavigate,
+  useChildMatches,
+} from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Map, ExternalLink, Loader2 } from "lucide-react";
+import { Map, ExternalLink } from "lucide-react";
 import { projectService } from "@/services/project.service";
 import { roadmapService } from "@/services/roadmap.service";
 import { LinkRoadmapModal } from "@/components/roadmap/modals/LinkRoadmapModal";
+import { RoadmapPageSkeleton } from "@/components/roadmap/views/RoadmapPageSkeleton";
 
 export const Route = createFileRoute("/project/$projectId/roadmap")({
   component: RoadmapPage,
@@ -36,7 +42,7 @@ function RoadmapPage() {
 
     const load = async () => {
       try {
-        const data = await projectService.get(projectId);
+        await projectService.get(projectId);
         if (cancelled) return;
         const roadmap = await roadmapService.getByProjectId(projectId);
         const linkedRoadmapId = roadmap?.id ?? null;
@@ -64,9 +70,9 @@ function RoadmapPage() {
     return () => {
       cancelled = true;
     };
-  // NOTE: intentionally only depend on projectId — childMatches must NOT be a dep
-  // because navigate() changes childMatches and would re-trigger the fetch.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // NOTE: intentionally only depend on projectId — childMatches must NOT be a dep
+    // because navigate() changes childMatches and would re-trigger the fetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
   if (childMatches.length > 0) {
@@ -74,11 +80,7 @@ function RoadmapPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-full min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-[#ff9933]" />
-      </div>
-    );
+    return <RoadmapPageSkeleton />;
   }
 
   return (
