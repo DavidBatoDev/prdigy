@@ -29,6 +29,7 @@ export class CreateRoadmapDto {
 export class UpdateRoadmapDto {
   @IsString() @IsOptional() @MaxLength(200) name?: string;
   @IsString() @IsOptional() description?: string;
+  @IsUUID() @IsOptional() project_id?: string | null;
   @IsEnum(['draft', 'active', 'paused', 'completed', 'archived'])
   @IsOptional()
   status?: string;

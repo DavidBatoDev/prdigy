@@ -318,6 +318,36 @@ export class SupabaseAdminRepository implements AdminRepository {
       .select()
       .single();
     if (error || !data) throw new NotFoundException('Project not found');
+
+    const { data: existingMember, error: existingMemberError } =
+      await this.supabase
+        .from('project_members')
+        .select('id, role')
+        .eq('project_id', projectId)
+        .eq('user_id', consultantId)
+        .maybeSingle();
+
+    if (existingMemberError) throw new Error(existingMemberError.message);
+
+    if (existingMember) {
+      const { error: updateMemberError } = await this.supabase
+        .from('project_members')
+        .update({ role: 'consultant' })
+        .eq('id', existingMember.id);
+
+      if (updateMemberError) throw new Error(updateMemberError.message);
+    } else {
+      const { error: insertMemberError } = await this.supabase
+        .from('project_members')
+        .insert({
+          project_id: projectId,
+          user_id: consultantId,
+          role: 'consultant',
+        });
+
+      if (insertMemberError) throw new Error(insertMemberError.message);
+    }
+
     return data;
   }
 

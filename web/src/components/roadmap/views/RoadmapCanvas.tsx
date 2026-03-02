@@ -265,6 +265,7 @@ const RoadmapCanvas = ({
         )}
 
         <RoadmapCanvasOverlays
+          projectId={roadmap.project_id ?? undefined}
           epics={epics}
           selectedTask={selectedTask}
           sidePanelOpen={sidePanelOpen}

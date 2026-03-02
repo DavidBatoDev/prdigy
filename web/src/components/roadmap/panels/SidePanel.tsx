@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { RoadmapTask } from "@/types/roadmap";
-import type { ProjectMember } from "@/services/project.service";
+import { projectService, type ProjectMember } from "@/services/project.service";
 import { Button } from "@/ui/button";
 
 interface SidePanelProps {
@@ -23,6 +23,7 @@ interface SidePanelProps {
   onUpdateTask: (task: RoadmapTask) => void;
   onDeleteTask: (taskId: string) => void;
   onCreateTask?: (taskData: Partial<RoadmapTask>) => void;
+  projectId?: string;
   projectMembers?: ProjectMember[];
   isLoading?: boolean;
 }
@@ -37,6 +38,7 @@ export const SidePanel = ({
   onUpdateTask,
   onDeleteTask,
   onCreateTask,
+  projectId,
   projectMembers = [],
   isLoading = false,
 }: SidePanelProps) => {
@@ -49,6 +51,9 @@ export const SidePanel = ({
   });
   const [isAssigneeMenuOpen, setIsAssigneeMenuOpen] = useState(false);
   const [assigneeSearch, setAssigneeSearch] = useState("");
+  const [fetchedProjectMembers, setFetchedProjectMembers] = useState<
+    ProjectMember[]
+  >([]);
 
   const isCreateMode = isCreating || (!!isOpen && !task);
 
@@ -72,14 +77,38 @@ export const SidePanel = ({
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen || !projectId) return;
+
+    let cancelled = false;
+
+    const loadProjectMembers = async () => {
+      try {
+        const members = await projectService.getMembers(projectId);
+        if (!cancelled) setFetchedProjectMembers(members);
+      } catch {
+        if (!cancelled) setFetchedProjectMembers([]);
+      }
+    };
+
+    loadProjectMembers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, projectId]);
+
+  const assigneeMembers =
+    fetchedProjectMembers.length > 0 ? fetchedProjectMembers : projectMembers;
+
   const currentAssigneeId = isCreateMode
     ? newTaskData.assignee_id
     : editedTask?.assignee_id || editedTask?.assignee?.id;
 
   const filteredMembers = useMemo(() => {
     const q = assigneeSearch.trim().toLowerCase();
-    if (!q) return projectMembers;
-    return projectMembers.filter((member) => {
+    if (!q) return assigneeMembers;
+    return assigneeMembers.filter((member) => {
       const name = member.user?.display_name || "";
       const email = member.user?.email || "";
       const role = member.role || "";
@@ -89,9 +118,9 @@ export const SidePanel = ({
         role.toLowerCase().includes(q)
       );
     });
-  }, [assigneeSearch, projectMembers]);
+  }, [assigneeSearch, assigneeMembers]);
 
-  const selectedMember = projectMembers.find(
+  const selectedMember = assigneeMembers.find(
     (member) => member.user_id === currentAssigneeId,
   );
 

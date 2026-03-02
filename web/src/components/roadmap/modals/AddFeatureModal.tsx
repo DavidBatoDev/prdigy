@@ -154,8 +154,6 @@ export const AddFeatureModal = ({
     setIsDateMenuOpen(false);
   };
 
-  if (!isOpen) return null;
-
   const tasks: RoadmapTask[] =
     (initialData?.tasks as RoadmapTask[] | undefined) ?? [];
   const featureAssignees = useMemo(() => {
@@ -172,6 +170,8 @@ export const AddFeatureModal = ({
   const featureId = initialData?.id;
   const autoProgress = calculateFeatureProgressFromTasks(tasks);
   const completedTasks = getCompletedTaskCount(tasks);
+
+  if (!isOpen) return null;
 
   const renderAssigneeAvatar = (
     assignee: NonNullable<RoadmapTask["assignee"]>,

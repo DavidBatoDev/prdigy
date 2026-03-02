@@ -16,6 +16,7 @@ type ProjectStatus =
 
 export class CreateProjectDto {
   @IsString() @MaxLength(200) title: string;
+  @IsString() @IsOptional() @MaxLength(500) brief?: string;
   @IsString() @IsOptional() @MaxLength(2000) description?: string;
   @IsEnum(['draft', 'bidding', 'active', 'paused', 'completed', 'archived'])
   @IsOptional()
@@ -32,6 +33,7 @@ export class CreateProjectDto {
 
 export class UpdateProjectDto {
   @IsString() @IsOptional() @MaxLength(200) title?: string;
+  @IsString() @IsOptional() @MaxLength(500) brief?: string;
   @IsString() @IsOptional() @MaxLength(2000) description?: string;
   @IsEnum(['draft', 'bidding', 'active', 'paused', 'completed', 'archived'])
   @IsOptional()

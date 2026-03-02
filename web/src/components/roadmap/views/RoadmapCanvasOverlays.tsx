@@ -16,6 +16,7 @@ interface DeleteConfirm {
 }
 
 interface RoadmapCanvasOverlaysProps {
+  projectId?: string;
   epics: RoadmapEpic[];
   selectedTask: RoadmapTask | null;
   sidePanelOpen: boolean;
@@ -86,6 +87,7 @@ interface RoadmapCanvasOverlaysProps {
 }
 
 export function RoadmapCanvasOverlays({
+  projectId,
   epics,
   selectedTask,
   sidePanelOpen,
@@ -132,6 +134,7 @@ export function RoadmapCanvasOverlays({
         task={selectedTask || null}
         isOpen={sidePanelOpen}
         isCreating={!selectedTaskId && targetFeatureForTask !== null}
+        projectId={projectId}
         onClose={() => {
           setSidePanelOpen(false);
           setSelectedTaskId(null);

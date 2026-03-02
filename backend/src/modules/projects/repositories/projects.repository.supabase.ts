@@ -11,6 +11,28 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
     @Inject(SUPABASE_ADMIN) private readonly supabase: SupabaseClient,
   ) {}
 
+  private toProjectsTablePayload(
+    dto: CreateProjectDto | UpdateProjectDto,
+  ): Record<string, unknown> {
+    const payload: Record<string, unknown> = {};
+
+    if (dto.title !== undefined) payload.title = dto.title;
+    if (dto.status !== undefined) payload.status = dto.status;
+    if (dto.category !== undefined) payload.category = dto.category;
+    if (dto.project_state !== undefined)
+      payload.project_state = dto.project_state;
+    if (dto.skills !== undefined) payload.skills = dto.skills;
+    if (dto.duration !== undefined) payload.duration = dto.duration;
+    if (dto.budget_range !== undefined) payload.budget_range = dto.budget_range;
+    if (dto.funding_status !== undefined)
+      payload.funding_status = dto.funding_status;
+    if (dto.start_date !== undefined) payload.start_date = dto.start_date;
+    if (dto.custom_start_date !== undefined)
+      payload.custom_start_date = dto.custom_start_date;
+
+    return payload;
+  }
+
   async findByUser(userId: string): Promise<Project[]> {
     const { data } = await this.supabase
       .from('project_members')
@@ -93,9 +115,11 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
   }
 
   async create(userId: string, dto: CreateProjectDto): Promise<Project> {
+    const projectPayload = this.toProjectsTablePayload(dto);
+
     const { data: project, error } = await this.supabase
       .from('projects')
-      .insert({ ...dto, client_id: userId })
+      .insert({ ...projectPayload, client_id: userId })
       .select()
       .single();
 
@@ -113,9 +137,11 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
   }
 
   async update(id: string, dto: UpdateProjectDto): Promise<Project> {
+    const projectPayload = this.toProjectsTablePayload(dto);
+
     const { data, error } = await this.supabase
       .from('projects')
-      .update(dto)
+      .update(projectPayload)
       .eq('id', id)
       .select()
       .single();

@@ -1367,6 +1367,7 @@ function WorkItemsPage() {
       <SidePanel
         task={selectedTask}
         isOpen={!!selectedTask}
+        projectId={projectId}
         onClose={() => setSelectedTask(null)}
         onUpdateTask={handleTaskUpdate}
         onDeleteTask={handleTaskDelete}
