@@ -30,6 +30,45 @@ interface SidePanelProps {
 
 type TabType = "details" | "comments";
 
+const toDateInputValue = (value?: string) => {
+  if (!value) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return parsed.toISOString().slice(0, 10);
+};
+
+function MemberAvatar({
+  name,
+  avatarUrl,
+}: {
+  name?: string;
+  avatarUrl?: string | null;
+}) {
+  const initials = (name ?? "?")
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  if (avatarUrl) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={name ?? "Member"}
+        className="w-6 h-6 rounded-full object-cover ring-1 ring-white"
+      />
+    );
+  }
+
+  return (
+    <span className="w-6 h-6 rounded-full bg-gray-200 text-gray-700 text-[10px] font-semibold flex items-center justify-center">
+      {initials}
+    </span>
+  );
+}
+
 export const SidePanel = ({
   task,
   isOpen,
@@ -66,7 +105,10 @@ export const SidePanel = ({
         priority: "medium",
       });
     } else if (task) {
-      setEditedTask(task);
+      setEditedTask({
+        ...task,
+        due_date: toDateInputValue(task.due_date) || undefined,
+      });
     }
   }, [isCreateMode, task]);
 
@@ -316,11 +358,10 @@ export const SidePanel = ({
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-6">
             {(isCreateMode || activeTab === "details") && (
-              <div className="space-y-6">
-                {/* Status */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="flex text-sm font-medium text-gray-700 mb-2 items-center gap-2">
-                    <CheckSquare className="w-4 h-4" />
+                  <label className="flex text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5 items-center gap-1.5">
+                    <CheckSquare className="w-3.5 h-3.5" />
                     Status
                   </label>
                   <select
@@ -340,7 +381,7 @@ export const SidePanel = ({
                       }
                     }}
                     disabled={isLoading}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:bg-gray-50"
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/25 disabled:opacity-50 disabled:bg-gray-50 text-sm"
                   >
                     <option value="todo">To Do</option>
                     <option value="in_progress">In Progress</option>
@@ -350,10 +391,9 @@ export const SidePanel = ({
                   </select>
                 </div>
 
-                {/* Priority */}
                 <div>
-                  <label className="flex text-sm font-medium text-gray-700 mb-2 items-center gap-2">
-                    <Tag className="w-4 h-4" />
+                  <label className="flex text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5 items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5" />
                     Priority
                   </label>
                   <select
@@ -374,7 +414,7 @@ export const SidePanel = ({
                       }
                     }}
                     disabled={isLoading}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:bg-gray-50"
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/25 disabled:opacity-50 disabled:bg-gray-50 text-sm"
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
@@ -383,10 +423,9 @@ export const SidePanel = ({
                   </select>
                 </div>
 
-                {/* Assignee */}
-                <div>
-                  <label className="flex text-sm font-medium text-gray-700 mb-2 items-center gap-2">
-                    <User className="w-4 h-4" />
+                <div className="md:col-span-2">
+                  <label className="flex text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5 items-center gap-1.5">
+                    <User className="w-3.5 h-3.5" />
                     Assignee
                   </label>
                   <div className="relative">
@@ -394,12 +433,22 @@ export const SidePanel = ({
                       type="button"
                       onClick={() => setIsAssigneeMenuOpen((prev) => !prev)}
                       disabled={isLoading}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-left flex items-center justify-between gap-2 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:bg-gray-50"
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-left flex items-center justify-between gap-2 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:bg-gray-50"
                     >
-                      <span className="text-sm text-gray-700 truncate">
-                        {selectedMember?.user?.display_name ||
-                          selectedMember?.user?.email ||
-                          "Unassigned"}
+                      <span className="flex items-center gap-2 min-w-0">
+                        <MemberAvatar
+                          name={
+                            selectedMember?.user?.display_name ||
+                            selectedMember?.user?.email ||
+                            "Unassigned"
+                          }
+                          avatarUrl={selectedMember?.user?.avatar_url}
+                        />
+                        <span className="text-sm text-gray-700 truncate">
+                          {selectedMember?.user?.display_name ||
+                            selectedMember?.user?.email ||
+                            "Unassigned"}
+                        </span>
                       </span>
                       <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
                     </button>
@@ -422,7 +471,10 @@ export const SidePanel = ({
                           onClick={() => assignToMember(null)}
                           className="w-full px-2 py-2 text-left text-sm rounded-md hover:bg-gray-50 flex items-center justify-between"
                         >
-                          <span className="text-gray-700">Unassigned</span>
+                          <span className="flex items-center gap-2 text-gray-700">
+                            <MemberAvatar name="Unassigned" avatarUrl={null} />
+                            Unassigned
+                          </span>
                           {!currentAssigneeId && (
                             <Check className="w-4 h-4 text-primary" />
                           )}
@@ -432,6 +484,11 @@ export const SidePanel = ({
                           {filteredMembers.map((member) => {
                             const isSelected =
                               member.user_id === currentAssigneeId;
+                            const memberName =
+                              member.user?.display_name ||
+                              member.user?.email ||
+                              member.user_id;
+
                             return (
                               <button
                                 key={member.id}
@@ -439,10 +496,14 @@ export const SidePanel = ({
                                 onClick={() => assignToMember(member)}
                                 className="w-full px-2 py-2 text-left text-sm rounded-md hover:bg-gray-50 flex items-center justify-between gap-2"
                               >
-                                <span className="truncate text-gray-700">
-                                  {member.user?.display_name ||
-                                    member.user?.email ||
-                                    member.user_id}
+                                <span className="flex items-center gap-2 min-w-0">
+                                  <MemberAvatar
+                                    name={memberName}
+                                    avatarUrl={member.user?.avatar_url}
+                                  />
+                                  <span className="truncate text-gray-700">
+                                    {memberName}
+                                  </span>
                                 </span>
                                 {isSelected && (
                                   <Check className="w-4 h-4 text-primary shrink-0" />
@@ -461,31 +522,34 @@ export const SidePanel = ({
                   </div>
                 </div>
 
-                {/* Only show these fields in edit mode, not create mode */}
-                {!isCreateMode && editedTask && (
-                  <>
-                    {/* Due Date */}
-                    <div>
-                      <label className="flex text-sm font-medium text-gray-700 mb-2 items-center gap-2">
-                        <Calendar className="w-4 h-4" />
-                        Due Date
-                      </label>
-                      <input
-                        type="date"
-                        value={editedTask?.due_date || ""}
-                        onChange={(e) =>
-                          setEditedTask(
-                            editedTask
-                              ? { ...editedTask, due_date: e.target.value }
-                              : null,
-                          )
-                        }
-                        disabled={isLoading}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:bg-gray-50"
-                      />
-                    </div>
-                  </>
-                )}
+                <div>
+                  <label className="flex text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5 items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5" />
+                    Due Date
+                  </label>
+                  <input
+                    type="date"
+                    value={
+                      isCreateMode
+                        ? toDateInputValue(newTaskData.due_date)
+                        : toDateInputValue(editedTask?.due_date)
+                    }
+                    onChange={(e) => {
+                      const dueDate = e.target.value || undefined;
+                      if (isCreateMode) {
+                        setNewTaskData({ ...newTaskData, due_date: dueDate });
+                      } else {
+                        setEditedTask(
+                          editedTask
+                            ? { ...editedTask, due_date: dueDate }
+                            : null,
+                        );
+                      }
+                    }}
+                    disabled={isLoading}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/25 disabled:opacity-50 disabled:bg-gray-50 text-sm"
+                  />
+                </div>
               </div>
             )}
 

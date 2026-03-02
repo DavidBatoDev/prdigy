@@ -5,14 +5,17 @@ import {
   ListChecks,
   ChevronRight,
   ChevronDown,
+  ChevronUp,
   Check,
   Search,
   Loader2,
   ChevronsDownUp,
   ChevronsUpDown,
   Calendar,
+  Clock3,
   Map,
   AlertCircle,
+  Users,
 } from "lucide-react";
 import {
   roadmapService,
@@ -21,6 +24,7 @@ import {
   taskService,
 } from "@/services/roadmap.service";
 import { projectService, type ProjectMember } from "@/services/project.service";
+import { useUser } from "@/stores/authStore";
 import { AddEpicModal } from "@/components/roadmap/modals/AddEpicModal";
 import { AddFeatureModal } from "@/components/roadmap/modals/AddFeatureModal";
 import { SidePanel } from "@/components/roadmap/panels/SidePanel";
@@ -73,6 +77,21 @@ const TASK_STATUS_OPTIONS: TaskStatus[] = [
   "done",
   "blocked",
 ];
+
+const matchesTaskAssigneeFilter = (
+  task: RoadmapTask,
+  assigneeFilter: "all" | "me" | string,
+  currentUserId?: string,
+) => {
+  if (assigneeFilter === "all") return true;
+  const assigneeId = task.assignee_id ?? task.assignee?.id;
+  if (assigneeFilter === "unassigned") return !assigneeId;
+  if (assigneeFilter === "me") {
+    if (!currentUserId) return true;
+    return assigneeId === currentUserId;
+  }
+  return assigneeId === assigneeFilter;
+};
 
 const getTaskCheckboxStyle = (status: TaskStatus) => {
   switch (status) {
@@ -167,26 +186,55 @@ function Avatar({
 function DateRange({
   start,
   end,
+  variant = "feature",
 }: {
   start?: string | null;
   end?: string | null;
+  variant?: "epic" | "feature" | "task";
 }) {
   const fmt = (d?: string | null) =>
     d
       ? new Date(d).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          year: "2-digit",
         })
       : null;
+
   const s = fmt(start);
   const e = fmt(end);
   if (!s && !e) return null;
+
+  const Icon = variant === "epic" ? Map : variant === "task" ? Clock3 : Calendar;
+
   return (
     <span className="flex items-center gap-1.5 text-xs text-gray-500 whitespace-nowrap">
-      <Calendar className="w-5 h-5 text-gray-400 shrink-0" />
+      <Icon className="w-5 h-5 text-gray-400 shrink-0" />
       {s ?? ""}
       {s && e ? <span className="text-gray-300 mx-0.5">/</span> : null}
       {e ?? ""}
+    </span>
+  );
+}
+
+function AllAssigneesAvatar({ members }: { members: ProjectMember[] }) {
+  const visible = members.slice(0, 2);
+
+  return (
+    <span className="flex items-center">
+      <span className="flex items-center">
+        {visible.map((member, idx) => {
+          const name = member.user?.display_name || member.user?.email || "Member";
+          return (
+            <span key={member.user_id} className={idx > 0 ? "-ml-2" : ""}>
+              <Avatar name={name} avatarUrl={member.user?.avatar_url} />
+            </span>
+          );
+        })}
+      </span>
+      <span className="-ml-2 w-6 h-6 rounded-full border border-white bg-gray-300 text-white text-[10px] font-semibold flex items-center justify-center">
+        {members.length}
+      </span>
     </span>
   );
 }
@@ -411,7 +459,7 @@ function TaskRow({
 
       {/* Due date */}
       <div className={`${COL.date} hidden lg:flex items-center`}>
-        <DateRange start={null} end={task.due_date} />
+        <DateRange start={null} end={task.due_date} variant="task" />
       </div>
 
       {/* Priority */}
@@ -433,6 +481,8 @@ function FeatureRow({
   isLast,
   search,
   statusFilter,
+  assigneeFilter,
+  currentUserId,
   onOpenFeature,
   onOpenTask,
   onToggleTaskComplete,
@@ -445,6 +495,8 @@ function FeatureRow({
   isLast: boolean;
   search: string;
   statusFilter: string;
+  assigneeFilter: "all" | "me" | string;
+  currentUserId?: string;
   onOpenFeature: (f: RoadmapFeature) => void;
   onOpenTask: (t: RoadmapTask) => void;
   onToggleTaskComplete: (t: RoadmapTask) => void;
@@ -454,12 +506,14 @@ function FeatureRow({
   const tasks = useMemo(
     () =>
       (feature.tasks ?? []).filter((t) => {
+        if (!matchesTaskAssigneeFilter(t, assigneeFilter, currentUserId))
+          return false;
         if (search && !t.title.toLowerCase().includes(search.toLowerCase()))
           return false;
         if (statusFilter && t.status !== statusFilter) return false;
         return true;
       }),
-    [feature.tasks, search, statusFilter],
+    [assigneeFilter, currentUserId, feature.tasks, search, statusFilter],
   );
 
   const hasTasks = tasks.length > 0;
@@ -471,14 +525,14 @@ function FeatureRow({
       NonNullable<RoadmapTask["assignee"]>
     >();
 
-    for (const childTask of feature.tasks ?? []) {
+    for (const childTask of tasks) {
       const assigneeId = childTask.assignee_id ?? childTask.assignee?.id;
       if (!assigneeId || !childTask.assignee) continue;
       if (!deduped.has(assigneeId)) deduped.set(assigneeId, childTask.assignee);
     }
 
     return Array.from(deduped.values());
-  }, [feature.tasks]);
+  }, [tasks]);
 
   return (
     <>
@@ -566,7 +620,11 @@ function FeatureRow({
 
         {/* Dates */}
         <div className={`${COL.date} hidden lg:flex items-center`}>
-          <DateRange start={feature.start_date} end={feature.end_date} />
+          <DateRange
+            start={feature.start_date}
+            end={feature.end_date}
+            variant="feature"
+          />
         </div>
 
         {/* Progress */}
@@ -605,6 +663,8 @@ function EpicCard({
   onToggleExpand,
   search,
   statusFilter,
+  assigneeFilter,
+  currentUserId,
   expandedFeatures,
   onToggleFeature,
   onOpenEpic,
@@ -619,6 +679,8 @@ function EpicCard({
   onToggleExpand: () => void;
   search: string;
   statusFilter: string;
+  assigneeFilter: "all" | "me" | string;
+  currentUserId?: string;
   expandedFeatures: Set<string>;
   onToggleFeature: (id: string) => void;
   onOpenEpic: (e: RoadmapEpic) => void;
@@ -632,10 +694,16 @@ function EpicCard({
     () =>
       (epic.features ?? [])
         .filter((f) => {
+          const scopedTasks = (f.tasks ?? []).filter((t) =>
+            matchesTaskAssigneeFilter(t, assigneeFilter, currentUserId),
+          );
+
+          if (assigneeFilter !== "all" && scopedTasks.length === 0)
+            return false;
           if (statusFilter && f.status !== statusFilter) return false;
           if (search) {
             const fMatch = f.title.toLowerCase().includes(search.toLowerCase());
-            const tMatch = (f.tasks ?? []).some((t) =>
+            const tMatch = scopedTasks.some((t) =>
               t.title.toLowerCase().includes(search.toLowerCase()),
             );
             return fMatch || tMatch;
@@ -643,7 +711,7 @@ function EpicCard({
           return true;
         })
         .sort((a, b) => a.position - b.position),
-    [epic.features, search, statusFilter],
+    [assigneeFilter, currentUserId, epic.features, search, statusFilter],
   );
 
   const totalTasks = features.reduce(
@@ -723,7 +791,7 @@ function EpicCard({
 
         {/* Dates */}
         <div className={`${COL.date} hidden lg:flex items-center`}>
-          <DateRange start={epic.start_date} end={epic.end_date} />
+          <DateRange start={epic.start_date} end={epic.end_date} variant="epic" />
         </div>
 
         {/* Progress */}
@@ -747,6 +815,8 @@ function EpicCard({
             isLast={i === features.length - 1}
             search={search}
             statusFilter={statusFilter}
+            assigneeFilter={assigneeFilter}
+            currentUserId={currentUserId}
             onOpenFeature={onOpenFeature}
             onOpenTask={onOpenTask}
             onToggleTaskComplete={onToggleTaskComplete}
@@ -791,11 +861,15 @@ function NoRoadmapEmptyState({ projectId }: { projectId: string }) {
 
 function WorkItemsPage() {
   const { projectId } = Route.useParams();
+  const user = useUser();
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   const [epics, setEpics] = useState<RoadmapEpic[]>([]);
   const [roadmapId, setRoadmapId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [canScrollUp, setCanScrollUp] = useState(false);
+  const [canScrollDown, setCanScrollDown] = useState(false);
 
   // Expansion
   const [expandedEpics, setExpandedEpics] = useState<Set<string>>(new Set());
@@ -806,6 +880,13 @@ function WorkItemsPage() {
   // Filters
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [assigneeFilter, setAssigneeFilter] = useState<"all" | "me" | string>(
+    "me",
+  );
+  const [isAssigneeFilterMenuOpen, setIsAssigneeFilterMenuOpen] =
+    useState(false);
+  const assigneeFilterButtonRef = useRef<HTMLButtonElement | null>(null);
+  const assigneeFilterMenuRef = useRef<HTMLDivElement | null>(null);
 
   // â”€â”€ Modal / panel state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [editingEpic, setEditingEpic] = useState<RoadmapEpic | null>(null);
@@ -864,6 +945,9 @@ function WorkItemsPage() {
         if (cancelled) return;
         setEpics(hydrated);
         setExpandedEpics(new Set(hydrated.map((e) => e.id)));
+        setExpandedFeatures(
+          new Set(hydrated.flatMap((e) => (e.features ?? []).map((f) => f.id))),
+        );
       } catch {
         if (!cancelled)
           setError("Failed to load work items. Please try again.");
@@ -876,6 +960,20 @@ function WorkItemsPage() {
       cancelled = true;
     };
   }, [projectId]);
+
+  useEffect(() => {
+    if (!isAssigneeFilterMenuOpen) return;
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const isInButton = assigneeFilterButtonRef.current?.contains(target);
+      const isInMenu = assigneeFilterMenuRef.current?.contains(target);
+      if (!isInButton && !isInMenu) setIsAssigneeFilterMenuOpen(false);
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [isAssigneeFilterMenuOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1091,20 +1189,83 @@ function WorkItemsPage() {
   }, []);
 
   const filteredEpics = useMemo(() => {
-    if (!search && !statusFilter) return epics;
+    if (!search && !statusFilter && assigneeFilter === "all") return epics;
+
+    const currentUserId = user?.id;
+
     return epics.filter((epic) => {
+      const allFeatures = epic.features ?? [];
+      const hasAssignedTask =
+        assigneeFilter === "all"
+          ? true
+          : allFeatures.some((feature) =>
+              (feature.tasks ?? []).some((task) => {
+                return matchesTaskAssigneeFilter(
+                  task,
+                  assigneeFilter,
+                  currentUserId,
+                );
+              }),
+            );
+
+      if (!hasAssignedTask) return false;
+
       const epicMatch = epic.title.toLowerCase().includes(search.toLowerCase());
-      const featureMatch = (epic.features ?? []).some(
+      const featureMatch = allFeatures.some(
         (f) =>
           f.title.toLowerCase().includes(search.toLowerCase()) ||
-          (f.tasks ?? []).some((t) =>
-            t.title.toLowerCase().includes(search.toLowerCase()),
-          ),
+          (f.tasks ?? []).some((t) => {
+            if (!matchesTaskAssigneeFilter(t, assigneeFilter, currentUserId))
+              return false;
+            return t.title.toLowerCase().includes(search.toLowerCase());
+          }),
       );
       const statusMatch = !statusFilter || epic.status === statusFilter;
       return (epicMatch || featureMatch) && statusMatch;
     });
-  }, [epics, search, statusFilter]);
+  }, [assigneeFilter, epics, search, statusFilter, user?.id]);
+
+  const assigneeFilterOptions = useMemo(() => {
+    const unique = new globalThis.Map<string, ProjectMember>();
+    for (const member of projectMembers) {
+      if (!unique.has(member.user_id)) unique.set(member.user_id, member);
+    }
+    return Array.from(unique.values());
+  }, [projectMembers]);
+
+  const assigneeFilterMemberOptions = useMemo(
+    () => assigneeFilterOptions.filter((member) => member.user_id !== user?.id),
+    [assigneeFilterOptions, user?.id],
+  );
+
+  const selectedAssigneeMember = useMemo(() => {
+    if (
+      assigneeFilter === "all" ||
+      assigneeFilter === "me" ||
+      assigneeFilter === "unassigned"
+    )
+      return null;
+    return (
+      assigneeFilterOptions.find((member) => member.user_id === assigneeFilter) ??
+      null
+    );
+  }, [assigneeFilter, assigneeFilterOptions]);
+
+  const currentUserMember = useMemo(() => {
+    if (!user?.id) return null;
+    return assigneeFilterOptions.find((member) => member.user_id === user.id) ?? null;
+  }, [assigneeFilterOptions, user?.id]);
+
+  const assigneeFilterLabel = useMemo(() => {
+    if (assigneeFilter === "all") return "All assignees";
+    if (assigneeFilter === "me") return "Assigned to me";
+    if (assigneeFilter === "unassigned") return "Unassigned";
+    return (
+      selectedAssigneeMember?.user?.display_name ||
+      selectedAssigneeMember?.user?.email ||
+      "Assigned member"
+    );
+  }, [assigneeFilter, selectedAssigneeMember]);
 
   const allExpanded = filteredEpics.every((e) => expandedEpics.has(e.id));
   const toggleAll = useCallback(() => {
@@ -1120,6 +1281,61 @@ function WorkItemsPage() {
       );
     }
   }, [allExpanded, filteredEpics]);
+
+  const updateScrollControls = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) {
+      setCanScrollUp(false);
+      setCanScrollDown(false);
+      return;
+    }
+
+    const threshold = 4;
+    const isAtTop = el.scrollTop <= threshold;
+    const isAtBottom =
+      el.scrollTop + el.clientHeight >= el.scrollHeight - threshold;
+
+    setCanScrollUp(!isAtTop);
+    setCanScrollDown(!isAtBottom);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+
+    const handleScroll = () => updateScrollControls();
+
+    updateScrollControls();
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleScroll);
+
+    return () => {
+      el.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
+    };
+  }, [updateScrollControls]);
+
+  useEffect(() => {
+    updateScrollControls();
+  }, [
+    updateScrollControls,
+    filteredEpics,
+    expandedEpics,
+    expandedFeatures,
+    isLoading,
+    error,
+    roadmapId,
+  ]);
+
+  const scrollToTop = useCallback(() => {
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, []);
 
   // â”€â”€ Summary stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const totalFeatures = epics.reduce(
@@ -1151,7 +1367,7 @@ function WorkItemsPage() {
 
   // â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
-    <div className="flex flex-col h-full min-h-0 bg-gray-50/30">
+    <div className="relative flex flex-col h-full min-h-0 bg-gray-50/30">
       {/* Header */}
       <div className="px-6 pt-6 pb-4 bg-white border-b border-gray-100 shrink-0">
         <div className="flex items-start justify-between gap-4">
@@ -1219,6 +1435,147 @@ function WorkItemsPage() {
               </optgroup>
             </select>
 
+            <div className="relative">
+              <button
+                ref={assigneeFilterButtonRef}
+                type="button"
+                onClick={() =>
+                  setIsAssigneeFilterMenuOpen((prev) => !prev)
+                }
+                className="min-w-[180px] text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-700 cursor-pointer flex items-center justify-between gap-3 hover:bg-gray-100 transition-colors"
+              >
+                <span className="flex items-center gap-2 min-w-0">
+                  {assigneeFilter === "all" ? (
+                    <AllAssigneesAvatar members={assigneeFilterOptions} />
+                  ) : assigneeFilter === "unassigned" ? (
+                    <span className="w-6 h-6 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400">
+                      <Users className="w-3.5 h-3.5" />
+                    </span>
+                  ) : assigneeFilter === "me" ? (
+                    <Avatar
+                      name={
+                        currentUserMember?.user?.display_name ??
+                        currentUserMember?.user?.email ??
+                        user?.email ??
+                        "Me"
+                      }
+                      avatarUrl={currentUserMember?.user?.avatar_url}
+                    />
+                  ) : selectedAssigneeMember?.user?.avatar_url ? (
+                    <Avatar
+                      name={
+                        selectedAssigneeMember.user.display_name ??
+                        selectedAssigneeMember.user.email
+                      }
+                      avatarUrl={selectedAssigneeMember.user.avatar_url}
+                    />
+                  ) : selectedAssigneeMember ? (
+                    <Avatar
+                      name={
+                        selectedAssigneeMember.user?.display_name ??
+                        selectedAssigneeMember.user?.email ??
+                        "Member"
+                      }
+                      avatarUrl={selectedAssigneeMember.user?.avatar_url}
+                    />
+                  ) : null}
+                  <span className="truncate">{assigneeFilterLabel}</span>
+                </span>
+                <ChevronDown className="w-4 h-4 text-gray-500 shrink-0" />
+              </button>
+
+              {isAssigneeFilterMenuOpen && (
+                <div
+                  ref={assigneeFilterMenuRef}
+                  className="absolute right-0 mt-1 w-64 rounded-lg border border-gray-200 bg-white shadow-lg z-40 py-1"
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAssigneeFilter("me");
+                      setIsAssigneeFilterMenuOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${assigneeFilter === "me" ? "bg-gray-50 font-medium" : ""}`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <Avatar
+                        name={
+                          currentUserMember?.user?.display_name ??
+                          currentUserMember?.user?.email ??
+                          user?.email ??
+                          "Me"
+                        }
+                        avatarUrl={currentUserMember?.user?.avatar_url}
+                      />
+                      Assigned to me
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAssigneeFilter("all");
+                      setIsAssigneeFilterMenuOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${assigneeFilter === "all" ? "bg-gray-50 font-medium" : ""}`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <AllAssigneesAvatar members={assigneeFilterOptions} />
+                      All assignees
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAssigneeFilter("unassigned");
+                      setIsAssigneeFilterMenuOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${assigneeFilter === "unassigned" ? "bg-gray-50 font-medium" : ""}`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400">
+                        <Users className="w-3.5 h-3.5" />
+                      </span>
+                      Unassigned
+                    </span>
+                  </button>
+
+                  {assigneeFilterMemberOptions.length > 0 && (
+                    <div className="mt-1 pt-1 border-t border-gray-100">
+                      {assigneeFilterMemberOptions.map((member) => {
+                        const isSelected = assigneeFilter === member.user_id;
+                        const memberName =
+                          member.user?.display_name ||
+                          member.user?.email ||
+                          "Project member";
+
+                        return (
+                          <button
+                            key={member.user_id}
+                            type="button"
+                            onClick={() => {
+                              setAssigneeFilter(member.user_id);
+                              setIsAssigneeFilterMenuOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${isSelected ? "bg-gray-50 font-medium" : ""}`}
+                          >
+                            <span className="flex items-center gap-2">
+                              <Avatar
+                                name={memberName}
+                                avatarUrl={member.user?.avatar_url}
+                              />
+                              <span className="truncate">{memberName}</span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <button
               onClick={toggleAll}
               className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors whitespace-nowrap"
@@ -1238,7 +1595,7 @@ function WorkItemsPage() {
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-auto px-6 py-5">
+      <div ref={scrollContainerRef} className="flex-1 overflow-auto px-6 py-5">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-28 gap-3">
             <Loader2 className="w-7 h-7 animate-spin text-[#ff9933]" />
@@ -1267,6 +1624,7 @@ function WorkItemsPage() {
               onClick={() => {
                 setSearch("");
                 setStatusFilter("");
+                setAssigneeFilter("me");
               }}
               className="text-xs text-[#ff9933] underline underline-offset-2"
             >
@@ -1314,6 +1672,8 @@ function WorkItemsPage() {
                 onToggleExpand={() => toggleEpic(epic.id)}
                 search={search}
                 statusFilter={statusFilter}
+                assigneeFilter={assigneeFilter}
+                currentUserId={user?.id}
                 expandedFeatures={expandedFeatures}
                 onToggleFeature={toggleFeature}
                 onOpenEpic={setEditingEpic}
@@ -1327,6 +1687,35 @@ function WorkItemsPage() {
           </div>
         )}
       </div>
+
+      {(canScrollUp || canScrollDown) && (
+        <div className="fixed right-5 bottom-5 z-50 flex flex-col gap-1.5">
+          <div className="h-7 w-7">
+            {canScrollUp && (
+              <button
+                type="button"
+                onClick={scrollToTop}
+                aria-label="Scroll to top"
+                className="h-7 w-7 rounded-full bg-primary text-primary-foreground shadow-md hover:bg-primary/90 transition-colors flex items-center justify-center"
+              >
+                <ChevronUp className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          <div className="h-7 w-7">
+            {canScrollDown && (
+              <button
+                type="button"
+                onClick={scrollToBottom}
+                aria-label="Scroll to bottom"
+                className="h-7 w-7 rounded-full bg-primary text-primary-foreground shadow-md hover:bg-primary/90 transition-colors flex items-center justify-center"
+              >
+                <ChevronDown className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* â”€â”€ Epic edit modal â”€â”€ */}
       <AddEpicModal
