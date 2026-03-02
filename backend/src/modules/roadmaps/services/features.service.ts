@@ -6,6 +6,8 @@ import {
   BulkReorderDto,
   LinkMilestoneDto,
   UnlinkMilestoneDto,
+  AddCommentDto,
+  UpdateCommentDto,
 } from '../dto/roadmaps.dto';
 
 export const FEATURES_REPOSITORY = Symbol('FEATURES_REPOSITORY');
@@ -42,6 +44,26 @@ export class FeaturesService {
 
   async bulkReorder(epicId: string, dto: BulkReorderDto) {
     return this.repo.bulkReorder(epicId, dto);
+  }
+
+  async findComments(featureId: string) {
+    return this.repo.findComments(featureId);
+  }
+
+  async addComment(featureId: string, dto: AddCommentDto, userId: string) {
+    return this.repo.addComment(featureId, dto, userId);
+  }
+
+  async updateComment(
+    commentId: string,
+    dto: UpdateCommentDto,
+    userId: string,
+  ) {
+    return this.repo.updateComment(commentId, dto, userId);
+  }
+
+  async deleteComment(commentId: string, userId: string) {
+    return this.repo.deleteComment(commentId, userId);
   }
 
   async linkMilestone(dto: LinkMilestoneDto) {

@@ -7,6 +7,7 @@ import {
   UpdateCommentDto,
   AddAttachmentDto,
 } from '../dto/roadmaps.dto';
+import { sanitizeCommentHtml } from '../utils/comment-sanitizer';
 
 @Injectable()
 export class TaskExtrasRepositorySupabase implements ITaskExtrasRepository {
@@ -27,9 +28,10 @@ export class TaskExtrasRepositorySupabase implements ITaskExtrasRepository {
     dto: AddCommentDto,
     userId: string,
   ): Promise<any> {
+    const content = sanitizeCommentHtml(dto.content);
     const { data, error } = await this.db
       .from('task_comments')
-      .insert({ task_id: taskId, content: dto.content, author_id: userId })
+      .insert({ task_id: taskId, content, author_id: userId })
       .select('*, author:profiles(id, display_name, avatar_url)')
       .single();
     if (error) throw new Error(error.message);
@@ -41,6 +43,7 @@ export class TaskExtrasRepositorySupabase implements ITaskExtrasRepository {
     dto: UpdateCommentDto,
     userId: string,
   ): Promise<any> {
+    const content = sanitizeCommentHtml(dto.content);
     // Verify ownership
     const { data: existing } = await this.db
       .from('task_comments')
@@ -54,7 +57,7 @@ export class TaskExtrasRepositorySupabase implements ITaskExtrasRepository {
     const { data, error } = await this.db
       .from('task_comments')
       .update({
-        content: dto.content,
+        content,
         edited_at: new Date().toISOString(),
       })
       .eq('id', commentId)

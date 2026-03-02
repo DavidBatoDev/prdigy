@@ -215,7 +215,9 @@ export interface RoadmapShare {
 export interface Comment {
   id: string;
   user_id: string;
+  author_id?: string;
   content: string;
+  edited_at?: string;
   created_at: string;
   updated_at: string;
   // Populated fields

@@ -200,6 +200,7 @@ export function RoadmapCanvasOverlays({
                 const epic = epics.find((e) => e.id === editingEpicId);
                 return epic
                   ? {
+                      id: epic.id,
                       title: epic.title,
                       description: epic.description,
                       priority: epic.priority,

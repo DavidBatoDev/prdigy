@@ -4,6 +4,8 @@ import {
   CreateEpicDto,
   UpdateEpicDto,
   BulkReorderDto,
+  AddCommentDto,
+  UpdateCommentDto,
 } from '../dto/roadmaps.dto';
 
 export const EPICS_REPOSITORY = Symbol('EPICS_REPOSITORY');
@@ -36,6 +38,26 @@ export class EpicsService {
 
   async bulkReorder(roadmapId: string, dto: BulkReorderDto) {
     return this.repo.bulkReorder(roadmapId, dto);
+  }
+
+  async findComments(epicId: string) {
+    return this.repo.findComments(epicId);
+  }
+
+  async addComment(epicId: string, dto: AddCommentDto, userId: string) {
+    return this.repo.addComment(epicId, dto, userId);
+  }
+
+  async updateComment(
+    commentId: string,
+    dto: UpdateCommentDto,
+    userId: string,
+  ) {
+    return this.repo.updateComment(commentId, dto, userId);
+  }
+
+  async deleteComment(commentId: string, userId: string) {
+    return this.repo.deleteComment(commentId, userId);
   }
 
   async remove(id: string) {

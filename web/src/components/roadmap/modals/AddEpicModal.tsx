@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, type FormEvent } from "react";
 import { Plus, Edit2, ChevronDown, ChevronUp, Calendar, X } from "lucide-react";
 import type {
   EpicPriority,
+  Comment,
   RoadmapFeature,
   RoadmapTask,
 } from "@/types/roadmap";
@@ -10,6 +11,8 @@ import { RoadmapModalLayout } from "./RoadmapModalLayout";
 import { RichTextEditor } from "@/components/common/RichTextEditor";
 import { LabelSelector } from "@/components/common/LabelSelector";
 import { TaskListItem } from "../widgets/TaskListItem";
+import { CommentsSection } from "../shared/CommentsSection";
+import { commentsService } from "@/services/roadmap.service";
 import type { Label } from "@/types/label";
 import { LABEL_COLORS } from "@/types/label";
 
@@ -32,6 +35,7 @@ interface AddEpicModalProps {
   onDeleteTask?: (taskId: string) => void | Promise<void>;
   onSelectTask?: (task: RoadmapTask) => void;
   initialData?: {
+    id?: string;
     title?: string;
     description?: string;
     priority?: EpicPriority;
@@ -74,7 +78,11 @@ export const AddEpicModal = ({
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showReadMore, setShowReadMore] = useState(false);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
   const descriptionRef = useRef<HTMLDivElement>(null);
+
+  const epicId = initialData?.id;
 
   useEffect(() => {
     if (isOpen) {
@@ -125,6 +133,57 @@ export const AddEpicModal = ({
     const timer = setTimeout(checkHeight, 100);
     return () => clearTimeout(timer);
   }, [description, isEditingDescription, isOpen]);
+
+  const loadComments = async () => {
+    if (!epicId) return;
+
+    try {
+      setLoadingComments(true);
+      const fetched = await commentsService.getEpicComments(epicId);
+      setComments(fetched);
+    } catch (error) {
+      console.error("Failed to load epic comments:", error);
+      setComments([]);
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isOpen) {
+      setComments([]);
+      setLoadingComments(false);
+      return;
+    }
+
+    if (epicId) {
+      void loadComments();
+    }
+  }, [isOpen, epicId]);
+
+  const handleAddComment = async (content: string) => {
+    if (!epicId) return;
+    const created = await commentsService.addEpicComment(epicId, content);
+    setComments((prev) => [...prev, created]);
+  };
+
+  const handleUpdateComment = async (commentId: string, content: string) => {
+    if (!epicId) return;
+    const updated = await commentsService.updateEpicComment(
+      epicId,
+      commentId,
+      content,
+    );
+    setComments((prev) =>
+      prev.map((comment) => (comment.id === commentId ? updated : comment)),
+    );
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!epicId) return;
+    await commentsService.deleteEpicComment(epicId, commentId);
+    setComments((prev) => prev.filter((comment) => comment.id !== commentId));
+  };
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -530,19 +589,21 @@ export const AddEpicModal = ({
     {
       id: "comments",
       label: "Comments",
-      content: user ? (
-        <textarea
-          placeholder="Write a comment..."
-          className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-          rows={3}
+      content: epicId ? (
+        <CommentsSection
+          comments={comments}
+          onAddComment={handleAddComment}
+          onUpdateComment={handleUpdateComment}
+          onDeleteComment={handleDeleteComment}
+          currentUserId={user?.id}
+          canComment={Boolean(user)}
+          isLoading={loadingComments}
+          emptyMessage="No comments yet for this epic."
         />
       ) : (
         <div className="text-center py-8">
-          <p className="text-sm text-gray-500 mb-2">
-            Sign in to leave comments
-          </p>
-          <p className="text-xs text-gray-400">
-            You need to be logged in to participate in discussions
+          <p className="text-sm text-gray-500">
+            Save epic first to add comments
           </p>
         </div>
       ),

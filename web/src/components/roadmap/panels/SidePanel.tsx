@@ -11,9 +11,12 @@ import {
   Check,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { RoadmapTask } from "@/types/roadmap";
+import type { Comment, RoadmapTask } from "@/types/roadmap";
 import { projectService, type ProjectMember } from "@/services/project.service";
+import { commentsService } from "@/services/roadmap.service";
+import { CommentsSection } from "../shared/CommentsSection";
 import { Button } from "@/ui/button";
+import { useUser } from "@/stores/authStore";
 
 interface SidePanelProps {
   task: RoadmapTask | null;
@@ -81,8 +84,11 @@ export const SidePanel = ({
   projectMembers = [],
   isLoading = false,
 }: SidePanelProps) => {
+  const user = useUser();
   const [activeTab, setActiveTab] = useState<TabType>("details");
   const [editedTask, setEditedTask] = useState<RoadmapTask | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [newTaskData, setNewTaskData] = useState<Partial<RoadmapTask>>({
     title: "",
     status: "todo",
@@ -116,8 +122,62 @@ export const SidePanel = ({
     if (!isOpen) {
       setIsAssigneeMenuOpen(false);
       setAssigneeSearch("");
+      setComments([]);
+      setIsLoadingComments(false);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || isCreateMode || activeTab !== "comments" || !task?.id)
+      return;
+
+    let cancelled = false;
+
+    const loadComments = async () => {
+      try {
+        setIsLoadingComments(true);
+        const fetched = await commentsService.getTaskComments(task.id);
+        if (!cancelled) setComments(fetched);
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to load task comments:", error);
+          setComments([]);
+        }
+      } finally {
+        if (!cancelled) setIsLoadingComments(false);
+      }
+    };
+
+    void loadComments();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, isCreateMode, isOpen, task?.id]);
+
+  const handleAddComment = async (content: string) => {
+    if (!task?.id) return;
+    const created = await commentsService.addTaskComment(task.id, content);
+    setComments((prev) => [...prev, created]);
+  };
+
+  const handleUpdateComment = async (commentId: string, content: string) => {
+    if (!task?.id) return;
+    const updated = await commentsService.updateTaskComment(
+      task.id,
+      commentId,
+      content,
+    );
+    setComments((prev) =>
+      prev.map((comment) => (comment.id === commentId ? updated : comment)),
+    );
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!task?.id) return;
+    await commentsService.deleteTaskComment(task.id, commentId);
+    setComments((prev) => prev.filter((comment) => comment.id !== commentId));
+  };
 
   useEffect(() => {
     if (!isOpen || !projectId) return;
@@ -554,9 +614,16 @@ export const SidePanel = ({
             )}
 
             {!isCreateMode && activeTab === "comments" && (
-              <div className="text-center text-gray-500 py-12">
-                <p>Comments feature coming soon</p>
-              </div>
+              <CommentsSection
+                comments={comments}
+                onAddComment={handleAddComment}
+                onUpdateComment={handleUpdateComment}
+                onDeleteComment={handleDeleteComment}
+                currentUserId={user?.id}
+                canComment={Boolean(user)}
+                isLoading={isLoadingComments}
+                emptyMessage="No comments yet for this task."
+              />
             )}
           </div>
 

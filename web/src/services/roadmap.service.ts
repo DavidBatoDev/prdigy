@@ -10,6 +10,7 @@ import type {
   RoadmapEpic,
   RoadmapFeature,
   RoadmapTask,
+  Comment,
   RoadmapStatus,
   EpicStatus,
   EpicPriority,
@@ -208,6 +209,37 @@ export interface AssignTaskDto {
   task_id: string;
   user_id: string;
 }
+
+const normalizeComment = (raw: any): Comment => {
+  const normalizedUser = raw.user ?? raw.author;
+  const normalizedUserId = raw.user_id ?? raw.author_id ?? normalizedUser?.id;
+  const resolvedUpdatedAt = raw.updated_at ?? raw.created_at;
+  const resolvedEditedAt =
+    raw.edited_at ??
+    (resolvedUpdatedAt && raw.created_at && resolvedUpdatedAt !== raw.created_at
+      ? resolvedUpdatedAt
+      : undefined);
+
+  return {
+    id: raw.id,
+    user_id: normalizedUserId,
+    author_id: raw.author_id,
+    content: raw.content,
+    created_at: raw.created_at,
+    updated_at: resolvedUpdatedAt,
+    edited_at: resolvedEditedAt,
+    user: normalizedUser
+      ? {
+          id: normalizedUser.id,
+          display_name: normalizedUser.display_name,
+          first_name: normalizedUser.first_name,
+          last_name: normalizedUser.last_name,
+          avatar_url: normalizedUser.avatar_url,
+          email: normalizedUser.email,
+        }
+      : undefined,
+  };
+};
 
 // ============================================================================
 // Roadmap Service
@@ -650,6 +682,175 @@ export const taskService = {
   },
 };
 
+export const commentsService = {
+  async getEpicComments(epicId: string): Promise<Comment[]> {
+    try {
+      const response = await apiClient.get<ApiResponse<any[]>>(
+        `/api/epics/${epicId}/comments`,
+      );
+      return (response.data.data ?? []).map(normalizeComment);
+    } catch (error) {
+      throw handleServiceError(error, `Get comments for epic ${epicId}`);
+    }
+  },
+
+  async addEpicComment(epicId: string, content: string): Promise<Comment> {
+    try {
+      const response = await apiClient.post<ApiResponse<any>>(
+        `/api/epics/${epicId}/comments`,
+        { content },
+      );
+      return normalizeComment(response.data.data);
+    } catch (error) {
+      throw handleServiceError(error, `Add comment to epic ${epicId}`);
+    }
+  },
+
+  async updateEpicComment(
+    epicId: string,
+    commentId: string,
+    content: string,
+  ): Promise<Comment> {
+    try {
+      const response = await apiClient.patch<ApiResponse<any>>(
+        `/api/epics/${epicId}/comments/${commentId}`,
+        { content },
+      );
+      return normalizeComment(response.data.data);
+    } catch (error) {
+      throw handleServiceError(
+        error,
+        `Update comment ${commentId} on epic ${epicId}`,
+      );
+    }
+  },
+
+  async deleteEpicComment(epicId: string, commentId: string): Promise<void> {
+    try {
+      await apiClient.delete(`/api/epics/${epicId}/comments/${commentId}`);
+    } catch (error) {
+      throw handleServiceError(
+        error,
+        `Delete comment ${commentId} on epic ${epicId}`,
+      );
+    }
+  },
+
+  async getFeatureComments(featureId: string): Promise<Comment[]> {
+    try {
+      const response = await apiClient.get<ApiResponse<any[]>>(
+        `/api/features/${featureId}/comments`,
+      );
+      return (response.data.data ?? []).map(normalizeComment);
+    } catch (error) {
+      throw handleServiceError(error, `Get comments for feature ${featureId}`);
+    }
+  },
+
+  async addFeatureComment(
+    featureId: string,
+    content: string,
+  ): Promise<Comment> {
+    try {
+      const response = await apiClient.post<ApiResponse<any>>(
+        `/api/features/${featureId}/comments`,
+        { content },
+      );
+      return normalizeComment(response.data.data);
+    } catch (error) {
+      throw handleServiceError(error, `Add comment to feature ${featureId}`);
+    }
+  },
+
+  async updateFeatureComment(
+    featureId: string,
+    commentId: string,
+    content: string,
+  ): Promise<Comment> {
+    try {
+      const response = await apiClient.patch<ApiResponse<any>>(
+        `/api/features/${featureId}/comments/${commentId}`,
+        { content },
+      );
+      return normalizeComment(response.data.data);
+    } catch (error) {
+      throw handleServiceError(
+        error,
+        `Update comment ${commentId} on feature ${featureId}`,
+      );
+    }
+  },
+
+  async deleteFeatureComment(
+    featureId: string,
+    commentId: string,
+  ): Promise<void> {
+    try {
+      await apiClient.delete(
+        `/api/features/${featureId}/comments/${commentId}`,
+      );
+    } catch (error) {
+      throw handleServiceError(
+        error,
+        `Delete comment ${commentId} on feature ${featureId}`,
+      );
+    }
+  },
+
+  async getTaskComments(taskId: string): Promise<Comment[]> {
+    try {
+      const response = await apiClient.get<ApiResponse<any[]>>(
+        `/api/tasks/${taskId}/comments`,
+      );
+      return (response.data.data ?? []).map(normalizeComment);
+    } catch (error) {
+      throw handleServiceError(error, `Get comments for task ${taskId}`);
+    }
+  },
+
+  async addTaskComment(taskId: string, content: string): Promise<Comment> {
+    try {
+      const response = await apiClient.post<ApiResponse<any>>(
+        `/api/tasks/${taskId}/comments`,
+        { content },
+      );
+      return normalizeComment(response.data.data);
+    } catch (error) {
+      throw handleServiceError(error, `Add comment to task ${taskId}`);
+    }
+  },
+
+  async updateTaskComment(
+    taskId: string,
+    commentId: string,
+    content: string,
+  ): Promise<Comment> {
+    try {
+      const response = await apiClient.patch<ApiResponse<any>>(
+        `/api/tasks/${taskId}/comments/${commentId}`,
+        { content },
+      );
+      return normalizeComment(response.data.data);
+    } catch (error) {
+      throw handleServiceError(
+        error,
+        `Update comment ${commentId} on task ${taskId}`,
+      );
+    }
+  },
+
+  async deleteTaskComment(taskId: string, commentId: string): Promise<void> {
+    try {
+      await apiClient.delete(`/api/tasks/${taskId}/comments/${commentId}`);
+    } catch (error) {
+      throw handleServiceError(
+        error,
+        `Delete comment ${commentId} on task ${taskId}`,
+      );
+    }
+  },
+};
+
 // ============================================================================
 // Unified Export
 // ============================================================================
@@ -659,6 +860,7 @@ export const roadmapServiceAPI = {
   epics: epicService,
   features: featureService,
   tasks: taskService,
+  comments: commentsService,
 };
 
 export default roadmapServiceAPI;

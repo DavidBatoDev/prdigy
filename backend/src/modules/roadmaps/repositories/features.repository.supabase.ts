@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, ForbiddenException } from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_ADMIN } from '../../../config/supabase.module';
 import { IFeaturesRepository } from './features.repository.interface';
@@ -8,7 +8,10 @@ import {
   BulkReorderDto,
   LinkMilestoneDto,
   UnlinkMilestoneDto,
+  AddCommentDto,
+  UpdateCommentDto,
 } from '../dto/roadmaps.dto';
+import { sanitizeCommentHtml } from '../utils/comment-sanitizer';
 
 @Injectable()
 export class FeaturesRepositorySupabase implements IFeaturesRepository {
@@ -84,6 +87,81 @@ export class FeaturesRepositorySupabase implements IFeaturesRepository {
     for (const { error } of results) {
       if (error) throw new Error(error.message);
     }
+  }
+
+  async findComments(featureId: string): Promise<any[]> {
+    const { data, error } = await this.db
+      .from('feature_comments')
+      .select(
+        '*, user:profiles(id, display_name, first_name, last_name, avatar_url, email)',
+      )
+      .eq('feature_id', featureId)
+      .order('created_at', { ascending: true });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  }
+
+  async addComment(
+    featureId: string,
+    dto: AddCommentDto,
+    userId: string,
+  ): Promise<any> {
+    const content = sanitizeCommentHtml(dto.content);
+    const { data, error } = await this.db
+      .from('feature_comments')
+      .insert({ feature_id: featureId, content, user_id: userId })
+      .select(
+        '*, user:profiles(id, display_name, first_name, last_name, avatar_url, email)',
+      )
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  }
+
+  async updateComment(
+    commentId: string,
+    dto: UpdateCommentDto,
+    userId: string,
+  ): Promise<any> {
+    const content = sanitizeCommentHtml(dto.content);
+    const { data: existing, error: existingError } = await this.db
+      .from('feature_comments')
+      .select('user_id')
+      .eq('id', commentId)
+      .single();
+    if (existingError) throw new Error(existingError.message);
+    if (existing && existing.user_id !== userId) {
+      throw new ForbiddenException('You can only edit your own comments');
+    }
+
+    const { data, error } = await this.db
+      .from('feature_comments')
+      .update({ content, updated_at: new Date().toISOString() })
+      .eq('id', commentId)
+      .select(
+        '*, user:profiles(id, display_name, first_name, last_name, avatar_url, email)',
+      )
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  }
+
+  async deleteComment(commentId: string, userId: string): Promise<void> {
+    const { data: existing, error: existingError } = await this.db
+      .from('feature_comments')
+      .select('user_id')
+      .eq('id', commentId)
+      .single();
+    if (existingError) throw new Error(existingError.message);
+    if (existing && existing.user_id !== userId) {
+      throw new ForbiddenException('You can only delete your own comments');
+    }
+
+    const { error } = await this.db
+      .from('feature_comments')
+      .delete()
+      .eq('id', commentId);
+    if (error) throw new Error(error.message);
   }
 
   async linkMilestone(dto: LinkMilestoneDto): Promise<any> {

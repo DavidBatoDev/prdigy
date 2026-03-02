@@ -7,7 +7,6 @@ import {
   ListTool,
   LinkTool,
   ImageTool,
-  AttachmentTool,
   MarkdownTool,
   HelpTool,
   ToolSeparator,
@@ -107,9 +106,6 @@ export function RichTextToolbar({
         {(tools.includes("bulletList") || tools.includes("numberedList")) && (
           <ListTool onCommand={onCommand} activeFormats={activeFormats} />
         )}
-        {tools.includes("link") && (
-          <LinkTool onInsertLink={handleInsertLink} />
-        )}
         {tools.includes("image") && (
           <ImageTool onInsertImage={handleInsertImage} />
         )}
@@ -118,7 +114,7 @@ export function RichTextToolbar({
 
       {/* Right side tools */}
       <div className="flex items-center gap-1 ml-auto">
-        <AttachmentTool />
+        {tools.includes("link") && <LinkTool onInsertLink={handleInsertLink} />}
         <MarkdownTool />
         <HelpTool />
       </div>

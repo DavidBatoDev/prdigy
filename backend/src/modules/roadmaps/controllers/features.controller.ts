@@ -21,6 +21,8 @@ import {
   BulkReorderDto,
   LinkMilestoneDto,
   UnlinkMilestoneDto,
+  AddCommentDto,
+  UpdateCommentDto,
 } from '../dto/roadmaps.dto';
 
 @Controller('features')
@@ -70,6 +72,38 @@ export class FeaturesController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateFeatureDto) {
     return this.featuresService.update(id, dto);
+  }
+
+  @Get(':id/comments')
+  getComments(@Param('id') id: string) {
+    return this.featuresService.findComments(id);
+  }
+
+  @Post(':id/comments')
+  addComment(
+    @Param('id') id: string,
+    @Body() dto: AddCommentDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.featuresService.addComment(id, dto, user.id);
+  }
+
+  @Patch(':featureId/comments/:commentId')
+  updateComment(
+    @Param('commentId') commentId: string,
+    @Body() dto: UpdateCommentDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.featuresService.updateComment(commentId, dto, user.id);
+  }
+
+  @Delete(':featureId/comments/:commentId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteComment(
+    @Param('commentId') commentId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.featuresService.deleteComment(commentId, user.id);
   }
 
   @Delete(':id')

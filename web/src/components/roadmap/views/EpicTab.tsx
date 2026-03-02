@@ -20,7 +20,8 @@ import type {
 import { RichTextEditor } from "@/components/common/RichTextEditor";
 import { AddFeatureModal } from "../modals/AddFeatureModal";
 import { CommentsSection } from "../shared/CommentsSection";
-import { roadmapSharesServiceAPI } from "@/services/roadmap-shares.service";
+import { commentsService } from "@/services/roadmap.service";
+import { useUser } from "@/stores/authStore";
 
 interface EpicTabProps {
   epic: RoadmapEpic;
@@ -47,6 +48,7 @@ export const EpicTab = ({
   scrollToFeatureId,
   onScrollToFeatureHandled,
 }: EpicTabProps) => {
+  const user = useUser();
   const features = epic.features || [];
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
@@ -82,12 +84,15 @@ export const EpicTab = ({
   // Comments state
   const [comments, setComments] = React.useState<Comment[]>([]);
   const [loadingComments, setLoadingComments] = React.useState(false);
+  const [hasLoadedComments, setHasLoadedComments] = React.useState(false);
   const [showComments, setShowComments] = React.useState(false);
 
   // Feature comments state (per feature)
   const [featureComments, setFeatureComments] = React.useState<
     Record<string, Comment[]>
   >({});
+  const [hasLoadedFeatureComments, setHasLoadedFeatureComments] =
+    React.useState<Record<string, boolean>>({});
   const [loadingFeatureComments, setLoadingFeatureComments] = React.useState<
     Record<string, boolean>
   >({});
@@ -110,36 +115,74 @@ export const EpicTab = ({
     isEditingDescription,
   ]);
 
-  // Load comments when showing comments section
+  // Preload comments for accurate count on initial view
   useEffect(() => {
-    if (showComments && comments.length === 0) {
-      loadComments();
-    }
-  }, [showComments]);
+    setComments(epic.comments ?? []);
+    setHasLoadedComments(Boolean(epic.comments));
+    void loadComments(false);
+  }, [epic.id]);
 
-  const loadComments = async () => {
+  // Ensure comments are loaded when opening comments section
+  useEffect(() => {
+    if (showComments && !hasLoadedComments) {
+      void loadComments();
+    }
+  }, [showComments, hasLoadedComments]);
+
+  const loadComments = async (withLoader = true) => {
     try {
-      setLoadingComments(true);
-      // TODO: Implement API endpoint to fetch epic comments
-      // const fetchedComments = await roadmapSharesServiceAPI.comments.getEpicComments(epic.id);
-      // setComments(fetchedComments);
-      setComments([]); // Placeholder until backend endpoint is created
+      if (withLoader) {
+        setLoadingComments(true);
+      }
+      const fetchedComments = await commentsService.getEpicComments(epic.id);
+      setComments(fetchedComments);
+      setHasLoadedComments(true);
     } catch (error) {
       console.error("Failed to load comments:", error);
+      if (!hasLoadedComments) {
+        setComments([]);
+      }
     } finally {
-      setLoadingComments(false);
+      if (withLoader) {
+        setLoadingComments(false);
+      }
     }
   };
 
   const handleAddComment = async (content: string) => {
     try {
-      const newComment = await roadmapSharesServiceAPI.comments.addEpicComment(
-        epic.id,
-        content,
-      );
-      setComments([...comments, newComment]);
+      const newComment = await commentsService.addEpicComment(epic.id, content);
+      setComments((prev) => [...prev, newComment]);
     } catch (error) {
       console.error("Failed to add comment:", error);
+      throw error;
+    }
+  };
+
+  const handleUpdateComment = async (commentId: string, content: string) => {
+    try {
+      const updatedComment = await commentsService.updateEpicComment(
+        epic.id,
+        commentId,
+        content,
+      );
+      setComments((prev) =>
+        prev.map((comment) =>
+          comment.id === commentId ? updatedComment : comment,
+        ),
+      );
+    } catch (error) {
+      console.error("Failed to update comment:", error);
+      throw error;
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    try {
+      await commentsService.deleteEpicComment(epic.id, commentId);
+      setComments((prev) => prev.filter((comment) => comment.id !== commentId));
+    } catch (error) {
+      console.error("Failed to delete comment:", error);
       throw error;
     }
   };
@@ -152,44 +195,120 @@ export const EpicTab = ({
       } else {
         newSet.add(featureId);
         // Load comments if not already loaded
-        if (!featureComments[featureId]) {
-          loadFeatureComments(featureId);
+        if (!hasLoadedFeatureComments[featureId]) {
+          void loadFeatureComments(featureId);
         }
       }
       return newSet;
     });
   };
 
-  const loadFeatureComments = async (featureId: string) => {
+  const loadFeatureComments = async (featureId: string, withLoader = true) => {
     try {
-      setLoadingFeatureComments((prev) => ({ ...prev, [featureId]: true }));
-      // TODO: Implement API endpoint to fetch feature comments
-      // const fetchedComments = await roadmapSharesServiceAPI.comments.getFeatureComments(featureId);
-      // setFeatureComments((prev) => ({ ...prev, [featureId]: fetchedComments }));
-      setFeatureComments((prev) => ({ ...prev, [featureId]: [] })); // Placeholder
+      if (withLoader) {
+        setLoadingFeatureComments((prev) => ({ ...prev, [featureId]: true }));
+      }
+      const fetchedComments =
+        await commentsService.getFeatureComments(featureId);
+      setFeatureComments((prev) => ({ ...prev, [featureId]: fetchedComments }));
+      setHasLoadedFeatureComments((prev) => ({ ...prev, [featureId]: true }));
     } catch (error) {
       console.error("Failed to load feature comments:", error);
+      if (!hasLoadedFeatureComments[featureId]) {
+        setFeatureComments((prev) => ({ ...prev, [featureId]: [] }));
+      }
     } finally {
-      setLoadingFeatureComments((prev) => ({ ...prev, [featureId]: false }));
+      if (withLoader) {
+        setLoadingFeatureComments((prev) => ({ ...prev, [featureId]: false }));
+      }
     }
   };
+
+  useEffect(() => {
+    const initialFeatureComments: Record<string, Comment[]> = {};
+    const initialLoadedFeatureComments: Record<string, boolean> = {};
+
+    for (const feature of features) {
+      if (feature.comments) {
+        initialFeatureComments[feature.id] = feature.comments;
+        initialLoadedFeatureComments[feature.id] = true;
+      }
+    }
+
+    if (Object.keys(initialFeatureComments).length > 0) {
+      setFeatureComments((prev) => ({ ...prev, ...initialFeatureComments }));
+    }
+
+    if (Object.keys(initialLoadedFeatureComments).length > 0) {
+      setHasLoadedFeatureComments((prev) => ({
+        ...prev,
+        ...initialLoadedFeatureComments,
+      }));
+    }
+
+    for (const feature of features) {
+      if (!initialLoadedFeatureComments[feature.id]) {
+        void loadFeatureComments(feature.id, false);
+      }
+    }
+  }, [epic.id]);
 
   const handleAddFeatureComment = async (
     featureId: string,
     content: string,
   ) => {
     try {
-      const newComment =
-        await roadmapSharesServiceAPI.comments.addFeatureComment(
-          featureId,
-          content,
-        );
+      const newComment = await commentsService.addFeatureComment(
+        featureId,
+        content,
+      );
       setFeatureComments((prev) => ({
         ...prev,
         [featureId]: [...(prev[featureId] || []), newComment],
       }));
     } catch (error) {
       console.error("Failed to add feature comment:", error);
+      throw error;
+    }
+  };
+
+  const handleUpdateFeatureComment = async (
+    featureId: string,
+    commentId: string,
+    content: string,
+  ) => {
+    try {
+      const updatedComment = await commentsService.updateFeatureComment(
+        featureId,
+        commentId,
+        content,
+      );
+      setFeatureComments((prev) => ({
+        ...prev,
+        [featureId]: (prev[featureId] || []).map((comment) =>
+          comment.id === commentId ? updatedComment : comment,
+        ),
+      }));
+    } catch (error) {
+      console.error("Failed to update feature comment:", error);
+      throw error;
+    }
+  };
+
+  const handleDeleteFeatureComment = async (
+    featureId: string,
+    commentId: string,
+  ) => {
+    try {
+      await commentsService.deleteFeatureComment(featureId, commentId);
+      setFeatureComments((prev) => ({
+        ...prev,
+        [featureId]: (prev[featureId] || []).filter(
+          (comment) => comment.id !== commentId,
+        ),
+      }));
+    } catch (error) {
+      console.error("Failed to delete feature comment:", error);
       throw error;
     }
   };
@@ -498,7 +617,9 @@ export const EpicTab = ({
             <MessageSquare className="w-4 h-4" />
             {showComments
               ? "Hide Comments"
-              : `Show Comments (${comments.length})`}
+              : hasLoadedComments
+                ? `Show Comments (${comments.length})`
+                : "Show Comments (...)"}
           </button>
 
           {showComments && (
@@ -506,8 +627,11 @@ export const EpicTab = ({
               <CommentsSection
                 comments={comments}
                 onAddComment={handleAddComment}
+                onUpdateComment={handleUpdateComment}
+                onDeleteComment={handleDeleteComment}
+                currentUserId={user?.id}
                 isLoading={loadingComments}
-                canComment={true}
+                canComment={Boolean(user)}
               />
             </div>
           )}
@@ -688,7 +812,9 @@ export const EpicTab = ({
                     <MessageSquare className="w-3.5 h-3.5" />
                     {showFeatureComments.has(feature.id)
                       ? "Hide Comments"
-                      : `Show Comments (${featureComments[feature.id]?.length || 0})`}
+                      : hasLoadedFeatureComments[feature.id]
+                        ? `Show Comments (${featureComments[feature.id]?.length || 0})`
+                        : "Show Comments (...)"}
                   </button>
 
                   {showFeatureComments.has(feature.id) && (
@@ -698,8 +824,19 @@ export const EpicTab = ({
                         onAddComment={(content) =>
                           handleAddFeatureComment(feature.id, content)
                         }
+                        onUpdateComment={(commentId, content) =>
+                          handleUpdateFeatureComment(
+                            feature.id,
+                            commentId,
+                            content,
+                          )
+                        }
+                        onDeleteComment={(commentId) =>
+                          handleDeleteFeatureComment(feature.id, commentId)
+                        }
+                        currentUserId={user?.id}
                         isLoading={loadingFeatureComments[feature.id] || false}
-                        canComment={true}
+                        canComment={Boolean(user)}
                       />
                     </div>
                   )}

@@ -204,7 +204,8 @@ function DateRange({
   const e = fmt(end);
   if (!s && !e) return null;
 
-  const Icon = variant === "epic" ? Map : variant === "task" ? Clock3 : Calendar;
+  const Icon =
+    variant === "epic" ? Map : variant === "task" ? Clock3 : Calendar;
 
   return (
     <span className="flex items-center gap-1.5 text-xs text-gray-500 whitespace-nowrap">
@@ -223,7 +224,8 @@ function AllAssigneesAvatar({ members }: { members: ProjectMember[] }) {
     <span className="flex items-center">
       <span className="flex items-center">
         {visible.map((member, idx) => {
-          const name = member.user?.display_name || member.user?.email || "Member";
+          const name =
+            member.user?.display_name || member.user?.email || "Member";
           return (
             <span key={member.user_id} className={idx > 0 ? "-ml-2" : ""}>
               <Avatar name={name} avatarUrl={member.user?.avatar_url} />
@@ -353,7 +355,9 @@ function WorkItemsLoadingSkeleton() {
                 <div className={`${COL.indent} flex justify-center`}>
                   <span className="w-px h-6 bg-gray-200" />
                 </div>
-                <div className={`${COL.chevron} flex items-center justify-center`}>
+                <div
+                  className={`${COL.chevron} flex items-center justify-center`}
+                >
                   <div className="w-3 h-3 rounded bg-gray-200" />
                 </div>
                 <div className={`${COL.name} pr-4`}>
@@ -390,7 +394,9 @@ function WorkItemsLoadingSkeleton() {
                     <div className={`${COL.indent} flex justify-center`}>
                       <span className="w-px h-4 bg-gray-200" />
                     </div>
-                    <div className={`${COL.chevron} flex items-center justify-center`}>
+                    <div
+                      className={`${COL.chevron} flex items-center justify-center`}
+                    >
                       <span className="w-3 h-px bg-gray-200" />
                     </div>
                     <div className={`${COL.name} pr-4`}>
@@ -926,7 +932,11 @@ function EpicCard({
 
         {/* Dates */}
         <div className={`${COL.date} hidden lg:flex items-center`}>
-          <DateRange start={epic.start_date} end={epic.end_date} variant="epic" />
+          <DateRange
+            start={epic.start_date}
+            end={epic.end_date}
+            variant="epic"
+          />
         </div>
 
         {/* Progress */}
@@ -1385,14 +1395,17 @@ function WorkItemsPage() {
     )
       return null;
     return (
-      assigneeFilterOptions.find((member) => member.user_id === assigneeFilter) ??
-      null
+      assigneeFilterOptions.find(
+        (member) => member.user_id === assigneeFilter,
+      ) ?? null
     );
   }, [assigneeFilter, assigneeFilterOptions]);
 
   const currentUserMember = useMemo(() => {
     if (!user?.id) return null;
-    return assigneeFilterOptions.find((member) => member.user_id === user.id) ?? null;
+    return (
+      assigneeFilterOptions.find((member) => member.user_id === user.id) ?? null
+    );
   }, [assigneeFilterOptions, user?.id]);
 
   const assigneeFilterLabel = useMemo(() => {
@@ -1568,91 +1581,43 @@ function WorkItemsPage() {
                 />
               </div>
 
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#ff9933]/25 text-gray-700 cursor-pointer"
-            >
-              <option value="">All statuses</option>
-              <optgroup label="Epic">
-                {Object.entries(EPIC_STATUS_MAP).map(([k, v]) => (
-                  <option key={`epic-${k}`} value={k}>
-                    {v.label}
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="Feature">
-                {Object.entries(FEATURE_STATUS_MAP).map(([k, v]) => (
-                  <option key={`feat-${k}`} value={k}>
-                    {v.label}
-                  </option>
-                ))}
-              </optgroup>
-            </select>
-
-            <div className="relative">
-              <button
-                ref={assigneeFilterButtonRef}
-                type="button"
-                onClick={() =>
-                  setIsAssigneeFilterMenuOpen((prev) => !prev)
-                }
-                className="min-w-[180px] text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-700 cursor-pointer flex items-center justify-between gap-3 hover:bg-gray-100 transition-colors"
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#ff9933]/25 text-gray-700 cursor-pointer"
               >
-                <span className="flex items-center gap-2 min-w-0">
-                  {assigneeFilter === "all" ? (
-                    <AllAssigneesAvatar members={assigneeFilterOptions} />
-                  ) : assigneeFilter === "unassigned" ? (
-                    <span className="w-6 h-6 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400">
-                      <Users className="w-3.5 h-3.5" />
-                    </span>
-                  ) : assigneeFilter === "me" ? (
-                    <Avatar
-                      name={
-                        currentUserMember?.user?.display_name ??
-                        currentUserMember?.user?.email ??
-                        user?.email ??
-                        "Me"
-                      }
-                      avatarUrl={currentUserMember?.user?.avatar_url}
-                    />
-                  ) : selectedAssigneeMember?.user?.avatar_url ? (
-                    <Avatar
-                      name={
-                        selectedAssigneeMember.user.display_name ??
-                        selectedAssigneeMember.user.email
-                      }
-                      avatarUrl={selectedAssigneeMember.user.avatar_url}
-                    />
-                  ) : selectedAssigneeMember ? (
-                    <Avatar
-                      name={
-                        selectedAssigneeMember.user?.display_name ??
-                        selectedAssigneeMember.user?.email ??
-                        "Member"
-                      }
-                      avatarUrl={selectedAssigneeMember.user?.avatar_url}
-                    />
-                  ) : null}
-                  <span className="truncate">{assigneeFilterLabel}</span>
-                </span>
-                <ChevronDown className="w-4 h-4 text-gray-500 shrink-0" />
-              </button>
+                <option value="">All statuses</option>
+                <optgroup label="Epic">
+                  {Object.entries(EPIC_STATUS_MAP).map(([k, v]) => (
+                    <option key={`epic-${k}`} value={k}>
+                      {v.label}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Feature">
+                  {Object.entries(FEATURE_STATUS_MAP).map(([k, v]) => (
+                    <option key={`feat-${k}`} value={k}>
+                      {v.label}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
 
-              {isAssigneeFilterMenuOpen && (
-                <div
-                  ref={assigneeFilterMenuRef}
-                  className="absolute right-0 mt-1 w-64 rounded-lg border border-gray-200 bg-white shadow-lg z-40 py-1"
+              <div className="relative">
+                <button
+                  ref={assigneeFilterButtonRef}
+                  type="button"
+                  onClick={() => setIsAssigneeFilterMenuOpen((prev) => !prev)}
+                  className="min-w-[180px] text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-700 cursor-pointer flex items-center justify-between gap-3 hover:bg-gray-100 transition-colors"
                 >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAssigneeFilter("me");
-                      setIsAssigneeFilterMenuOpen(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${assigneeFilter === "me" ? "bg-gray-50 font-medium" : ""}`}
-                  >
-                    <span className="flex items-center gap-2">
+                  <span className="flex items-center gap-2 min-w-0">
+                    {assigneeFilter === "all" ? (
+                      <AllAssigneesAvatar members={assigneeFilterOptions} />
+                    ) : assigneeFilter === "unassigned" ? (
+                      <span className="w-6 h-6 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400">
+                        <Users className="w-3.5 h-3.5" />
+                      </span>
+                    ) : assigneeFilter === "me" ? (
                       <Avatar
                         name={
                           currentUserMember?.user?.display_name ??
@@ -1662,89 +1627,135 @@ function WorkItemsPage() {
                         }
                         avatarUrl={currentUserMember?.user?.avatar_url}
                       />
-                      Assigned to me
-                    </span>
-                  </button>
+                    ) : selectedAssigneeMember?.user?.avatar_url ? (
+                      <Avatar
+                        name={
+                          selectedAssigneeMember.user.display_name ??
+                          selectedAssigneeMember.user.email
+                        }
+                        avatarUrl={selectedAssigneeMember.user.avatar_url}
+                      />
+                    ) : selectedAssigneeMember ? (
+                      <Avatar
+                        name={
+                          selectedAssigneeMember.user?.display_name ??
+                          selectedAssigneeMember.user?.email ??
+                          "Member"
+                        }
+                        avatarUrl={selectedAssigneeMember.user?.avatar_url}
+                      />
+                    ) : null}
+                    <span className="truncate">{assigneeFilterLabel}</span>
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-gray-500 shrink-0" />
+                </button>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAssigneeFilter("all");
-                      setIsAssigneeFilterMenuOpen(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${assigneeFilter === "all" ? "bg-gray-50 font-medium" : ""}`}
+                {isAssigneeFilterMenuOpen && (
+                  <div
+                    ref={assigneeFilterMenuRef}
+                    className="absolute right-0 mt-1 w-64 rounded-lg border border-gray-200 bg-white shadow-lg z-40 py-1"
                   >
-                    <span className="flex items-center gap-2">
-                      <AllAssigneesAvatar members={assigneeFilterOptions} />
-                      All assignees
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAssigneeFilter("unassigned");
-                      setIsAssigneeFilterMenuOpen(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${assigneeFilter === "unassigned" ? "bg-gray-50 font-medium" : ""}`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <span className="w-6 h-6 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400">
-                        <Users className="w-3.5 h-3.5" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAssigneeFilter("me");
+                        setIsAssigneeFilterMenuOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${assigneeFilter === "me" ? "bg-gray-50 font-medium" : ""}`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <Avatar
+                          name={
+                            currentUserMember?.user?.display_name ??
+                            currentUserMember?.user?.email ??
+                            user?.email ??
+                            "Me"
+                          }
+                          avatarUrl={currentUserMember?.user?.avatar_url}
+                        />
+                        Assigned to me
                       </span>
-                      Unassigned
-                    </span>
-                  </button>
+                    </button>
 
-                  {assigneeFilterMemberOptions.length > 0 && (
-                    <div className="mt-1 pt-1 border-t border-gray-100">
-                      {assigneeFilterMemberOptions.map((member) => {
-                        const isSelected = assigneeFilter === member.user_id;
-                        const memberName =
-                          member.user?.display_name ||
-                          member.user?.email ||
-                          "Project member";
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAssigneeFilter("all");
+                        setIsAssigneeFilterMenuOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${assigneeFilter === "all" ? "bg-gray-50 font-medium" : ""}`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <AllAssigneesAvatar members={assigneeFilterOptions} />
+                        All assignees
+                      </span>
+                    </button>
 
-                        return (
-                          <button
-                            key={member.user_id}
-                            type="button"
-                            onClick={() => {
-                              setAssigneeFilter(member.user_id);
-                              setIsAssigneeFilterMenuOpen(false);
-                            }}
-                            className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${isSelected ? "bg-gray-50 font-medium" : ""}`}
-                          >
-                            <span className="flex items-center gap-2">
-                              <Avatar
-                                name={memberName}
-                                avatarUrl={member.user?.avatar_url}
-                              />
-                              <span className="truncate">{memberName}</span>
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAssigneeFilter("unassigned");
+                        setIsAssigneeFilterMenuOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${assigneeFilter === "unassigned" ? "bg-gray-50 font-medium" : ""}`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400">
+                          <Users className="w-3.5 h-3.5" />
+                        </span>
+                        Unassigned
+                      </span>
+                    </button>
 
-            <button
-              onClick={toggleAll}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors whitespace-nowrap"
-            >
-              {allExpanded ? (
-                <>
-                  <ChevronsDownUp className="w-5 h-5" /> Collapse all
-                </>
-              ) : (
-                <>
-                  <ChevronsUpDown className="w-5 h-5" /> Expand all
-                </>
-              )}
-            </button>
+                    {assigneeFilterMemberOptions.length > 0 && (
+                      <div className="mt-1 pt-1 border-t border-gray-100">
+                        {assigneeFilterMemberOptions.map((member) => {
+                          const isSelected = assigneeFilter === member.user_id;
+                          const memberName =
+                            member.user?.display_name ||
+                            member.user?.email ||
+                            "Project member";
+
+                          return (
+                            <button
+                              key={member.user_id}
+                              type="button"
+                              onClick={() => {
+                                setAssigneeFilter(member.user_id);
+                                setIsAssigneeFilterMenuOpen(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${isSelected ? "bg-gray-50 font-medium" : ""}`}
+                            >
+                              <span className="flex items-center gap-2">
+                                <Avatar
+                                  name={memberName}
+                                  avatarUrl={member.user?.avatar_url}
+                                />
+                                <span className="truncate">{memberName}</span>
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={toggleAll}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors whitespace-nowrap"
+              >
+                {allExpanded ? (
+                  <>
+                    <ChevronsDownUp className="w-5 h-5" /> Collapse all
+                  </>
+                ) : (
+                  <>
+                    <ChevronsUpDown className="w-5 h-5" /> Expand all
+                  </>
+                )}
+              </button>
             </div>
           )
         )}
@@ -1878,6 +1889,7 @@ function WorkItemsPage() {
         initialData={
           editingEpic
             ? {
+                id: editingEpic.id,
                 title: editingEpic.title,
                 description: editingEpic.description ?? "",
                 priority: editingEpic.priority,

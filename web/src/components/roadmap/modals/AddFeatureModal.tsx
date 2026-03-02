@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, type FormEvent } from "react";
 import { Plus, Edit2, ChevronDown, ChevronUp, Calendar, X } from "lucide-react";
 import type {
+  Comment,
   FeatureStatus,
   RoadmapFeature,
   RoadmapTask,
@@ -9,6 +10,8 @@ import { useUser } from "@/auth";
 import { RoadmapModalLayout } from "./RoadmapModalLayout";
 import { RichTextEditor } from "@/components/common/RichTextEditor";
 import { TaskListItem } from "../widgets/TaskListItem";
+import { CommentsSection } from "../shared/CommentsSection";
+import { commentsService } from "@/services/roadmap.service";
 import {
   calculateFeatureProgressFromTasks,
   getCompletedTaskCount,
@@ -63,6 +66,8 @@ export const AddFeatureModal = ({
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showReadMore, setShowReadMore] = useState(false);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
   const descriptionRef = useRef<HTMLDivElement>(null);
 
   // Populate form from initialData when modal opens
@@ -168,6 +173,56 @@ export const AddFeatureModal = ({
     return Array.from(deduped.values());
   }, [tasks]);
   const featureId = initialData?.id;
+  const loadComments = async () => {
+    if (!featureId) return;
+
+    try {
+      setLoadingComments(true);
+      const fetched = await commentsService.getFeatureComments(featureId);
+      setComments(fetched);
+    } catch (error) {
+      console.error("Failed to load feature comments:", error);
+      setComments([]);
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isOpen) {
+      setComments([]);
+      setLoadingComments(false);
+      return;
+    }
+
+    if (featureId) {
+      void loadComments();
+    }
+  }, [isOpen, featureId]);
+
+  const handleAddComment = async (content: string) => {
+    if (!featureId) return;
+    const created = await commentsService.addFeatureComment(featureId, content);
+    setComments((prev) => [...prev, created]);
+  };
+
+  const handleUpdateComment = async (commentId: string, content: string) => {
+    if (!featureId) return;
+    const updated = await commentsService.updateFeatureComment(
+      featureId,
+      commentId,
+      content,
+    );
+    setComments((prev) =>
+      prev.map((comment) => (comment.id === commentId ? updated : comment)),
+    );
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!featureId) return;
+    await commentsService.deleteFeatureComment(featureId, commentId);
+    setComments((prev) => prev.filter((comment) => comment.id !== commentId));
+  };
   const autoProgress = calculateFeatureProgressFromTasks(tasks);
   const completedTasks = getCompletedTaskCount(tasks);
 
@@ -532,19 +587,21 @@ export const AddFeatureModal = ({
     {
       id: "comments",
       label: "Comments",
-      content: user ? (
-        <textarea
-          placeholder="Write a comment..."
-          className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-          rows={3}
+      content: featureId ? (
+        <CommentsSection
+          comments={comments}
+          onAddComment={handleAddComment}
+          onUpdateComment={handleUpdateComment}
+          onDeleteComment={handleDeleteComment}
+          currentUserId={user?.id}
+          canComment={Boolean(user)}
+          isLoading={loadingComments}
+          emptyMessage="No comments yet for this feature."
         />
       ) : (
         <div className="text-center py-8">
-          <p className="text-sm text-gray-500 mb-2">
-            Sign in to leave comments
-          </p>
-          <p className="text-xs text-gray-400">
-            You need to be logged in to participate in discussions
+          <p className="text-sm text-gray-500">
+            Save feature first to add comments
           </p>
         </div>
       ),

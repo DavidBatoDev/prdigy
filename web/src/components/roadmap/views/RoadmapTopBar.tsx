@@ -1,4 +1,4 @@
-import { X, Download, Share2 } from "lucide-react";
+import { X, Download, Share2, LayoutGrid, CalendarDays } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -123,7 +123,7 @@ export function RoadmapTopBar({ onShare, onExport }: RoadmapTopBarProps) {
 
   return (
     <div className="bg-gray-100 border-b border-gray-200 flex items-center justify-between w-full shrink-0 z-10 overflow-hidden">
-      <div className="flex items-center overflow-x-auto flex-1 no-scrollbar h-full">
+      <div className="flex items-center flex-1 min-w-0 h-full overflow-hidden">
         <div
           className="flex items-center shrink-0"
           style={{ width: LEFT_PANEL_WIDTH }}
@@ -139,7 +139,10 @@ export function RoadmapTopBar({ onShare, onExport }: RoadmapTopBarProps) {
                 : "text-gray-600 hover:text-gray-900 border-transparent"
             }`}
           >
-            Roadmap View
+            <span className="inline-flex items-center gap-1.5">
+              <LayoutGrid className="w-4 h-4" />
+              Roadmap View
+            </span>
           </button>
           <button
             onClick={() => setViewMode("milestones")}
@@ -149,44 +152,53 @@ export function RoadmapTopBar({ onShare, onExport }: RoadmapTopBarProps) {
                 : "text-gray-600 hover:text-gray-900 border-transparent"
             }`}
           >
-            Timeline
+            <span className="inline-flex items-center gap-1.5">
+              <CalendarDays className="w-4 h-4" />
+              Timeline
+            </span>
           </button>
         </div>
 
-        {openEpicTabs.length > 0 && (
-          <div className="h-8 w-px bg-gray-300 shrink-0" />
-        )}
+        <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar h-full">
+          <div className="flex items-center h-full w-max min-w-full">
+            {openEpicTabs.length > 0 && (
+              <div className="h-8 w-px bg-gray-300 shrink-0" />
+            )}
 
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={openEpicTabs}
-            strategy={horizontalListSortingStrategy}
-          >
-            <div className="flex items-center gap-2">
-              {openEpicTabs.map((epicId) => {
-                const epic = epics.find((item) => item.id === epicId);
-                if (!epic) return null;
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={openEpicTabs}
+                strategy={horizontalListSortingStrategy}
+              >
+                <div className="flex items-center gap-2">
+                  {openEpicTabs.map((epicId) => {
+                    const epic = epics.find((item) => item.id === epicId);
+                    if (!epic) return null;
 
-                return (
-                  <SortableEpicTab
-                    key={epicId}
-                    epic={epic}
-                    isActive={viewMode === "epic" && selectedEpicId === epicId}
-                    onClick={() => {
-                      setSelectedEpicId(epicId);
-                      setViewMode("epic");
-                    }}
-                    onClose={() => closeCanvasEpicTab(epicId)}
-                  />
-                );
-              })}
-            </div>
-          </SortableContext>
-        </DndContext>
+                    return (
+                      <SortableEpicTab
+                        key={epicId}
+                        epic={epic}
+                        isActive={
+                          viewMode === "epic" && selectedEpicId === epicId
+                        }
+                        onClick={() => {
+                          setSelectedEpicId(epicId);
+                          setViewMode("epic");
+                        }}
+                        onClose={() => closeCanvasEpicTab(epicId)}
+                      />
+                    );
+                  })}
+                </div>
+              </SortableContext>
+            </DndContext>
+          </div>
+        </div>
       </div>
 
       <div className="flex items-center gap-2 px-6 py-2 border-l border-gray-200 bg-gray-100 shrink-0 shadow-sm relative z-20">
