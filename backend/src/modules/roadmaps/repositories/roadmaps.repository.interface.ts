@@ -2,6 +2,7 @@ import { CreateRoadmapDto, UpdateRoadmapDto } from '../dto/roadmaps.dto';
 
 export interface IRoadmapsRepository {
   findAll(userId: string): Promise<any[]>;
+  findByProjectId(projectId: string, userId?: string): Promise<any | null>;
   findById(id: string, userId?: string): Promise<any | null>;
   findFull(id: string, userId?: string): Promise<any | null>;
   findByUser(userId: string): Promise<any[]>;

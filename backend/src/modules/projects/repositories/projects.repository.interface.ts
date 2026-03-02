@@ -3,9 +3,8 @@ import { CreateProjectDto, UpdateProjectDto } from '../dto/project.dto';
 
 export interface ProjectsRepository {
   findByUser(userId: string): Promise<Project[]>;
-  findById(
-    id: string,
-  ): Promise<
+  findDashboardByUser(userId: string): Promise<Project[]>;
+  findById(id: string): Promise<
     | (Project & {
         client?: unknown;
         consultant?: unknown;

@@ -623,8 +623,8 @@ function ConsultantApplyPage() {
 
   if (existingApp && existingApp.status !== "draft") {
     return (
-      <div className="min-h-screen bg-[#f6f7f8]">
-        <div className="max-w-xl mx-auto px-6 py-24 text-center">
+      <div className="min-h-screen bg-[#f6f7f8] ">
+        <div className="max-w-xl mx-auto px-6  py-24 text-center">
           <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <UserCheck className="w-8 h-8 text-[#ff9933]" />
           </div>
@@ -650,7 +650,7 @@ function ConsultantApplyPage() {
   const desc = STEP_DESCRIPTIONS[currentStep - 1];
 
   return (
-    <div className="min-h-screen bg-[#f6f7f8] relative overflow-hidden">
+    <div className="min-h-screen bg-[#f6f7f8] relative overflow-hidden pt-20">
 
       {/* Background — same as project-posting */}
       <div className="absolute inset-0 pointer-events-none">

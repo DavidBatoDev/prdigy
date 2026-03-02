@@ -183,7 +183,7 @@ function DateRange({
   if (!s && !e) return null;
   return (
     <span className="flex items-center gap-1.5 text-xs text-gray-500 whitespace-nowrap">
-      <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+      <Calendar className="w-5 h-5 text-gray-400 shrink-0" />
       {s ?? ""}
       {s && e ? <span className="text-gray-300 mx-0.5">/</span> : null}
       {e ?? ""}
@@ -336,7 +336,7 @@ function TaskRow({
           title={isDone ? "Mark as incomplete" : "Mark as complete"}
         >
           {checkboxStyle.mark === "check" ? (
-            <Check className="w-3 h-3 text-white" />
+            <Check className="w-5 h-5 text-white" />
           ) : (
             <span className="text-[11px] leading-none font-bold">
               {checkboxStyle.mark}
@@ -501,12 +501,12 @@ function FeatureRow({
             onToggleExpand();
           }}
         >
-          <span className="w-3 h-px bg-gray-300" />
+          <span className="w-5 h-px bg-gray-300" />
           {hasTasks ? (
             isExpanded ? (
-              <ChevronDown className="w-4 h-4 text-gray-500" />
+              <ChevronDown className="w-6 h-6 text-gray-500" />
             ) : (
-              <ChevronRight className="w-4 h-4 text-gray-500" />
+              <ChevronRight className="w-6 h-6 text-gray-500" />
             )
           ) : (
             <div className="w-2 h-2 rounded-full border border-gray-300" />
@@ -681,12 +681,12 @@ function EpicCard({
           {features.length > 0 ? (
             isExpanded ? (
               <ChevronDown
-                className="w-5 h-5 text-[#ff9933]"
+                className="w-7 h-7 text-[#ff9933]"
                 strokeWidth={2.6}
               />
             ) : (
               <ChevronRight
-                className="w-5 h-5 text-[#ff9933]"
+                className="w-7 h-7 text-[#ff9933]"
                 strokeWidth={2.6}
               />
             )
@@ -764,7 +764,7 @@ function NoRoadmapEmptyState({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-28 text-center gap-4">
       <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center">
-        <Map className="w-7 h-7 text-gray-400" />
+        <Map className="w-9 h-9 text-gray-400" />
       </div>
       <div>
         <h2 className="text-base font-semibold text-gray-800 mb-1">
@@ -1156,8 +1156,8 @@ function WorkItemsPage() {
       <div className="px-6 pt-6 pb-4 bg-white border-b border-gray-100 shrink-0">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#ff9933]/10 flex items-center justify-center shrink-0">
-              <ListChecks className="w-4 h-4 text-[#ff9933]" />
+            <div className="w-11 h-11 rounded-xl bg-[#ff9933]/10 flex items-center justify-center shrink-0">
+              <ListChecks className="w-6 h-6 text-[#ff9933]" />
             </div>
             <div>
               <h1 className="text-lg font-bold text-gray-900 leading-tight">
@@ -1187,7 +1187,7 @@ function WorkItemsPage() {
         {!isLoading && epics.length > 0 && (
           <div className="mt-4 flex items-center gap-2.5 flex-wrap">
             <div className="relative flex-1 min-w-[180px] max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
               <input
                 type="text"
                 value={search}
@@ -1225,11 +1225,11 @@ function WorkItemsPage() {
             >
               {allExpanded ? (
                 <>
-                  <ChevronsDownUp className="w-3.5 h-3.5" /> Collapse all
+                  <ChevronsDownUp className="w-5 h-5" /> Collapse all
                 </>
               ) : (
                 <>
-                  <ChevronsUpDown className="w-3.5 h-3.5" /> Expand all
+                  <ChevronsUpDown className="w-5 h-5" /> Expand all
                 </>
               )}
             </button>

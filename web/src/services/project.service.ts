@@ -31,6 +31,18 @@ export interface Project {
   status: "draft" | "active" | "bidding" | "paused" | "completed" | "archived";
   client_id: string;
   consultant_id?: string;
+  client?: {
+    id: string;
+    display_name?: string;
+    avatar_url?: string;
+    email?: string;
+  };
+  consultant?: {
+    id: string;
+    display_name?: string;
+    avatar_url?: string;
+    email?: string;
+  };
   members?: ProjectMember[];
   created_at: string;
   updated_at: string;
@@ -178,6 +190,36 @@ class ProjectService {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error?.message || "Failed to fetch projects");
+    }
+
+    const result = await response.json();
+    return result.data;
+  }
+
+  async listDashboardProjects(): Promise<Project[]> {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) {
+      throw new Error("Authentication required");
+    }
+
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/api/projects/dashboard`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      },
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(
+        error.error?.message || "Failed to fetch dashboard projects",
+      );
     }
 
     const result = await response.json();

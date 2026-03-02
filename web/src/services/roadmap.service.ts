@@ -290,9 +290,14 @@ export const roadmapService = {
    */
   async getByProjectId(projectId: string): Promise<Roadmap | null> {
     try {
-      const roadmaps = await roadmapService.getAll();
-      return roadmaps.find((r) => r.project_id === projectId) ?? null;
+      const response = await apiClient.get<ApiResponse<Roadmap>>(
+        `/api/roadmaps/project/${projectId}`,
+      );
+      return response.data.data ?? null;
     } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        return null;
+      }
       throw handleServiceError(error, `Get roadmap for project ${projectId}`);
     }
   },

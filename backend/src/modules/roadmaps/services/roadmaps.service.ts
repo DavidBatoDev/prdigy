@@ -27,6 +27,12 @@ export class RoadmapsService {
     return this.repo.findByUser(userId);
   }
 
+  async findByProjectId(projectId: string, userId: string) {
+    const roadmap = await this.repo.findByProjectId(projectId, userId);
+    if (!roadmap) throw new NotFoundException('Roadmap not found');
+    return roadmap;
+  }
+
   async findById(id: string, userId: string) {
     const roadmap = await this.repo.findById(id, userId);
     if (!roadmap) throw new NotFoundException('Roadmap not found');

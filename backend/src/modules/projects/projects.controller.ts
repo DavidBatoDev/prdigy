@@ -30,6 +30,11 @@ export class ProjectsController {
     return this.projectsService.listUserProjects(user.id);
   }
 
+  @Get('dashboard')
+  listDashboardProjects(@CurrentUser() user: AuthenticatedUser) {
+    return this.projectsService.listDashboardProjects(user.id);
+  }
+
   @Post()
   @Personas('client')
   @UseGuards(PersonaGuard)

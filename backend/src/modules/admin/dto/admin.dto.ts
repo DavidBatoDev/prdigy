@@ -1,4 +1,10 @@
-import { IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
+import {
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class ApplicationsQueryDto {
@@ -10,7 +16,31 @@ export class RejectApplicationDto {
 }
 
 export class MatchCandidatesQueryDto {
-  @IsUUID() project_id: string;
+  @IsUUID()
+  @IsOptional()
+  project_id?: string;
+
+  @IsString()
+  @IsOptional()
+  q?: string;
+
+  @IsString()
+  @IsOptional()
+  niche?: string;
+
+  @IsString()
+  @IsOptional()
+  availability?: string;
+
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  minRate?: number;
+
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  maxRate?: number;
 }
 
 export class MatchAssignDto {

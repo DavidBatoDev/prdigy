@@ -24,9 +24,46 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
       .filter(Boolean) as Project[];
   }
 
-  async findById(
-    id: string,
-  ): Promise<
+  async findDashboardByUser(userId: string): Promise<Project[]> {
+    const [ownedResult, memberResult] = await Promise.all([
+      this.supabase
+        .from('projects')
+        .select(
+          '*, client:profiles!projects_client_id_fkey(id, display_name, avatar_url), consultant:profiles!projects_consultant_id_fkey(id, display_name, avatar_url)',
+        )
+        .or(`client_id.eq.${userId},consultant_id.eq.${userId}`),
+      this.supabase
+        .from('project_members')
+        .select(
+          'project:projects(*, client:profiles!projects_client_id_fkey(id, display_name, avatar_url), consultant:profiles!projects_consultant_id_fkey(id, display_name, avatar_url))',
+        )
+        .eq('user_id', userId),
+    ]);
+
+    if (ownedResult.error) {
+      throw new Error(ownedResult.error.message);
+    }
+
+    if (memberResult.error) {
+      throw new Error(memberResult.error.message);
+    }
+
+    const memberProjects = (memberResult.data || [])
+      .map((row: Record<string, unknown>) => row.project)
+      .filter(Boolean) as Project[];
+
+    const deduped = new Map<string, Project>();
+    for (const project of [...(ownedResult.data || []), ...memberProjects]) {
+      deduped.set(project.id, project);
+    }
+
+    return Array.from(deduped.values()).sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+  }
+
+  async findById(id: string): Promise<
     | (Project & {
         client?: unknown;
         consultant?: unknown;

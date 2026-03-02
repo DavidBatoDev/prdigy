@@ -8,6 +8,42 @@ import { CreateRoadmapDto, UpdateRoadmapDto } from '../dto/roadmaps.dto';
 export class RoadmapsRepositorySupabase implements IRoadmapsRepository {
   constructor(@Inject(SUPABASE_ADMIN) private readonly db: SupabaseClient) {}
 
+  private async canAccessProject(
+    projectId: string,
+    userId: string,
+  ): Promise<boolean> {
+    const { data: project, error: projectError } = await this.db
+      .from('projects')
+      .select('id')
+      .eq('id', projectId)
+      .or(`client_id.eq.${userId},consultant_id.eq.${userId}`)
+      .maybeSingle();
+
+    if (projectError) throw new Error(projectError.message);
+    if (project) return true;
+
+    const { data, error } = await this.db
+      .from('project_members')
+      .select('id')
+      .eq('project_id', projectId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    return !!data;
+  }
+
+  private async canAccessRoadmap(
+    roadmap: { owner_id?: string; project_id?: string | null },
+    userId: string,
+  ): Promise<boolean> {
+    if (roadmap.owner_id === userId) return true;
+
+    if (!roadmap.project_id) return false;
+
+    return this.canAccessProject(roadmap.project_id, userId);
+  }
+
   async findAll(userId: string): Promise<any[]> {
     const { data, error } = await this.db
       .from('roadmaps')
@@ -18,19 +54,50 @@ export class RoadmapsRepositorySupabase implements IRoadmapsRepository {
     return data ?? [];
   }
 
+  async findByProjectId(
+    projectId: string,
+    userId?: string,
+  ): Promise<any | null> {
+    const { data, error } = await this.db
+      .from('roadmaps')
+      .select('*, project:projects(id, title)')
+      .eq('project_id', projectId)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error && error.code !== 'PGRST116') throw new Error(error.message);
+    if (!data) return null;
+
+    if (userId) {
+      const hasAccess = await this.canAccessRoadmap(data, userId);
+      if (!hasAccess) return null;
+    }
+
+    return data;
+  }
+
   async findById(id: string, userId?: string): Promise<any | null> {
-    let query = this.db
+    const query = this.db
       .from('roadmaps')
       .select('*, project:projects(id, title)')
       .eq('id', id);
-    if (userId) query = query.eq('owner_id', userId);
+
     const { data, error } = await query.single();
     if (error && error.code !== 'PGRST116') throw new Error(error.message);
-    return data ?? null;
+
+    if (!data) return null;
+
+    if (userId) {
+      const hasAccess = await this.canAccessRoadmap(data, userId);
+      if (!hasAccess) return null;
+    }
+
+    return data;
   }
 
   async findFull(id: string, userId?: string): Promise<any | null> {
-    let query = this.db
+    const query = this.db
       .from('roadmaps')
       .select(
         `
@@ -41,10 +108,18 @@ export class RoadmapsRepositorySupabase implements IRoadmapsRepository {
       `,
       )
       .eq('id', id);
-    if (userId) query = query.eq('owner_id', userId);
+
     const { data, error } = await query.single();
     if (error && error.code !== 'PGRST116') throw new Error(error.message);
-    return data ?? null;
+
+    if (!data) return null;
+
+    if (userId) {
+      const hasAccess = await this.canAccessRoadmap(data, userId);
+      if (!hasAccess) return null;
+    }
+
+    return data;
   }
 
   async findByUser(userId: string): Promise<any[]> {

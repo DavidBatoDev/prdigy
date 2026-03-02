@@ -40,7 +40,7 @@ export class AdminService {
     return this.adminRepo.revokeAdmin(userId);
   }
   getMatchCandidates(query: MatchCandidatesQueryDto) {
-    return this.adminRepo.getMatchCandidates(query.project_id);
+    return this.adminRepo.getMatchCandidates(query);
   }
   matchAssign(dto: MatchAssignDto) {
     return this.adminRepo.assignConsultant(dto.project_id, dto.consultant_id);

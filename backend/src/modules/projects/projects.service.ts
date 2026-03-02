@@ -20,6 +20,10 @@ export class ProjectsService {
     return this.projectsRepo.findByUser(userId);
   }
 
+  async listDashboardProjects(userId: string): Promise<Project[]> {
+    return this.projectsRepo.findDashboardByUser(userId);
+  }
+
   async getProject(id: string) {
     const project = await this.projectsRepo.findById(id);
     if (!project) throw new NotFoundException('Project not found');

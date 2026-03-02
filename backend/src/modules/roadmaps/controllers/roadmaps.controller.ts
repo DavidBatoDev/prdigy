@@ -45,6 +45,14 @@ export class RoadmapsController {
     return this.roadmapsService.migrateGuestRoadmaps(sessionId, user.id);
   }
 
+  @Get('project/:projectId')
+  getByProjectId(
+    @Param('projectId') projectId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.roadmapsService.findByProjectId(projectId, user.id);
+  }
+
   @Get(':id')
   getOne(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.roadmapsService.findById(id, user.id);

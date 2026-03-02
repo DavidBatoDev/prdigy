@@ -22,10 +22,13 @@ export class SupabaseAdminRepository implements AdminRepository {
   async listApplications(filters: { status?: string }) {
     let q = this.supabase
       .from('consultant_applications')
-      .select('*, user:profiles(id, display_name, avatar_url, email, headline)')
+      .select(
+        '*, applicant:profiles!consultant_applications_user_id_fkey(id, display_name, first_name, last_name, avatar_url, email, headline, is_consultant_verified)',
+      )
       .order('created_at', { ascending: false });
     if (filters.status) q = q.eq('status', filters.status);
-    const { data } = await q;
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
     return data || [];
   }
 
@@ -50,6 +53,7 @@ export class SupabaseAdminRepository implements AdminRepository {
       portfolios,
       specializations,
       identityDocs,
+      rateSettings,
     ] = await Promise.all([
       this.supabase.from('profiles').select('*').eq('id', userId).single(),
       this.supabase
@@ -76,20 +80,42 @@ export class SupabaseAdminRepository implements AdminRepository {
         .from('user_identity_documents')
         .select('*')
         .eq('user_id', userId),
+      this.supabase
+        .from('user_rate_settings')
+        .select('*')
+        .eq('user_id', userId)
+        .single(),
     ]);
 
+    const profileData =
+      (profile.data as Record<string, unknown> | null) ?? null;
+
     return {
-      application: app,
-      profile: profile.data,
-      skills: skills.data || [],
-      languages: languages.data || [],
-      educations: educations.data || [],
-      certifications: certifications.data || [],
-      licenses: licenses.data || [],
-      experiences: experiences.data || [],
-      portfolios: portfolios.data || [],
-      specializations: specializations.data || [],
-      identity_documents: identityDocs.data || [],
+      ...(app as Record<string, unknown>),
+      applicant: profileData
+        ? {
+            id: profileData.id,
+            display_name: profileData.display_name,
+            first_name: profileData.first_name,
+            last_name: profileData.last_name,
+            email: profileData.email,
+            avatar_url: profileData.avatar_url,
+            headline: profileData.headline,
+            is_consultant_verified: Boolean(profileData.is_consultant_verified),
+          }
+        : undefined,
+      vetting: {
+        skills: skills.data || [],
+        languages: languages.data || [],
+        educations: educations.data || [],
+        certifications: certifications.data || [],
+        licenses: licenses.data || [],
+        experiences: experiences.data || [],
+        portfolios: portfolios.data || [],
+        specializations: specializations.data || [],
+        identity_documents: identityDocs.data || [],
+        rate_settings: rateSettings.data || null,
+      },
     };
   }
 
@@ -162,13 +188,26 @@ export class SupabaseAdminRepository implements AdminRepository {
       .eq('user_id', userId);
   }
 
-  async getMatchCandidates(projectId: string): Promise<unknown[]> {
-    // Get project skills for scoring
-    const { data: project } = await this.supabase
-      .from('projects')
-      .select('skills')
-      .eq('id', projectId)
-      .single();
+  async getMatchCandidates(filters: {
+    project_id?: string;
+    q?: string;
+    niche?: string;
+    availability?: string;
+    minRate?: number;
+    maxRate?: number;
+  }): Promise<unknown[]> {
+    // Get project skills for scoring when a project is selected
+    const { project_id, q, niche, availability, minRate, maxRate } = filters;
+
+    let project: Record<string, unknown> | null = null;
+    if (project_id) {
+      const { data } = await this.supabase
+        .from('projects')
+        .select('skills')
+        .eq('id', project_id)
+        .single();
+      project = (data as Record<string, unknown> | null) ?? null;
+    }
 
     const projectSkills: string[] = Array.isArray(
       (project as Record<string, unknown>)?.skills,
@@ -180,7 +219,7 @@ export class SupabaseAdminRepository implements AdminRepository {
       .from('profiles')
       .select(
         `
-        id, display_name, avatar_url, headline, country,
+        id, display_name, first_name, last_name, email, avatar_url, headline, country,
         is_consultant_verified,
         rate_settings:user_rate_settings(*),
         stats:user_stats(*),
@@ -193,8 +232,10 @@ export class SupabaseAdminRepository implements AdminRepository {
     if (!candidates) return [];
 
     // Score candidates by skill overlap
-    return (candidates as Record<string, unknown>[])
-      .map((c) => {
+    const normalizedQ = q?.trim().toLowerCase();
+
+    const scoredCandidates = (candidates as Record<string, unknown>[]).map(
+      (c) => {
         const candidateSkillNames: string[] = Array.isArray(c.skills)
           ? (c.skills as Record<string, unknown>[]).map((s) => {
               const skill = s.skill as Record<string, string> | undefined;
@@ -206,9 +247,67 @@ export class SupabaseAdminRepository implements AdminRepository {
           candidateSkillNames.includes(String(ps).toLowerCase()),
         ).length;
 
-        return { ...c, _matchScore: overlap };
+        return { ...c, match_score: overlap } as Record<string, unknown>;
+      },
+    );
+
+    return scoredCandidates
+      .filter((candidate) => {
+        if (normalizedQ) {
+          const displayName = String(
+            candidate.display_name ?? '',
+          ).toLowerCase();
+          const firstName = String(candidate.first_name ?? '').toLowerCase();
+          const lastName = String(candidate.last_name ?? '').toLowerCase();
+          const email = String(candidate.email ?? '').toLowerCase();
+          const headline = String(candidate.headline ?? '').toLowerCase();
+
+          const matchesQ =
+            displayName.includes(normalizedQ) ||
+            `${firstName} ${lastName}`.trim().includes(normalizedQ) ||
+            email.includes(normalizedQ) ||
+            headline.includes(normalizedQ);
+
+          if (!matchesQ) return false;
+        }
+
+        if (niche) {
+          const hasNiche = Array.isArray(candidate.specializations)
+            ? (candidate.specializations as Record<string, unknown>[]).some(
+                (s) => String(s.category ?? '') === niche,
+              )
+            : false;
+
+          if (!hasNiche) return false;
+        }
+
+        const rateSettings =
+          (candidate.rate_settings as Record<string, unknown> | null) ?? null;
+
+        if (availability) {
+          const candidateAvailability = String(
+            rateSettings?.availability ?? '',
+          );
+          if (candidateAvailability !== availability) return false;
+        }
+
+        const hourlyRate = Number(rateSettings?.hourly_rate ?? NaN);
+        if (
+          minRate != null &&
+          Number.isFinite(hourlyRate) &&
+          hourlyRate < minRate
+        )
+          return false;
+        if (
+          maxRate != null &&
+          Number.isFinite(hourlyRate) &&
+          hourlyRate > maxRate
+        )
+          return false;
+
+        return true;
       })
-      .sort((a, b) => (b._matchScore as number) - (a._matchScore as number));
+      .sort((a, b) => Number(b.match_score ?? 0) - Number(a.match_score ?? 0));
   }
 
   async assignConsultant(projectId: string, consultantId: string) {

@@ -10,7 +10,14 @@ export interface AdminRepository {
     data: { access_level?: string; department?: string },
   ): Promise<unknown>;
   revokeAdmin(userId: string): Promise<void>;
-  getMatchCandidates(projectId: string): Promise<unknown[]>;
+  getMatchCandidates(filters: {
+    project_id?: string;
+    q?: string;
+    niche?: string;
+    availability?: string;
+    minRate?: number;
+    maxRate?: number;
+  }): Promise<unknown[]>;
   assignConsultant(projectId: string, consultantId: string): Promise<unknown>;
   listProjects(): Promise<unknown[]>;
   listUsers(): Promise<unknown[]>;

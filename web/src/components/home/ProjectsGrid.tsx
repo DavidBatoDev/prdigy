@@ -4,10 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import { projectService } from "@/services/project.service";
 
 export function ProjectsGrid() {
-
   const { data: projects = [], isLoading } = useQuery({
-    queryKey: ["projects"],
-    queryFn: () => projectService.list(),
+    queryKey: ["dashboardProjects"],
+    queryFn: () => projectService.listDashboardProjects(),
   });
 
   return (
@@ -18,7 +17,7 @@ export function ProjectsGrid() {
             <div className="w-[8px] h-[8px] rounded-full bg-white" />
           </div>
           <h2 className="text-[20px] font-semibold text-[#333438]">
-            MY PROJECTS AS A CLIENT
+            MY PROJECTS
           </h2>
         </div>
         <button className="text-[20px] font-semibold text-[#333438] hover:text-[#ff9933]">
@@ -36,15 +35,20 @@ export function ProjectsGrid() {
             <div className="w-16 h-16 bg-[#ff9933]/10 rounded-full flex items-center justify-center mb-4">
               <Calendar className="w-8 h-8 text-[#ff9933]" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No projects yet</h3>
-            <p className="text-gray-500">Create your first project to get started tracking milestones and tasks.</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              No projects yet
+            </h3>
+            <p className="text-gray-500">
+              Create your first project to get started tracking milestones and
+              tasks.
+            </p>
           </div>
         ) : (
           projects.slice(0, 2).map((project, index) => {
             // Map status to color
             let statusColor = "#9c27b0"; // Default purple
             let displayStatus = "In Progress";
-            
+
             if (project.status === "completed") {
               statusColor = "#03a9f4";
               displayStatus = "Completed";
@@ -68,7 +72,9 @@ export function ProjectsGrid() {
                 progress={project.status === "completed" ? 100 : 0} // Default mock data
                 progressColor={statusColor}
                 nextUp={project.brief ? "Review Brief" : "Create Brief"} // Default mock data
-                dueDate={project.custom_start_date || project.start_date || null}
+                dueDate={
+                  project.custom_start_date || project.start_date || null
+                }
               />
             );
           })
