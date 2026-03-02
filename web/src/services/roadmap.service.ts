@@ -195,7 +195,7 @@ export interface UpdateTaskDto {
   priority?: TaskPriority;
   position?: number;
   assignee_id?: string | null;
-  due_date?: string;
+  due_date?: string | null;
   completed_at?: string;
 }
 

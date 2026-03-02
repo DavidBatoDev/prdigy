@@ -8,7 +8,6 @@ import {
   ChevronUp,
   Check,
   Search,
-  Loader2,
   ChevronsDownUp,
   ChevronsUpDown,
   Calendar,
@@ -288,6 +287,142 @@ const COL = {
   date: "w-44 shrink-0",
   progress: "w-36 shrink-0",
 } as const;
+
+function WorkItemsLoadingSkeleton() {
+  const epicRows = [0, 1, 2];
+  const featureRows = [0, 1];
+  const taskRows = [0, 1, 2];
+
+  return (
+    <div className="animate-pulse flex flex-col gap-3 py-2">
+      <div className="flex items-center bg-white rounded-xl border border-gray-100 shadow-sm px-0 overflow-hidden">
+        <div className={COL.chevron} />
+        <div className={`${COL.name} py-2 pr-4`}>
+          <div className="h-3 w-24 bg-gray-200 rounded" />
+        </div>
+        <div className={`${COL.assignee} flex justify-center`}>
+          <div className="h-3 w-14 bg-gray-200 rounded" />
+        </div>
+        <div className={`${COL.status} flex items-center`}>
+          <div className="h-3 w-16 bg-gray-200 rounded" />
+        </div>
+        <div className={`${COL.date} hidden lg:flex items-center`}>
+          <div className="h-3 w-24 bg-gray-200 rounded" />
+        </div>
+        <div className={`${COL.progress} hidden xl:flex items-center pr-4`}>
+          <div className="h-3 w-20 bg-gray-200 rounded" />
+        </div>
+      </div>
+
+      {epicRows.map((epicIndex) => (
+        <div
+          key={`epic-${epicIndex}`}
+          className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden"
+        >
+          <div className="flex items-center px-0 py-3 border-b border-gray-100 bg-gray-50/60">
+            <div className={`${COL.chevron} flex items-center justify-center`}>
+              <div className="w-4 h-4 rounded bg-gray-200" />
+            </div>
+            <div className={`${COL.name} pr-4 flex items-center gap-2`}>
+              <div className="h-4 w-8 bg-gray-200 rounded-full" />
+              <div
+                className="h-4 bg-gray-200 rounded"
+                style={{ width: epicIndex === 0 ? "58%" : "48%" }}
+              />
+            </div>
+            <div className={`${COL.assignee} flex justify-center`}>
+              <div className="w-6 h-6 rounded-full bg-gray-200" />
+            </div>
+            <div className={`${COL.status} flex items-center`}>
+              <div className="h-5 w-20 bg-gray-100 rounded-full" />
+            </div>
+            <div className={`${COL.date} hidden lg:flex items-center`}>
+              <div className="h-3 w-28 bg-gray-100 rounded" />
+            </div>
+            <div className={`${COL.progress} hidden xl:flex items-center pr-4`}>
+              <div className="w-full h-1.5 bg-gray-100 rounded-full" />
+            </div>
+          </div>
+
+          {featureRows.map((featureIndex) => (
+            <div
+              key={`feature-${epicIndex}-${featureIndex}`}
+              className="border-b border-gray-100 last:border-b-0"
+            >
+              <div className="flex items-center px-0 py-2">
+                <div className={`${COL.indent} flex justify-center`}>
+                  <span className="w-px h-6 bg-gray-200" />
+                </div>
+                <div className={`${COL.chevron} flex items-center justify-center`}>
+                  <div className="w-3 h-3 rounded bg-gray-200" />
+                </div>
+                <div className={`${COL.name} pr-4`}>
+                  <div
+                    className="h-3.5 bg-gray-200 rounded"
+                    style={{ width: featureIndex % 2 === 0 ? "44%" : "38%" }}
+                  />
+                </div>
+                <div className={`${COL.assignee} flex justify-center`}>
+                  <div className="w-6 h-6 rounded-full bg-gray-100" />
+                </div>
+                <div className={`${COL.status} flex items-center`}>
+                  <div className="h-5 w-18 bg-gray-100 rounded-full" />
+                </div>
+                <div className={`${COL.date} hidden lg:flex items-center`}>
+                  <div className="h-3 w-20 bg-gray-100 rounded" />
+                </div>
+                <div
+                  className={`${COL.progress} hidden xl:flex items-center pr-4`}
+                >
+                  <div className="w-full h-1.5 bg-gray-100 rounded-full" />
+                </div>
+              </div>
+
+              <div className="px-0 pb-1">
+                {taskRows.slice(0, epicIndex === 0 ? 3 : 2).map((taskIndex) => (
+                  <div
+                    key={`task-${epicIndex}-${featureIndex}-${taskIndex}`}
+                    className="flex items-center py-2 border-t border-gray-50"
+                  >
+                    <div className={`${COL.indent} flex justify-center`}>
+                      <span className="w-px h-4 bg-gray-200" />
+                    </div>
+                    <div className={`${COL.indent} flex justify-center`}>
+                      <span className="w-px h-4 bg-gray-200" />
+                    </div>
+                    <div className={`${COL.chevron} flex items-center justify-center`}>
+                      <span className="w-3 h-px bg-gray-200" />
+                    </div>
+                    <div className={`${COL.name} pr-4`}>
+                      <div
+                        className="h-3 bg-gray-100 rounded"
+                        style={{ width: taskIndex === 1 ? "34%" : "40%" }}
+                      />
+                    </div>
+                    <div className={`${COL.assignee} flex justify-center`}>
+                      <div className="w-5 h-5 rounded-full bg-gray-100" />
+                    </div>
+                    <div className={`${COL.status} flex items-center`}>
+                      <div className="h-4 w-16 bg-gray-100 rounded-full" />
+                    </div>
+                    <div className={`${COL.date} hidden lg:flex items-center`}>
+                      <div className="h-3 w-18 bg-gray-100 rounded" />
+                    </div>
+                    <div
+                      className={`${COL.progress} hidden xl:flex items-center pr-4`}
+                    >
+                      <div className="w-full h-1.5 bg-gray-100 rounded-full" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function TaskRow({
   task,
@@ -1102,7 +1237,7 @@ function WorkItemsPage() {
   );
 
   const handleTaskUpdate = useCallback(
-    async (task: RoadmapTask) => {
+    async (task: RoadmapTask, options?: { closePanelOnSuccess?: boolean }) => {
       setIsSaving(true);
       try {
         const updated = await taskService.update(task.id, {
@@ -1110,12 +1245,16 @@ function WorkItemsPage() {
           status: task.status,
           priority: task.priority,
           assignee_id: task.assignee_id ?? null,
-          due_date: task.due_date,
+          due_date: task.due_date ?? null,
           completed_at: task.completed_at,
         });
         patchTask({ ...task, ...updated });
         setSelectedTask((prev) =>
-          prev?.id === task.id ? { ...prev, ...updated } : prev,
+          prev?.id === task.id
+            ? options?.closePanelOnSuccess
+              ? null
+              : { ...prev, ...updated }
+            : prev,
         );
       } catch {
         // silent
@@ -1385,33 +1524,49 @@ function WorkItemsPage() {
             </div>
           </div>
 
-          {!isLoading && epics.length > 0 && (
-            <div className="hidden sm:flex items-center gap-2 shrink-0">
-              <Pill
-                label={`${epics.length} epic${epics.length !== 1 ? "s" : ""}`}
-                color="orange"
-              />
-              <Pill
-                label={`${totalFeatures} feature${totalFeatures !== 1 ? "s" : ""}`}
-                color="blue"
-              />
-              <Pill label={`${doneTasks}/${totalTasks} done`} color="green" />
+          {isLoading ? (
+            <div className="hidden sm:flex items-center gap-2 shrink-0 animate-pulse">
+              <div className="h-8 w-20 rounded-full bg-gray-100 border border-gray-200" />
+              <div className="h-8 w-24 rounded-full bg-gray-100 border border-gray-200" />
+              <div className="h-8 w-24 rounded-full bg-gray-100 border border-gray-200" />
             </div>
+          ) : (
+            epics.length > 0 && (
+              <div className="hidden sm:flex items-center gap-2 shrink-0">
+                <Pill
+                  label={`${epics.length} epic${epics.length !== 1 ? "s" : ""}`}
+                  color="orange"
+                />
+                <Pill
+                  label={`${totalFeatures} feature${totalFeatures !== 1 ? "s" : ""}`}
+                  color="blue"
+                />
+                <Pill label={`${doneTasks}/${totalTasks} done`} color="green" />
+              </div>
+            )
           )}
         </div>
 
-        {!isLoading && epics.length > 0 && (
-          <div className="mt-4 flex items-center gap-2.5 flex-wrap">
-            <div className="relative flex-1 min-w-[180px] max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search work itemsâ€¦"
-                className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff9933]/25 focus:border-[#ff9933]/50 placeholder:text-gray-400"
-              />
-            </div>
+        {isLoading ? (
+          <div className="mt-4 flex items-center gap-2.5 flex-wrap animate-pulse">
+            <div className="flex-1 min-w-[180px] max-w-xs h-10 bg-gray-100 border border-gray-200 rounded-lg" />
+            <div className="h-10 w-[150px] bg-gray-100 border border-gray-200 rounded-lg" />
+            <div className="h-10 w-[210px] bg-gray-100 border border-gray-200 rounded-lg" />
+            <div className="h-10 w-[140px] bg-gray-100 border border-gray-200 rounded-lg" />
+          </div>
+        ) : (
+          epics.length > 0 && (
+            <div className="mt-4 flex items-center gap-2.5 flex-wrap">
+              <div className="relative flex-1 min-w-[180px] max-w-xs">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search work items..."
+                  className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff9933]/25 focus:border-[#ff9933]/50 placeholder:text-gray-400"
+                />
+              </div>
 
             <select
               value={statusFilter}
@@ -1590,17 +1745,15 @@ function WorkItemsPage() {
                 </>
               )}
             </button>
-          </div>
+            </div>
+          )
         )}
       </div>
 
       {/* Body */}
       <div ref={scrollContainerRef} className="flex-1 overflow-auto px-6 py-5">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-28 gap-3">
-            <Loader2 className="w-7 h-7 animate-spin text-[#ff9933]" />
-            <p className="text-sm text-gray-400">Loading work itemsâ€¦</p>
-          </div>
+          <WorkItemsLoadingSkeleton />
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-28 gap-3 text-center">
             <AlertCircle className="w-8 h-8 text-red-400" />
@@ -1758,7 +1911,9 @@ function WorkItemsPage() {
         isOpen={!!selectedTask}
         projectId={projectId}
         onClose={() => setSelectedTask(null)}
-        onUpdateTask={handleTaskUpdate}
+        onUpdateTask={(task) =>
+          handleTaskUpdate(task, { closePanelOnSuccess: true })
+        }
         onDeleteTask={handleTaskDelete}
         projectMembers={projectMembers}
         isLoading={isSaving}
