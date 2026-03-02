@@ -22,7 +22,7 @@ export async function completeOnboarding(data: {
  * Switch active persona
  */
 export async function switchPersona(
-  persona: PersonaType
+  persona: PersonaType,
 ): Promise<{ data: Profile }> {
   const response = await apiClient.patch("/api/auth/persona", { persona });
   return response.data;
@@ -40,7 +40,7 @@ export async function getProfile(): Promise<{ data: Profile }> {
  * Update user profile
  */
 export async function updateProfile(
-  data: ProfileUpdateData
+  data: ProfileUpdateData,
 ): Promise<{ data: Profile }> {
   const response = await apiClient.patch("/api/auth/profile", data);
   return response.data;
