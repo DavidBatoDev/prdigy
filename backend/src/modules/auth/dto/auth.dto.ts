@@ -1,4 +1,13 @@
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsObject,
+  IsOptional,
+  IsString,
+  MaxLength,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class OnboardingDto {
   @IsEnum(['client', 'freelancer'])
@@ -9,10 +18,19 @@ export class OnboardingDto {
   display_name: string;
 }
 
+class CompleteOnboardingIntentDto {
+  @IsBoolean()
+  freelancer: boolean;
+
+  @IsBoolean()
+  client: boolean;
+}
+
 export class CompleteOnboardingDto {
-  @IsString()
-  @IsOptional()
-  intent?: string;
+  @IsObject()
+  @ValidateNested()
+  @Type(() => CompleteOnboardingIntentDto)
+  intent: CompleteOnboardingIntentDto;
 }
 
 export class SwitchPersonaDto {

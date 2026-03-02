@@ -1,8 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { X, Calendar, Tag, CheckSquare } from "lucide-react";
+import {
+  X,
+  Calendar,
+  Tag,
+  CheckSquare,
+  User,
+  Search,
+  ChevronDown,
+  Check,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { RoadmapTask } from "@/types/roadmap";
+import type { ProjectMember } from "@/services/project.service";
 import { Button } from "@/ui/button";
 
 interface SidePanelProps {
@@ -13,6 +23,7 @@ interface SidePanelProps {
   onUpdateTask: (task: RoadmapTask) => void;
   onDeleteTask: (taskId: string) => void;
   onCreateTask?: (taskData: Partial<RoadmapTask>) => void;
+  projectMembers?: ProjectMember[];
   isLoading?: boolean;
 }
 
@@ -26,6 +37,7 @@ export const SidePanel = ({
   onUpdateTask,
   onDeleteTask,
   onCreateTask,
+  projectMembers = [],
   isLoading = false,
 }: SidePanelProps) => {
   const [activeTab, setActiveTab] = useState<TabType>("details");
@@ -35,6 +47,8 @@ export const SidePanel = ({
     status: "todo",
     priority: "medium",
   });
+  const [isAssigneeMenuOpen, setIsAssigneeMenuOpen] = useState(false);
+  const [assigneeSearch, setAssigneeSearch] = useState("");
 
   const isCreateMode = isCreating || (!!isOpen && !task);
 
@@ -50,6 +64,69 @@ export const SidePanel = ({
       setEditedTask(task);
     }
   }, [isCreateMode, task]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setIsAssigneeMenuOpen(false);
+      setAssigneeSearch("");
+    }
+  }, [isOpen]);
+
+  const currentAssigneeId = isCreateMode
+    ? newTaskData.assignee_id
+    : editedTask?.assignee_id || editedTask?.assignee?.id;
+
+  const filteredMembers = useMemo(() => {
+    const q = assigneeSearch.trim().toLowerCase();
+    if (!q) return projectMembers;
+    return projectMembers.filter((member) => {
+      const name = member.user?.display_name || "";
+      const email = member.user?.email || "";
+      const role = member.role || "";
+      return (
+        name.toLowerCase().includes(q) ||
+        email.toLowerCase().includes(q) ||
+        role.toLowerCase().includes(q)
+      );
+    });
+  }, [assigneeSearch, projectMembers]);
+
+  const selectedMember = projectMembers.find(
+    (member) => member.user_id === currentAssigneeId,
+  );
+
+  const assignToMember = (member: ProjectMember | null) => {
+    const assigneeId = member?.user_id;
+    const assignee = member?.user
+      ? {
+          id: member.user.id,
+          display_name: member.user.display_name,
+          avatar_url: member.user.avatar_url,
+          email: member.user.email,
+          first_name: member.user.first_name,
+          last_name: member.user.last_name,
+        }
+      : undefined;
+
+    if (isCreateMode) {
+      setNewTaskData((prev) => ({
+        ...prev,
+        assignee_id: assigneeId,
+        assignee,
+      }));
+    } else {
+      setEditedTask((prev) =>
+        prev
+          ? {
+              ...prev,
+              assignee_id: assigneeId,
+              assignee,
+            }
+          : prev,
+      );
+    }
+    setIsAssigneeMenuOpen(false);
+  };
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -119,7 +196,7 @@ export const SidePanel = ({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2, ease: "easeInOut" }}
           onClick={handleCancel}
-          className="fixed inset-0 z-[120] bg-black/15 cursor-default"
+          className="fixed inset-0 z-120 bg-black/15 cursor-default"
         />
       )}
       {isOpen && (
@@ -129,7 +206,7 @@ export const SidePanel = ({
           animate={{ x: 0 }}
           exit={{ x: "100%" }}
           transition={{ duration: 0.3, ease: "easeInOut" }}
-          className="fixed top-0 right-0 bottom-0 w-[560px] bg-white border-l border-gray-200 shadow-2xl z-[130] flex flex-col"
+          className="fixed top-0 right-0 bottom-0 w-[560px] bg-white border-l border-gray-200 shadow-2xl z-130 flex flex-col"
         >
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
@@ -275,6 +352,84 @@ export const SidePanel = ({
                     <option value="high">High</option>
                     <option value="urgent">Urgent</option>
                   </select>
+                </div>
+
+                {/* Assignee */}
+                <div>
+                  <label className="flex text-sm font-medium text-gray-700 mb-2 items-center gap-2">
+                    <User className="w-4 h-4" />
+                    Assignee
+                  </label>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setIsAssigneeMenuOpen((prev) => !prev)}
+                      disabled={isLoading}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-left flex items-center justify-between gap-2 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:bg-gray-50"
+                    >
+                      <span className="text-sm text-gray-700 truncate">
+                        {selectedMember?.user?.display_name ||
+                          selectedMember?.user?.email ||
+                          "Unassigned"}
+                      </span>
+                      <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+                    </button>
+
+                    {isAssigneeMenuOpen && (
+                      <div className="absolute z-30 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg p-2">
+                        <div className="relative mb-2">
+                          <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            value={assigneeSearch}
+                            onChange={(e) => setAssigneeSearch(e.target.value)}
+                            placeholder="Search members..."
+                            className="w-full pl-8 pr-2 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => assignToMember(null)}
+                          className="w-full px-2 py-2 text-left text-sm rounded-md hover:bg-gray-50 flex items-center justify-between"
+                        >
+                          <span className="text-gray-700">Unassigned</span>
+                          {!currentAssigneeId && (
+                            <Check className="w-4 h-4 text-primary" />
+                          )}
+                        </button>
+
+                        <div className="max-h-44 overflow-y-auto mt-1">
+                          {filteredMembers.map((member) => {
+                            const isSelected =
+                              member.user_id === currentAssigneeId;
+                            return (
+                              <button
+                                key={member.id}
+                                type="button"
+                                onClick={() => assignToMember(member)}
+                                className="w-full px-2 py-2 text-left text-sm rounded-md hover:bg-gray-50 flex items-center justify-between gap-2"
+                              >
+                                <span className="truncate text-gray-700">
+                                  {member.user?.display_name ||
+                                    member.user?.email ||
+                                    member.user_id}
+                                </span>
+                                {isSelected && (
+                                  <Check className="w-4 h-4 text-primary shrink-0" />
+                                )}
+                              </button>
+                            );
+                          })}
+                          {filteredMembers.length === 0 && (
+                            <p className="px-2 py-2 text-xs text-gray-400">
+                              No members found
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Only show these fields in edit mode, not create mode */}

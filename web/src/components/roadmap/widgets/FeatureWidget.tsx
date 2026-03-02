@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { motion } from "framer-motion";
 import {
@@ -78,6 +78,17 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
   const taskCount = feature.tasks?.length || 0;
   const completedTasks = getCompletedTaskCount(feature.tasks);
   const autoProgress = calculateFeatureProgressFromTasks(feature.tasks);
+  const featureAssignees = useMemo(() => {
+    const deduped = new Map<string, NonNullable<RoadmapTask["assignee"]>>();
+
+    for (const task of feature.tasks ?? []) {
+      const assigneeId = task.assignee_id ?? task.assignee?.id;
+      if (!assigneeId || !task.assignee) continue;
+      if (!deduped.has(assigneeId)) deduped.set(assigneeId, task.assignee);
+    }
+
+    return Array.from(deduped.values());
+  }, [feature.tasks]);
 
   useEffect(() => {
     const el = descriptionRef.current;
@@ -85,10 +96,38 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
     setHasOverflow(el.scrollHeight > el.clientHeight + 1);
   }, [feature.description]);
 
+  const renderAssigneeAvatar = (
+    assignee: NonNullable<RoadmapTask["assignee"]>,
+  ) => {
+    if (assignee.avatar_url) {
+      return (
+        <img
+          src={assignee.avatar_url}
+          alt={assignee.display_name ?? assignee.email ?? "Assignee"}
+          className="w-6 h-6 rounded-full object-cover ring-1 ring-white"
+        />
+      );
+    }
+
+    const source = assignee.display_name ?? assignee.email ?? "?";
+    const initials = source
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+
+    return (
+      <div className="w-6 h-6 rounded-full bg-gray-200 text-gray-700 text-[9px] font-bold flex items-center justify-center ring-1 ring-white">
+        {initials}
+      </div>
+    );
+  };
+
   return (
     <>
       <motion.div
-        className="relative group bg-white border-2 border-amber-300 rounded-4xl shadow-md hover:shadow-lg transition-all w-[500px] max-h-[320px] flex flex-col cursor-pointer hover:border-amber-400"
+        className="relative group bg-white border-2 border-amber-300 rounded-4xl shadow-md hover:shadow-lg transition-all w-[500px] max-h-80 flex flex-col cursor-pointer hover:border-amber-400"
         onClick={() => onClick?.(feature)}
         initial={{ opacity: 0, y: 12, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -120,7 +159,7 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
               event.stopPropagation();
               onAddTask(feature.id);
             }}
-            className="absolute top-1/2 -translate-y-1/2 right-[-14px] w-7 h-7 rounded-full bg-emerald-500 text-white shadow-md flex items-center justify-center hover:bg-emerald-400 transition-colors opacity-0 group-hover:opacity-100"
+            className="absolute top-1/2 -translate-y-1/2 -right-3.5 w-7 h-7 rounded-full bg-emerald-500 text-white shadow-md flex items-center justify-center hover:bg-emerald-400 transition-colors opacity-0 group-hover:opacity-100"
             title="Add task"
           >
             <Plus className="w-4 h-4" />
@@ -132,13 +171,13 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
           <div className="flex items-start justify-between gap-2 mb-2">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1"></div>
-              <h4 className="font-semibold text-gray-900 text-sm leading-tight break-words">
+              <h4 className="font-semibold text-gray-900 text-sm leading-tight wrap-break-word">
                 {feature.title}
               </h4>
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-1 flex-shrink-0">
+            <div className="flex items-center gap-1 shrink-0">
               {onEdit && (
                 <button
                   onClick={(e) => {
@@ -177,7 +216,7 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
                 dangerouslySetInnerHTML={{ __html: feature.description }}
               />
               {hasOverflow && (
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-white to-white/0" />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-linear-to-t from-white to-white/0" />
               )}
             </div>
           )}
@@ -190,6 +229,27 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
               {getStatusIcon(feature.status)}
               {feature.status.replace(/_/g, " ")}
             </span>
+
+            {featureAssignees.length > 0 && (
+              <div className="ml-auto flex items-center">
+                {featureAssignees.slice(0, 4).map((assignee, index) => (
+                  <div
+                    key={assignee.id}
+                    className={index > 0 ? "-ml-1.5" : ""}
+                    title={
+                      assignee.display_name ?? assignee.email ?? "Assignee"
+                    }
+                  >
+                    {renderAssigneeAvatar(assignee)}
+                  </div>
+                ))}
+                {featureAssignees.length > 4 && (
+                  <span className="-ml-1.5 w-6 h-6 rounded-full bg-gray-100 border border-white flex items-center justify-center text-[9px] font-semibold text-gray-600">
+                    +{featureAssignees.length - 4}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Progress Bar (auto-calculated from task statuses) */}
@@ -262,7 +322,7 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
           <div className="absolute top-1/2 -translate-y-1/2 left-[500px] w-10 h-0.5 bg-emerald-400" />
 
           {/* Task List - positioned to the right */}
-          <div className="absolute top-1/2 -translate-y-1/2 left-[540px] max-h-[240px] overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-sm">
+          <div className="absolute top-1/2 -translate-y-1/2 left-[540px] max-h-60 overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-sm">
             <div className="grid grid-flow-col grid-rows-3 gap-1.5 auto-cols-max">
               {feature.tasks?.slice(0, 9).map((task) => (
                 <div key={task.id} className="w-[190px]">

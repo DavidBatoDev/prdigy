@@ -140,6 +140,7 @@ export interface RoadmapTask {
   id: string;
   feature_id: string;
   title: string;
+  assignee_id?: string;
   status: TaskStatus;
   priority: TaskPriority;
   position: number;

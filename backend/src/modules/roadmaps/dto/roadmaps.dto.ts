@@ -170,6 +170,7 @@ export class CreateTaskDto {
   @IsEnum(['todo', 'in_progress', 'in_review', 'done', 'blocked'])
   @IsOptional()
   status?: string;
+  @IsUUID() @IsOptional() assignee_id?: string;
   @IsDateString() @IsOptional() due_date?: string;
   @IsNumber() @IsOptional() @Min(0) position?: number;
 }
@@ -180,6 +181,7 @@ export class UpdateTaskDto {
   @IsEnum(['todo', 'in_progress', 'in_review', 'done', 'blocked'])
   @IsOptional()
   status?: string;
+  @IsUUID() @IsOptional() assignee_id?: string;
   @IsNumber() @IsOptional() @Min(0) position?: number;
   @IsDateString() @IsOptional() due_date?: string;
   @IsDateString() @IsOptional() completed_at?: string;

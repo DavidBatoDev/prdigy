@@ -37,7 +37,7 @@ export class RoadmapsRepositorySupabase implements IRoadmapsRepository {
         *,
         project:projects(id, title),
         milestones:roadmap_milestones(*),
-        epics:roadmap_epics(*, features:roadmap_features(*, tasks:roadmap_tasks(*)))
+        epics:roadmap_epics(*, features:roadmap_features(*, tasks:roadmap_tasks(*, assignee:profiles(id, display_name, avatar_url, email, first_name, last_name))))
       `,
       )
       .eq('id', id);

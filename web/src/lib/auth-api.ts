@@ -22,9 +22,9 @@ export async function completeOnboarding(data: {
  * Switch active persona
  */
 export async function switchPersona(
-  active_persona: PersonaType
+  persona: PersonaType
 ): Promise<{ data: Profile }> {
-  const response = await apiClient.patch("/api/auth/persona", { active_persona });
+  const response = await apiClient.patch("/api/auth/persona", { persona });
   return response.data;
 }
 

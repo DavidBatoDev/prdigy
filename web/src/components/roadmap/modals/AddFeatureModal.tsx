@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type FormEvent } from "react";
+import { useState, useEffect, useRef, useMemo, type FormEvent } from "react";
 import { Plus, Edit2, ChevronDown, ChevronUp, Calendar, X } from "lucide-react";
 import type {
   FeatureStatus,
@@ -158,9 +158,48 @@ export const AddFeatureModal = ({
 
   const tasks: RoadmapTask[] =
     (initialData?.tasks as RoadmapTask[] | undefined) ?? [];
+  const featureAssignees = useMemo(() => {
+    const deduped = new Map<string, NonNullable<RoadmapTask["assignee"]>>();
+
+    for (const task of tasks) {
+      const assigneeId = task.assignee_id ?? task.assignee?.id;
+      if (!assigneeId || !task.assignee) continue;
+      if (!deduped.has(assigneeId)) deduped.set(assigneeId, task.assignee);
+    }
+
+    return Array.from(deduped.values());
+  }, [tasks]);
   const featureId = initialData?.id;
   const autoProgress = calculateFeatureProgressFromTasks(tasks);
   const completedTasks = getCompletedTaskCount(tasks);
+
+  const renderAssigneeAvatar = (
+    assignee: NonNullable<RoadmapTask["assignee"]>,
+  ) => {
+    if (assignee.avatar_url) {
+      return (
+        <img
+          src={assignee.avatar_url}
+          alt={assignee.display_name ?? assignee.email ?? "Assignee"}
+          className="w-6 h-6 rounded-full object-cover ring-1 ring-white"
+        />
+      );
+    }
+
+    const source = assignee.display_name ?? assignee.email ?? "?";
+    const initials = source
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+
+    return (
+      <div className="w-6 h-6 rounded-full bg-gray-200 text-gray-700 text-[9px] font-bold flex items-center justify-center ring-1 ring-white">
+        {initials}
+      </div>
+    );
+  };
 
   const body = (
     <>
@@ -214,6 +253,31 @@ export const AddFeatureModal = ({
         <p className="mt-1 text-xs text-gray-500">
           Auto-calculated from tasks: {completedTasks}/{tasks.length} done
         </p>
+      </div>
+
+      {/* Assignees (derived from child tasks) */}
+      <div className="mb-6">
+        <h3 className="text-sm font-semibold text-gray-900 mb-2">Assignees</h3>
+        {featureAssignees.length > 0 ? (
+          <div className="flex items-center">
+            {featureAssignees.slice(0, 6).map((assignee, index) => (
+              <div
+                key={assignee.id}
+                className={index > 0 ? "-ml-1.5" : ""}
+                title={assignee.display_name ?? assignee.email ?? "Assignee"}
+              >
+                {renderAssigneeAvatar(assignee)}
+              </div>
+            ))}
+            {featureAssignees.length > 6 && (
+              <span className="-ml-1.5 w-6 h-6 rounded-full bg-gray-100 border border-white flex items-center justify-center text-[9px] font-semibold text-gray-600">
+                +{featureAssignees.length - 6}
+              </span>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-gray-500">No assignees yet</p>
+        )}
       </div>
 
       {/* Dates */}

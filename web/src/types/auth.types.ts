@@ -55,7 +55,7 @@ export interface OnboardingCompleteRequest {
 
 // Persona switch data
 export interface PersonaSwitchData {
-  active_persona: PersonaType;
+  persona: PersonaType;
 }
 
 // Profile update data

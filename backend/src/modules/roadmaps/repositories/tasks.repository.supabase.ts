@@ -15,7 +15,9 @@ export class TasksRepositorySupabase implements ITasksRepository {
   async findByFeature(featureId: string): Promise<any[]> {
     const { data, error } = await this.db
       .from('roadmap_tasks')
-      .select('*')
+      .select(
+        '*, assignee:profiles(id, display_name, avatar_url, email, first_name, last_name)',
+      )
       .eq('feature_id', featureId)
       .order('position', { ascending: true });
     if (error) throw new Error(error.message);
@@ -25,7 +27,9 @@ export class TasksRepositorySupabase implements ITasksRepository {
   async findById(id: string): Promise<any | null> {
     const { data, error } = await this.db
       .from('roadmap_tasks')
-      .select('*')
+      .select(
+        '*, assignee:profiles(id, display_name, avatar_url, email, first_name, last_name)',
+      )
       .eq('id', id)
       .single();
     if (error && error.code !== 'PGRST116') throw new Error(error.message);
@@ -39,13 +43,16 @@ export class TasksRepositorySupabase implements ITasksRepository {
       title: dto.title,
       priority: dto.priority,
       status: dto.status,
+      assignee_id: dto.assignee_id,
       due_date: dto.due_date,
       position: dto.position,
     };
     const { data, error } = await this.db
       .from('roadmap_tasks')
       .insert(dbPayload)
-      .select()
+      .select(
+        '*, assignee:profiles(id, display_name, avatar_url, email, first_name, last_name)',
+      )
       .single();
     if (error) throw new Error(error.message);
     return data;
@@ -57,6 +64,7 @@ export class TasksRepositorySupabase implements ITasksRepository {
       ...(dto.title !== undefined && { title: dto.title }),
       ...(dto.priority !== undefined && { priority: dto.priority }),
       ...(dto.status !== undefined && { status: dto.status }),
+      ...(dto.assignee_id !== undefined && { assignee_id: dto.assignee_id }),
       ...(dto.position !== undefined && { position: dto.position }),
       ...(dto.due_date !== undefined && { due_date: dto.due_date }),
       ...(dto.completed_at !== undefined && { completed_at: dto.completed_at }),
@@ -66,7 +74,9 @@ export class TasksRepositorySupabase implements ITasksRepository {
       .from('roadmap_tasks')
       .update(dbPayload)
       .eq('id', id)
-      .select()
+      .select(
+        '*, assignee:profiles(id, display_name, avatar_url, email, first_name, last_name)',
+      )
       .single();
     if (error) throw new Error(error.message);
     return data;

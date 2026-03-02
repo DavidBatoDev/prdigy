@@ -37,6 +37,37 @@ const getStatusColor = (status: RoadmapTask["status"]) => {
   }
 };
 
+const getCheckboxStyle = (status: TaskStatus) => {
+  switch (status) {
+    case "in_progress":
+      return {
+        box: "border-blue-500 bg-blue-50 text-blue-600",
+        mark: "-",
+      };
+    case "in_review":
+      return {
+        box: "border-purple-500 bg-purple-50 text-purple-600",
+        mark: "o",
+      };
+    case "done":
+      return {
+        box: "border-emerald-500 bg-emerald-500 text-white",
+        mark: "check",
+      };
+    case "blocked":
+      return {
+        box: "border-red-500 bg-red-50 text-red-600",
+        mark: "X",
+      };
+    case "todo":
+    default:
+      return {
+        box: "border-gray-300 bg-white text-transparent",
+        mark: "",
+      };
+  }
+};
+
 const getCategoryLabel = (task: RoadmapTask): string | null => {
   // Use labels or assignee to determine category
   if (task.labels && task.labels.length > 0) {
@@ -60,10 +91,19 @@ export const TaskListItem = memo(
     const [isStatusOpen, setIsStatusOpen] = useState(false);
     const statusDropdownRef = useRef<HTMLDivElement>(null);
     const dropdownMenuRef = useRef<HTMLDivElement>(null);
+    const [isCheckboxMenuOpen, setIsCheckboxMenuOpen] = useState(false);
+    const checkboxButtonRef = useRef<HTMLButtonElement>(null);
+    const checkboxMenuRef = useRef<HTMLDivElement>(null);
+    const [checkboxMenuPosition, setCheckboxMenuPosition] = useState({
+      top: 0,
+      left: 0,
+    });
     const [dropdownPosition, setDropdownPosition] = useState({
       top: 0,
       left: 0,
     });
+
+    const checkboxStyle = getCheckboxStyle(task.status);
 
     const updateDropdownPosition = () => {
       if (!statusDropdownRef.current) return;
@@ -80,23 +120,35 @@ export const TaskListItem = memo(
         const isInTrigger = statusDropdownRef.current?.contains(target);
         const isInMenu = dropdownMenuRef.current?.contains(target);
         if (!isInTrigger && !isInMenu) setIsStatusOpen(false);
+
+        const isInCheckbox = checkboxButtonRef.current?.contains(target);
+        const isInCheckboxMenu = checkboxMenuRef.current?.contains(target);
+        if (!isInCheckbox && !isInCheckboxMenu) setIsCheckboxMenuOpen(false);
       };
 
-      if (isStatusOpen) {
-        updateDropdownPosition();
+      if (isStatusOpen || isCheckboxMenuOpen) {
+        if (isStatusOpen) updateDropdownPosition();
         document.addEventListener("mousedown", handleClickOutside);
         return () => {
           document.removeEventListener("mousedown", handleClickOutside);
         };
       }
-    }, [isStatusOpen]);
+    }, [isStatusOpen, isCheckboxMenuOpen]);
 
     // Reposition dropdown on scroll
     useEffect(() => {
-      if (!isStatusOpen) return;
+      if (!isStatusOpen && !isCheckboxMenuOpen) return;
 
       const handleReposition = () => {
         updateDropdownPosition();
+
+        if (checkboxButtonRef.current && isCheckboxMenuOpen) {
+          const rect = checkboxButtonRef.current.getBoundingClientRect();
+          setCheckboxMenuPosition({
+            top: rect.bottom + 6,
+            left: rect.left,
+          });
+        }
       };
 
       window.addEventListener("scroll", handleReposition, true);
@@ -105,7 +157,7 @@ export const TaskListItem = memo(
         window.removeEventListener("scroll", handleReposition, true);
         window.removeEventListener("resize", handleReposition);
       };
-    }, [isStatusOpen]);
+    }, [isStatusOpen, isCheckboxMenuOpen]);
 
     return (
       <div
@@ -116,27 +168,66 @@ export const TaskListItem = memo(
       >
         {/* Checkbox */}
         <button
+          ref={checkboxButtonRef}
           onClick={(e) => {
             e.stopPropagation();
             onToggleComplete?.(task.id);
           }}
-          className={`flex-shrink-0 rounded border-2 flex items-center justify-center transition-all ${
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setCheckboxMenuPosition({
+              top: e.clientY,
+              left: e.clientX,
+            });
+            setIsCheckboxMenuOpen(true);
+          }}
+          className={`shrink-0 rounded border-2 flex items-center justify-center transition-all ${
             isCompact ? "w-4 h-4" : "w-5 h-5"
-          } ${
-            isCompleted
-              ? "bg-gray-300 border-gray-300 hover:bg-gray-400"
-              : "border-gray-300 hover:border-gray-400"
-          }`}
+          } ${checkboxStyle.box}`}
           title={isCompleted ? "Mark as incomplete" : "Mark as complete"}
         >
-          {isCompleted && (
+          {checkboxStyle.mark === "check" ? (
             <Check
               className={
                 isCompact ? "w-2.5 h-2.5 text-white" : "w-3 h-3 text-white"
               }
             />
+          ) : (
+            <span
+              className={`${isCompact ? "text-[10px]" : "text-[11px]"} leading-none font-bold`}
+            >
+              {checkboxStyle.mark}
+            </span>
           )}
         </button>
+
+        {isCheckboxMenuOpen &&
+          createPortal(
+            <div
+              ref={checkboxMenuRef}
+              className="fixed z-80 bg-white border border-gray-300 rounded-md shadow-lg py-1 min-w-[150px]"
+              style={{
+                top: checkboxMenuPosition.top,
+                left: checkboxMenuPosition.left,
+              }}
+            >
+              {STATUS_OPTIONS.map((status) => (
+                <button
+                  key={status}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUpdateStatus?.(task.id, status);
+                    setIsCheckboxMenuOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 text-xs capitalize hover:bg-gray-100 ${task.status === status ? "bg-gray-50 font-semibold" : ""}`}
+                >
+                  {status.replace(/_/g, " ")}
+                </button>
+              ))}
+            </div>,
+            document.body,
+          )}
 
         {/* Task Title */}
         <div className="flex-1 min-w-0">
@@ -154,7 +245,7 @@ export const TaskListItem = memo(
         {/* Category/Assignee Badge */}
         {categoryLabel && (
           <span
-            className={`flex-shrink-0 rounded font-semibold bg-gray-200 text-gray-700 ${
+            className={`shrink-0 rounded font-semibold bg-gray-200 text-gray-700 ${
               isCompact ? "px-2 py-0.5 text-[10px]" : "px-2.5 py-1 text-xs"
             }`}
           >
@@ -163,7 +254,7 @@ export const TaskListItem = memo(
         )}
 
         {/* Status Dropdown */}
-        <div className="relative flex-shrink-0" ref={statusDropdownRef}>
+        <div className="relative shrink-0" ref={statusDropdownRef}>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -213,7 +304,7 @@ export const TaskListItem = memo(
         </div>
 
         {/* Actions (shown on hover) */}
-        <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           {onDelete && (
             <button
               onClick={(e) => {

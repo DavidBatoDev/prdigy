@@ -41,15 +41,36 @@ export class SupabaseAuthRepository implements AuthRepository {
 
   async completeOnboarding(
     userId: string,
-    dto: { intent?: string },
+    dto: { intent: { freelancer: boolean; client: boolean } },
   ): Promise<Profile> {
+    const { data: existingProfile, error: existingError } = await this.supabase
+      .from('profiles')
+      .select('settings')
+      .eq('id', userId)
+      .single();
+
+    if (existingError) throw new Error(existingError.message);
+
+    const existingSettings =
+      existingProfile &&
+      typeof existingProfile.settings === 'object' &&
+      existingProfile.settings !== null
+        ? (existingProfile.settings as Record<string, unknown>)
+        : {};
+
     const updatePayload: Record<string, unknown> = {
       has_completed_onboarding: true,
+      settings: {
+        ...existingSettings,
+        onboarding: {
+          intent: {
+            freelancer: Boolean(dto.intent?.freelancer),
+            client: Boolean(dto.intent?.client),
+          },
+          completed_at: new Date().toISOString(),
+        },
+      },
     };
-
-    if (dto.intent) {
-      updatePayload.settings = { onboarding: { intent: dto.intent } };
-    }
 
     const { data, error } = await this.supabase
       .from('profiles')

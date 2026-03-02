@@ -8,7 +8,7 @@ export interface AuthRepository {
   ): Promise<Profile>;
   completeOnboarding(
     userId: string,
-    data: { intent?: string },
+    data: { intent: { freelancer: boolean; client: boolean } },
   ): Promise<Profile>;
   switchPersona(userId: string, persona: string): Promise<Profile>;
   updateProfile(

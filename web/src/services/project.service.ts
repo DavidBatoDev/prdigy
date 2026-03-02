@@ -31,8 +31,25 @@ export interface Project {
   status: "draft" | "active" | "bidding" | "paused" | "completed" | "archived";
   client_id: string;
   consultant_id?: string;
+  members?: ProjectMember[];
   created_at: string;
   updated_at: string;
+}
+
+export interface ProjectMember {
+  id: string;
+  project_id: string;
+  user_id: string;
+  role: string;
+  joined_at?: string;
+  user?: {
+    id: string;
+    display_name?: string;
+    avatar_url?: string;
+    email?: string;
+    first_name?: string;
+    last_name?: string;
+  };
 }
 
 class ProjectService {
@@ -57,7 +74,7 @@ class ProjectService {
           Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify(data),
-      }
+      },
     );
 
     if (!response.ok) {
@@ -88,7 +105,7 @@ class ProjectService {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -105,7 +122,7 @@ class ProjectService {
    */
   async update(
     projectId: string,
-    data: Partial<CreateProjectData>
+    data: Partial<CreateProjectData>,
   ): Promise<Project> {
     const {
       data: { session },
@@ -124,7 +141,7 @@ class ProjectService {
           Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify(data),
-      }
+      },
     );
 
     if (!response.ok) {
@@ -155,7 +172,7 @@ class ProjectService {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -165,6 +182,11 @@ class ProjectService {
 
     const result = await response.json();
     return result.data;
+  }
+
+  async getMembers(projectId: string): Promise<ProjectMember[]> {
+    const project = await this.get(projectId);
+    return project.members ?? [];
   }
 }
 

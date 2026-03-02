@@ -185,6 +185,7 @@ export interface CreateTaskDto {
   status?: TaskStatus;
   priority?: TaskPriority;
   position?: number;
+  assignee_id?: string | null;
   due_date?: string;
 }
 
@@ -193,6 +194,7 @@ export interface UpdateTaskDto {
   status?: TaskStatus;
   priority?: TaskPriority;
   position?: number;
+  assignee_id?: string | null;
   due_date?: string;
   completed_at?: string;
 }
