@@ -16,6 +16,7 @@ import { UploadsModule } from './modules/uploads/uploads.module';
 import { GuestsModule } from './modules/guests/guests.module';
 import { RoadmapsModule } from './modules/roadmaps/roadmaps.module';
 import { RoadmapSharesModule } from './modules/roadmap-shares/roadmap-shares.module';
+import { MarketplaceModule } from './modules/marketplace/marketplace.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { RoadmapSharesModule } from './modules/roadmap-shares/roadmap-shares.mod
     GuestsModule,
     RoadmapsModule,
     RoadmapSharesModule,
+    MarketplaceModule,
   ],
 })
 export class AppModule {}
