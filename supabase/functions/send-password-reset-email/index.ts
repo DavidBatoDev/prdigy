@@ -1,8 +1,6 @@
 // @ts-expect-error
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 // @ts-expect-error
-import { encode as base64UrlEncode } from "https://deno.land/std@0.168.0/encoding/base64url.ts";
-// @ts-expect-error
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -53,153 +51,79 @@ function safeJsonParse(text: string): Record<string, unknown> | null {
   }
 }
 
-// Gmail API token refresh helper (reused from signup email pattern)
-async function refreshAccessToken(
-  clientId: string,
-  clientSecret: string,
-  refreshToken: string,
-): Promise<string> {
-  const tokenUrl = "https://oauth2.googleapis.com/token";
-  const body = new URLSearchParams({
-    client_id: clientId,
-    client_secret: clientSecret,
-    refresh_token: refreshToken,
-    grant_type: "refresh_token",
-  });
-
-  let response: Response;
-  try {
-    response = await fetch(tokenUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: body.toString(),
-    });
-  } catch (error) {
-    throw new EmailFunctionError(
-      "EMAIL_AUTH_REQUEST_FAILED",
-      "Failed to reach Google OAuth token endpoint",
-      "refresh_access_token",
-      500,
-      { cause: error instanceof Error ? error.message : String(error) },
-    );
-  }
-
-  const responseText = await response.text();
-  const parsed = safeJsonParse(responseText);
-  const oauthError = typeof parsed?.error === "string" ? parsed.error : null;
-  const oauthErrorDescription =
-    typeof parsed?.error_description === "string"
-      ? parsed.error_description
-      : null;
-
-  if (!response.ok) {
-    if (oauthError === "invalid_grant") {
-      throw new EmailFunctionError(
-        "EMAIL_AUTH_INVALID",
-        "Google OAuth refresh token is invalid or revoked",
-        "refresh_access_token",
-        500,
-        {
-          status: response.status,
-          oauthError,
-          oauthErrorDescription,
-        },
-      );
-    }
-
-    throw new EmailFunctionError(
-      "EMAIL_AUTH_REQUEST_FAILED",
-      "Google OAuth token refresh request failed",
-      "refresh_access_token",
-      500,
-      {
-        status: response.status,
-        oauthError,
-        oauthErrorDescription,
-      },
-    );
-  }
-
-  const accessToken =
-    typeof parsed?.access_token === "string" ? parsed.access_token : null;
-  if (!accessToken) {
-    throw new EmailFunctionError(
-      "EMAIL_AUTH_REQUEST_FAILED",
-      "Google OAuth token response missing access_token",
-      "refresh_access_token",
-      500,
-    );
-  }
-
-  return accessToken;
-}
-
-// Send email via Gmail API
+// Send email via Resend API
 async function sendEmail(
-  accessToken: string,
+  resendApiKey: string,
+  fromEmail: string,
   to: string,
   subject: string,
   htmlBody: string,
 ) {
-  const fromEmail = "batobatodavid20@gmail.com"; // Your Gmail address
-  const fromName = "Prodigitality Services";
-
-  const email = [
-    `From: ${fromName} <${fromEmail}>`,
-    `To: ${to}`,
-    `Subject: ${subject}`,
-    "MIME-Version: 1.0",
-    'Content-Type: text/html; charset="UTF-8"',
-    "",
-    htmlBody,
-  ].join("\r\n");
-
-  const emailBytes = new TextEncoder().encode(email);
-  const encodedEmail = base64UrlEncode(emailBytes);
-
-  const response = await fetch(
-    "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
-    {
+  let response: Response;
+  try {
+    response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${resendApiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ raw: encodedEmail }),
-    },
-  );
+      body: JSON.stringify({
+        from: fromEmail,
+        to: [to],
+        subject,
+        html: htmlBody,
+      }),
+    });
+  } catch (error) {
+    throw new EmailFunctionError(
+      "EMAIL_AUTH_REQUEST_FAILED",
+      "Failed to reach Resend API",
+      "send_resend_email",
+      500,
+      {
+        cause: error instanceof Error ? error.message : String(error),
+      },
+    );
+  }
 
   if (!response.ok) {
     const errorText = await response.text();
     const parsed = safeJsonParse(errorText);
-    const gmailMessage =
-      typeof parsed?.error === "object" &&
-      parsed.error &&
-      typeof (parsed.error as Record<string, unknown>).message === "string"
-        ? ((parsed.error as Record<string, unknown>).message as string)
-        : null;
+    const providerMessage =
+      typeof parsed?.message === "string"
+        ? parsed.message
+        : typeof parsed?.error === "string"
+          ? parsed.error
+          : null;
 
-    if (response.status === 401 || response.status === 403) {
+    const normalizedProviderMessage = (providerMessage || "").toLowerCase();
+    const isCredentialError =
+      response.status === 401 ||
+      normalizedProviderMessage.includes("api key") ||
+      normalizedProviderMessage.includes("unauthorized") ||
+      normalizedProviderMessage.includes("invalid token");
+
+    if (isCredentialError) {
       throw new EmailFunctionError(
         "EMAIL_AUTH_INVALID",
-        "Gmail authorization failed while sending email",
-        "send_gmail_message",
+        "Resend authorization failed while sending email",
+        "send_resend_email",
         500,
         {
           status: response.status,
-          gmailMessage,
+          providerMessage,
         },
       );
     }
 
     throw new EmailFunctionError(
       "EMAIL_SEND_FAILED",
-      "Gmail API rejected email send request",
-      "send_gmail_message",
+      "Resend rejected email send request",
+      "send_resend_email",
       500,
       {
         status: response.status,
-        gmailMessage,
+        providerMessage,
       },
     );
   }
@@ -295,20 +219,19 @@ serve(async (req) => {
 
     // Env
     // @ts-ignore
-    const clientId = Deno.env.get("GOOGLE_CLIENT_ID");
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
     // @ts-ignore
-    const clientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET");
-    // @ts-ignore
-    const refreshToken = Deno.env.get("GOOGLE_REFRESH_TOKEN");
+    const resendFromEmail =
+      Deno.env.get("RESEND_FROM_EMAIL") || "Prodigy <onboarding@resend.dev>";
     // @ts-ignore
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     // @ts-ignore
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!clientId || !clientSecret || !refreshToken) {
+    if (!resendApiKey) {
       throw new EmailFunctionError(
         "SERVER_CONFIG_ERROR",
-        "Missing Google OAuth credentials",
+        "Missing Resend credentials",
         "load_env",
         500,
       );
@@ -352,14 +275,10 @@ serve(async (req) => {
     }
 
     // Send email
-    const accessToken = await refreshAccessToken(
-      clientId,
-      clientSecret,
-      refreshToken,
-    );
     const htmlBody = getResetEmailHtml(code);
     await sendEmail(
-      accessToken,
+      resendApiKey,
+      resendFromEmail,
       email,
       `Reset Your Password - Code: ${code}`,
       htmlBody,
