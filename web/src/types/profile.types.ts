@@ -32,6 +32,7 @@ export interface Profile {
   avatar_url: string | null;
   banner_url: string | null;
   is_consultant_verified: boolean;
+  is_public: boolean;
   active_persona: PersonaType;
   bio: string | null;
   headline: string | null; // short professional tagline

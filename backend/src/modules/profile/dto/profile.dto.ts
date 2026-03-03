@@ -1,14 +1,18 @@
 import {
+  IsArray,
   IsBoolean,
   IsDateString,
   IsEnum,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
   IsUrl,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import type {
   AvailabilityStatus,
   FluencyLevel,
@@ -28,12 +32,25 @@ export class UpdateProfileBasicDto {
   @IsDateString() @IsOptional() date_of_birth?: string;
 }
 
+class ReplaceSkillItemDto {
+  @IsString()
+  skill_id: string;
+
+  @IsEnum(['beginner', 'intermediate', 'advanced', 'expert'])
+  @IsOptional()
+  proficiency_level?: ProficiencyLevel;
+
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  years_experience?: number;
+}
+
 export class ReplaceSkillsDto {
-  skills: {
-    skill_id: string;
-    proficiency_level?: ProficiencyLevel;
-    years_experience?: number;
-  }[];
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ReplaceSkillItemDto)
+  skills: ReplaceSkillItemDto[];
 }
 
 export class AddLanguageDto {
@@ -114,6 +131,7 @@ export class AddPortfolioDto {
   @IsUrl() @IsOptional() url?: string;
   @IsUrl() @IsOptional() image_url?: string;
   @IsOptional() tags?: string[];
+  @IsNumber() @IsOptional() @Min(0) position?: number;
 }
 
 export class UpdatePortfolioDto {
@@ -122,6 +140,7 @@ export class UpdatePortfolioDto {
   @IsUrl() @IsOptional() url?: string;
   @IsUrl() @IsOptional() image_url?: string;
   @IsOptional() tags?: string[];
+  @IsNumber() @IsOptional() @Min(0) position?: number;
 }
 
 export class UpsertRateSettingsDto {
@@ -196,6 +215,25 @@ export class AddSpecializationDto {
 }
 
 export class UpdateSpecializationDto {
+  @IsEnum([
+    'fintech',
+    'healthcare',
+    'e_commerce',
+    'saas',
+    'education',
+    'real_estate',
+    'legal',
+    'marketing',
+    'logistics',
+    'media',
+    'gaming',
+    'ai_ml',
+    'cybersecurity',
+    'blockchain',
+    'other',
+  ])
+  @IsOptional()
+  category?: SpecializationCategory;
   @IsString() @IsOptional() sub_category?: string;
   @IsNumber() @IsOptional() years_of_experience?: number;
   @IsString() @IsOptional() description?: string;

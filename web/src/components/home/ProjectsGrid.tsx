@@ -27,18 +27,18 @@ export function ProjectsGrid() {
 
       <div className="grid grid-cols-3 gap-6">
         {isLoading ? (
-          <div className="col-span-2 flex items-center justify-center h-[385px]">
+          <div className="col-span-3 flex items-center justify-center py-32">
             <Loader2 className="w-8 h-8 animate-spin text-[#ff9933]" />
           </div>
         ) : projects.length === 0 ? (
-          <div className="col-span-2 flex flex-col items-center justify-center h-[385px] bg-white rounded-xl shadow-sm text-center px-6">
+          <div className="col-span-3 flex flex-col items-center justify-center py-24 text-center px-6">
             <div className="w-16 h-16 bg-[#ff9933]/10 rounded-full flex items-center justify-center mb-4">
               <Calendar className="w-8 h-8 text-[#ff9933]" />
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
               No projects yet
             </h3>
-            <p className="text-gray-500">
+            <p className="text-gray-500 max-w-sm">
               Create your first project to get started tracking milestones and
               tasks.
             </p>

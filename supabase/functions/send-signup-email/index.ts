@@ -238,8 +238,7 @@ serve(async (req) => {
     // @ts-ignore
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     // @ts-ignore
-    const resendFromEmail =
-      Deno.env.get("RESEND_FROM_EMAIL") || "Prodigy <onboarding@resend.dev>";
+    const resendFromEmail = Deno.env.get("RESEND_FROM_EMAIL") || "Prodigy <onboarding@resend.dev>";
 
     if (!resendApiKey) {
       throw new EmailFunctionError(

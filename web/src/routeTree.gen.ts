@@ -18,6 +18,9 @@ import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as RoadmapSharedWithMeRouteImport } from './routes/roadmap/shared-with-me'
 import { Route as ProjectProjectIdRouteImport } from './routes/project/$projectId'
 import { Route as ProfileProfileIdRouteImport } from './routes/profile/$profileId'
+import { Route as FreelancerInvitesRouteImport } from './routes/freelancer/invites'
+import { Route as FreelancerGoLiveRouteImport } from './routes/freelancer/go-live'
+import { Route as ConsultantMarketplaceRouteImport } from './routes/consultant/marketplace'
 import { Route as ConsultantBrowseRouteImport } from './routes/consultant/browse'
 import { Route as ConsultantApplyRouteImport } from './routes/consultant/apply'
 import { Route as ConsultantProfileIdRouteImport } from './routes/consultant/$profileId'
@@ -88,6 +91,21 @@ const ProjectProjectIdRoute = ProjectProjectIdRouteImport.update({
 const ProfileProfileIdRoute = ProfileProfileIdRouteImport.update({
   id: '/profile/$profileId',
   path: '/profile/$profileId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FreelancerInvitesRoute = FreelancerInvitesRouteImport.update({
+  id: '/freelancer/invites',
+  path: '/freelancer/invites',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FreelancerGoLiveRoute = FreelancerGoLiveRouteImport.update({
+  id: '/freelancer/go-live',
+  path: '/freelancer/go-live',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConsultantMarketplaceRoute = ConsultantMarketplaceRouteImport.update({
+  id: '/consultant/marketplace',
+  path: '/consultant/marketplace',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConsultantBrowseRoute = ConsultantBrowseRouteImport.update({
@@ -245,6 +263,9 @@ export interface FileRoutesByFullPath {
   '/consultant/$profileId': typeof ConsultantProfileIdRoute
   '/consultant/apply': typeof ConsultantApplyRoute
   '/consultant/browse': typeof ConsultantBrowseRoute
+  '/consultant/marketplace': typeof ConsultantMarketplaceRoute
+  '/freelancer/go-live': typeof FreelancerGoLiveRoute
+  '/freelancer/invites': typeof FreelancerInvitesRoute
   '/profile/$profileId': typeof ProfileProfileIdRoute
   '/project/$projectId': typeof ProjectProjectIdRouteWithChildren
   '/roadmap/shared-with-me': typeof RoadmapSharedWithMeRoute
@@ -281,6 +302,9 @@ export interface FileRoutesByTo {
   '/consultant/$profileId': typeof ConsultantProfileIdRoute
   '/consultant/apply': typeof ConsultantApplyRoute
   '/consultant/browse': typeof ConsultantBrowseRoute
+  '/consultant/marketplace': typeof ConsultantMarketplaceRoute
+  '/freelancer/go-live': typeof FreelancerGoLiveRoute
+  '/freelancer/invites': typeof FreelancerInvitesRoute
   '/profile/$profileId': typeof ProfileProfileIdRoute
   '/project/$projectId': typeof ProjectProjectIdRouteWithChildren
   '/roadmap/shared-with-me': typeof RoadmapSharedWithMeRoute
@@ -319,6 +343,9 @@ export interface FileRoutesById {
   '/consultant/$profileId': typeof ConsultantProfileIdRoute
   '/consultant/apply': typeof ConsultantApplyRoute
   '/consultant/browse': typeof ConsultantBrowseRoute
+  '/consultant/marketplace': typeof ConsultantMarketplaceRoute
+  '/freelancer/go-live': typeof FreelancerGoLiveRoute
+  '/freelancer/invites': typeof FreelancerInvitesRoute
   '/profile/$profileId': typeof ProfileProfileIdRoute
   '/project/$projectId': typeof ProjectProjectIdRouteWithChildren
   '/roadmap/shared-with-me': typeof RoadmapSharedWithMeRoute
@@ -358,6 +385,9 @@ export interface FileRouteTypes {
     | '/consultant/$profileId'
     | '/consultant/apply'
     | '/consultant/browse'
+    | '/consultant/marketplace'
+    | '/freelancer/go-live'
+    | '/freelancer/invites'
     | '/profile/$profileId'
     | '/project/$projectId'
     | '/roadmap/shared-with-me'
@@ -394,6 +424,9 @@ export interface FileRouteTypes {
     | '/consultant/$profileId'
     | '/consultant/apply'
     | '/consultant/browse'
+    | '/consultant/marketplace'
+    | '/freelancer/go-live'
+    | '/freelancer/invites'
     | '/profile/$profileId'
     | '/project/$projectId'
     | '/roadmap/shared-with-me'
@@ -431,6 +464,9 @@ export interface FileRouteTypes {
     | '/consultant/$profileId'
     | '/consultant/apply'
     | '/consultant/browse'
+    | '/consultant/marketplace'
+    | '/freelancer/go-live'
+    | '/freelancer/invites'
     | '/profile/$profileId'
     | '/project/$projectId'
     | '/roadmap/shared-with-me'
@@ -465,6 +501,9 @@ export interface RootRouteChildren {
   ConsultantProfileIdRoute: typeof ConsultantProfileIdRoute
   ConsultantApplyRoute: typeof ConsultantApplyRoute
   ConsultantBrowseRoute: typeof ConsultantBrowseRoute
+  ConsultantMarketplaceRoute: typeof ConsultantMarketplaceRoute
+  FreelancerGoLiveRoute: typeof FreelancerGoLiveRoute
+  FreelancerInvitesRoute: typeof FreelancerInvitesRoute
   ProfileProfileIdRoute: typeof ProfileProfileIdRoute
   ProjectProjectIdRoute: typeof ProjectProjectIdRouteWithChildren
   RoadmapSharedWithMeRoute: typeof RoadmapSharedWithMeRoute
@@ -537,6 +576,27 @@ declare module '@tanstack/react-router' {
       path: '/profile/$profileId'
       fullPath: '/profile/$profileId'
       preLoaderRoute: typeof ProfileProfileIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/freelancer/invites': {
+      id: '/freelancer/invites'
+      path: '/freelancer/invites'
+      fullPath: '/freelancer/invites'
+      preLoaderRoute: typeof FreelancerInvitesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/freelancer/go-live': {
+      id: '/freelancer/go-live'
+      path: '/freelancer/go-live'
+      fullPath: '/freelancer/go-live'
+      preLoaderRoute: typeof FreelancerGoLiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/consultant/marketplace': {
+      id: '/consultant/marketplace'
+      path: '/consultant/marketplace'
+      fullPath: '/consultant/marketplace'
+      preLoaderRoute: typeof ConsultantMarketplaceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/consultant/browse': {
@@ -798,6 +858,9 @@ const rootRouteChildren: RootRouteChildren = {
   ConsultantProfileIdRoute: ConsultantProfileIdRoute,
   ConsultantApplyRoute: ConsultantApplyRoute,
   ConsultantBrowseRoute: ConsultantBrowseRoute,
+  ConsultantMarketplaceRoute: ConsultantMarketplaceRoute,
+  FreelancerGoLiveRoute: FreelancerGoLiveRoute,
+  FreelancerInvitesRoute: FreelancerInvitesRoute,
   ProfileProfileIdRoute: ProfileProfileIdRoute,
   ProjectProjectIdRoute: ProjectProjectIdRouteWithChildren,
   RoadmapSharedWithMeRoute: RoadmapSharedWithMeRoute,

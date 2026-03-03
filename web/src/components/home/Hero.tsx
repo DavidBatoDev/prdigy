@@ -21,10 +21,10 @@ export function Hero() {
     freelancer: {
       title: "Propose your skills to expert Consultants.",
       description:
-        " showcase your expertise and join high-impact projects led by verified Consultants.",
-      buttonText: "Find Consultants",
-      buttonLink: "/browse-consultants",
-      dataTutorial: "browse-consultants-btn",
+        "Complete your activation form and make your profile visible to verified Consultants in the marketplace.",
+      buttonText: "I Want to Work",
+      buttonLink: "/freelancer/go-live",
+      dataTutorial: "freelancer-go-live-btn",
       artSrc: "/svgs/art/freelancer-art.svg",
     },
     consultant: {
