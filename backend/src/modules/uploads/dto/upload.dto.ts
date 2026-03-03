@@ -10,11 +10,12 @@ import {
 type BucketName =
   | 'avatars'
   | 'banners'
+  | 'project_banners'
   | 'portfolio_projects'
   | 'identity_documents';
 
 export class SignedUrlDto {
-  @IsEnum(['avatars', 'banners', 'portfolio_projects', 'identity_documents'])
+  @IsEnum(['avatars', 'banners', 'project_banners', 'portfolio_projects', 'identity_documents'])
   bucket: BucketName;
 
   @IsString() fileName: string;
@@ -27,5 +28,10 @@ export class ConfirmAvatarDto {
 }
 
 export class ConfirmBannerDto {
+  @IsString() banner_url: string;
+}
+
+export class ConfirmProjectBannerDto {
+  @IsString() project_id: string;
   @IsString() banner_url: string;
 }

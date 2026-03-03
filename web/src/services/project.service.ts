@@ -29,6 +29,7 @@ export interface Project {
   start_date?: string;
   custom_start_date?: string;
   status: "draft" | "active" | "bidding" | "paused" | "completed" | "archived";
+  banner_url?: string;
   client_id: string;
   consultant_id?: string;
   client?: {

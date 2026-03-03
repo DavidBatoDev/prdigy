@@ -6,7 +6,7 @@
 
 import apiClient from "@/api/axios";
 
-export type UploadBucket = "avatars" | "banners" | "portfolio_projects";
+export type UploadBucket = "avatars" | "banners" | "project_banners" | "portfolio_projects";
 
 export interface SignedUrlResponse {
   signedUrl: string;
@@ -68,6 +68,18 @@ class UploadService {
   async uploadBanner(file: File): Promise<string> {
     const publicUrl = await this.upload("banners", file);
     await apiClient.post(`${this.base}/confirm-banner`, {
+      banner_url: publicUrl,
+    });
+    return publicUrl;
+  }
+
+  /**
+   * Upload project banner and persist to the project record
+   */
+  async uploadProjectBanner(projectId: string, file: File): Promise<string> {
+    const publicUrl = await this.upload("project_banners", file);
+    await apiClient.post(`${this.base}/confirm-project-banner`, {
+      project_id: projectId,
       banner_url: publicUrl,
     });
     return publicUrl;

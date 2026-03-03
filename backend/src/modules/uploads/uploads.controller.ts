@@ -18,6 +18,7 @@ import type { AuthenticatedUser } from '../../common/interfaces/authenticated-re
 import {
   ConfirmAvatarDto,
   ConfirmBannerDto,
+  ConfirmProjectBannerDto,
   SignedUrlDto,
 } from './dto/upload.dto';
 
@@ -30,6 +31,10 @@ const BUCKET_CONFIG: Record<
     allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
   },
   banners: {
+    maxSize: 10 * 1024 * 1024,
+    allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
+  },
+  project_banners: {
     maxSize: 10 * 1024 * 1024,
     allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
   },
@@ -108,6 +113,55 @@ export class UploadsService {
     return data;
   }
 
+  async updateProjectBanner(userId: string, dto: ConfirmProjectBannerDto) {
+    // Verify the user is the client or consultant on this project
+    const { data: project, error: projectError } = await this.supabase
+      .from('projects')
+      .select('id, client_id, consultant_id')
+      .eq('id', dto.project_id)
+      .single();
+
+    if (projectError || !project) {
+      throw new BadRequestException('Project not found');
+    }
+
+    const p = project as { id: string; client_id: string; consultant_id: string | null };
+
+    // Primary check: user is the registered client or consultant on the project
+    let canEdit = p.client_id === userId || p.consultant_id === userId;
+
+    // Fallback: also allow project members whose role contains "client" or "consultant"
+    if (!canEdit) {
+      const { data: member } = await this.supabase
+        .from('project_members')
+        .select('role')
+        .eq('project_id', dto.project_id)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (member) {
+        const role = ((member as { role: string }).role ?? '').toLowerCase();
+        canEdit = role.includes('client') || role.includes('consultant');
+      }
+    }
+
+    if (!canEdit) {
+      throw new BadRequestException(
+        'You do not have permission to update this project banner',
+      );
+    }
+
+    const { data, error } = await this.supabase
+      .from('projects')
+      .update({ banner_url: dto.banner_url })
+      .eq('id', dto.project_id)
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
   async deleteAvatar(userId: string) {
     const { data: profile } = await this.supabase
       .from('profiles')
@@ -164,6 +218,14 @@ export class UploadsController {
     @Body() dto: ConfirmBannerDto,
   ) {
     return this.uploadsService.confirmBanner(user.id, dto);
+  }
+
+  @Post('confirm-project-banner')
+  confirmProjectBanner(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ConfirmProjectBannerDto,
+  ) {
+    return this.uploadsService.updateProjectBanner(user.id, dto);
   }
 
   @Delete('avatar')

@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Circle,
   Edit2,
+  ImagePlus,
   Loader2,
   Save,
   Shield,
@@ -19,6 +20,8 @@ import {
   type ProjectMember,
 } from "@/services/project.service";
 import { roadmapService } from "@/services/roadmap.service";
+import { uploadService } from "@/services/upload.service";
+import { UploadModal } from "@/components/profile/UploadModal";
 import { RichTextEditor } from "@/components/common/RichTextEditor";
 import { cleanHTML } from "@/components/common/RichTextEditor/utils/formatting";
 import { useUser } from "@/stores/authStore";
@@ -455,6 +458,11 @@ function OverviewPage() {
   const [editingConstraints, setEditingConstraints] = useState(false);
   const [editingRequirements, setEditingRequirements] = useState(false);
   const [editingNotes, setEditingNotes] = useState(false);
+  const [bannerModalOpen, setBannerModalOpen] = useState(false);
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
+  const [projectBannerUrl, setProjectBannerUrl] = useState<string | null>(
+    null,
+  );
 
   const briefSelectBase =
     "mission_vision, scope_statement, requirements, constraints, risk_register";
@@ -525,7 +533,7 @@ function OverviewPage() {
     const { data, error: projectError } = await supabase
       .from("projects")
       .select(
-        "id, title, description, status, client_id, consultant_id, created_at, updated_at, client:profiles!projects_client_id_fkey(id, display_name, avatar_url, email), consultant:profiles!projects_consultant_id_fkey(id, display_name, avatar_url, email)",
+        "id, title, description, status, banner_url, client_id, consultant_id, created_at, updated_at, client:profiles!projects_client_id_fkey(id, display_name, avatar_url, email), consultant:profiles!projects_consultant_id_fkey(id, display_name, avatar_url, email)",
       )
       .eq("id", projectId)
       .single();
@@ -604,6 +612,28 @@ function OverviewPage() {
       cancelled = true;
     };
   }, [projectId]);
+
+  // Sync projectBannerUrl from loaded project
+  useEffect(() => {
+    if (project) {
+      setProjectBannerUrl((project as Project & { banner_url?: string }).banner_url ?? null);
+    }
+  }, [project]);
+
+  const handleProjectBannerUpload = async (files: File[]) => {
+    if (!files[0]) return;
+    setIsUploadingBanner(true);
+    try {
+      const url = await uploadService.uploadProjectBanner(projectId, files[0]);
+      setProjectBannerUrl(url);
+      setBannerModalOpen(false);
+    } catch (e) {
+      console.error("Project banner upload failed", e);
+      alert("Failed to upload banner. Please try again.");
+    } finally {
+      setIsUploadingBanner(false);
+    }
+  };
 
   const risks = useMemo(
     () => toItems(projectBrief?.risk_register),
@@ -752,9 +782,45 @@ function OverviewPage() {
   }
 
   return (
-    <div className="h-full overflow-y-auto px-8 py-8 w-full">
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-10">
-        <div className="space-y-8">
+    <div className="h-full overflow-y-auto w-full">
+      <div className="px-8 py-8">
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-10">
+        <div className="flex flex-col">
+          {/* Project Banner */}
+          <div className="relative w-full h-40 bg-linear-to-br from-gray-800 via-gray-700 to-gray-900 overflow-hidden rounded-xl mb-8">
+            {projectBannerUrl && (
+              <img
+                src={projectBannerUrl}
+                alt="Project banner"
+                className="w-full h-full object-cover"
+              />
+            )}
+            {canEditOverview && (
+              <button
+                type="button"
+                onClick={() => setBannerModalOpen(true)}
+                className="absolute bottom-3 right-3 flex items-center gap-1.5 text-xs font-medium bg-black/50 hover:bg-black/70 text-white px-3 py-1.5 rounded-full backdrop-blur-sm transition-colors"
+              >
+                <ImagePlus className="w-3.5 h-3.5" />
+                {projectBannerUrl ? "Change banner" : "Add banner"}
+              </button>
+            )}
+          </div>
+
+          {/* Banner Upload Modal */}
+          <UploadModal
+            isOpen={bannerModalOpen}
+            onClose={() => setBannerModalOpen(false)}
+            title="Project Banner"
+            accept="image/jpeg,image/png,image/webp"
+            maxFiles={1}
+            maxSizeMb={10}
+            aspectHint="4:1 (wide)"
+            onUpload={(files) => void handleProjectBannerUpload(files)}
+            isUploading={isUploadingBanner}
+          />
+
+          <div className="space-y-8">
           <header className="pb-1">
             <h1 className="text-[28px] font-semibold text-gray-900 uppercase tracking-wide leading-tight">
               {project.title}
@@ -947,6 +1013,7 @@ function OverviewPage() {
               <p className="text-[13px] text-gray-500">No risks logged yet.</p>
             )}
           </section>
+          </div>
         </div>
 
         <aside className="border-l border-gray-300 pl-8 space-y-8 sticky top-6 self-start">
@@ -1036,5 +1103,6 @@ function OverviewPage() {
         </aside>
       </div>
     </div>
+  </div>
   );
 }
