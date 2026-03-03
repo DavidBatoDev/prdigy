@@ -7,16 +7,44 @@ import apiClient from "@/api/axios";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export type ProficiencyLevel = "beginner" | "intermediate" | "advanced" | "expert";
+export type ProficiencyLevel =
+  | "beginner"
+  | "intermediate"
+  | "advanced"
+  | "expert";
 export type FluencyLevel = "basic" | "conversational" | "fluent" | "native";
-export type AvailabilityStatus = "available" | "partially_available" | "unavailable";
+export type AvailabilityStatus =
+  | "available"
+  | "partially_available"
+  | "unavailable";
 export type SpecializationCategory =
-  | "fintech" | "healthcare" | "e_commerce" | "saas" | "education"
-  | "real_estate" | "legal" | "marketing" | "logistics" | "media"
-  | "gaming" | "ai_ml" | "cybersecurity" | "blockchain" | "other";
+  | "fintech"
+  | "healthcare"
+  | "e_commerce"
+  | "saas"
+  | "education"
+  | "real_estate"
+  | "legal"
+  | "marketing"
+  | "logistics"
+  | "media"
+  | "gaming"
+  | "ai_ml"
+  | "cybersecurity"
+  | "blockchain"
+  | "other";
 
-export interface SkillMeta { id: string; name: string; category?: string; slug?: string; }
-export interface LanguageMeta { id: string; name: string; code: string; }
+export interface SkillMeta {
+  id: string;
+  name: string;
+  category?: string;
+  slug?: string;
+}
+export interface LanguageMeta {
+  id: string;
+  name: string;
+  code: string;
+}
 
 export interface UserSkill {
   id: string;
@@ -108,6 +136,13 @@ export interface UserSpecialization {
   description?: string | null;
 }
 
+export interface UpdateSpecializationPayload {
+  category?: SpecializationCategory;
+  sub_category?: string;
+  years_of_experience?: number;
+  description?: string;
+}
+
 export interface UserRateSettings {
   user_id: string;
   hourly_rate?: number | null;
@@ -117,7 +152,13 @@ export interface UserRateSettings {
   weekly_hours?: number | null;
 }
 
-export type LicenseType = "legal" | "engineering" | "medical" | "financial" | "real_estate" | "other";
+export type LicenseType =
+  | "legal"
+  | "engineering"
+  | "medical"
+  | "financial"
+  | "real_estate"
+  | "other";
 
 export interface UserLicense {
   id: string;
@@ -133,7 +174,11 @@ export interface UserLicense {
   updated_at: string;
 }
 
-export type IdentityDocumentType = "passport" | "national_id" | "drivers_license" | "other";
+export type IdentityDocumentType =
+  | "passport"
+  | "national_id"
+  | "drivers_license"
+  | "other";
 
 export interface UserIdentityDocument {
   id: string;
@@ -166,6 +211,7 @@ export interface FullProfile {
   gender: string | null;
   date_of_birth: string | null;
   is_consultant_verified: boolean;
+  is_public: boolean;
   active_persona: string;
   created_at: string;
   updated_at: string;
@@ -196,12 +242,57 @@ export interface UpdateProfileData {
   gender?: string | null;
   date_of_birth?: string | null;
   avatar_url?: string | null;
+  is_public?: boolean;
+}
+
+export interface MarketplaceFreelancerCard {
+  id: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  headline: string | null;
+  is_email_verified: boolean;
+  avg_rating: number;
+  availability: AvailabilityStatus;
+  hourly_rate: number | null;
+  currency: string;
+  specialization: string | null;
+  skills: Array<{ id: string; name: string; slug: string }>;
+}
+
+export interface MarketplaceFreelancersQuery {
+  search?: string;
+  skill?: string;
+  availability?: AvailabilityStatus;
+  specialization?: string;
+  sort?: "rating_desc" | "rate_asc" | "rate_desc";
+}
+
+export interface MarketplaceInviteItem {
+  id: string;
+  project_id: string;
+  invited_by: string;
+  invitee_id: string;
+  status: "pending" | "accepted" | "declined";
+  message: string | null;
+  created_at: string;
+  updated_at: string;
+  project: {
+    id: string;
+    title: string;
+    status: string;
+  } | null;
+  inviter: {
+    id: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
 }
 
 // ─── Service ─────────────────────────────────────────────────────────────────
 
 class ProfileService {
   private base = "/api/profile";
+  private marketplaceBase = "/api/marketplace";
 
   /** Fetch full profile (all vetting tables) by user ID */
   async getProfile(userId: string): Promise<FullProfile> {
@@ -217,7 +308,11 @@ class ProfileService {
 
   /** Replace all skills (full replace, not merge) */
   async updateSkills(
-    skills: Array<{ skill_id: string; proficiency_level: ProficiencyLevel; years_experience?: number }>
+    skills: Array<{
+      skill_id: string;
+      proficiency_level: ProficiencyLevel;
+      years_experience?: number;
+    }>,
   ): Promise<UserSkill[]> {
     const { data } = await apiClient.put(`${this.base}/skills`, { skills });
     return data.data;
@@ -225,19 +320,32 @@ class ProfileService {
 
   /** Replace all languages */
   async updateLanguages(
-    languages: Array<{ language_id: string; fluency_level: FluencyLevel }>
+    languages: Array<{ language_id: string; fluency_level: FluencyLevel }>,
   ): Promise<UserLanguage[]> {
-    const { data } = await apiClient.put(`${this.base}/languages`, { languages });
+    const { data } = await apiClient.put(`${this.base}/languages`, {
+      languages,
+    });
     return data.data;
   }
 
   // ── Educations ──────────────────────────────────────────────────────────────
-  async addEducation(payload: Omit<UserEducation, "id" | "user_id" | "created_at" | "updated_at">): Promise<UserEducation> {
+  async addEducation(
+    payload: Omit<
+      UserEducation,
+      "id" | "user_id" | "created_at" | "updated_at"
+    >,
+  ): Promise<UserEducation> {
     const { data } = await apiClient.post(`${this.base}/educations`, payload);
     return data.data;
   }
-  async updateEducation(id: string, payload: Partial<UserEducation>): Promise<UserEducation> {
-    const { data } = await apiClient.patch(`${this.base}/educations/${id}`, payload);
+  async updateEducation(
+    id: string,
+    payload: Partial<UserEducation>,
+  ): Promise<UserEducation> {
+    const { data } = await apiClient.patch(
+      `${this.base}/educations/${id}`,
+      payload,
+    );
     return data.data;
   }
   async deleteEducation(id: string): Promise<void> {
@@ -245,12 +353,26 @@ class ProfileService {
   }
 
   // ── Certifications ─────────────────────────────────────────────────────────
-  async addCertification(payload: Omit<UserCertification, "id" | "user_id" | "is_verified" | "created_at" | "updated_at">): Promise<UserCertification> {
-    const { data } = await apiClient.post(`${this.base}/certifications`, payload);
+  async addCertification(
+    payload: Omit<
+      UserCertification,
+      "id" | "user_id" | "is_verified" | "created_at" | "updated_at"
+    >,
+  ): Promise<UserCertification> {
+    const { data } = await apiClient.post(
+      `${this.base}/certifications`,
+      payload,
+    );
     return data.data;
   }
-  async updateCertification(id: string, payload: Partial<UserCertification>): Promise<UserCertification> {
-    const { data } = await apiClient.patch(`${this.base}/certifications/${id}`, payload);
+  async updateCertification(
+    id: string,
+    payload: Partial<UserCertification>,
+  ): Promise<UserCertification> {
+    const { data } = await apiClient.patch(
+      `${this.base}/certifications/${id}`,
+      payload,
+    );
     return data.data;
   }
   async deleteCertification(id: string): Promise<void> {
@@ -258,12 +380,23 @@ class ProfileService {
   }
 
   // ── Experiences ────────────────────────────────────────────────────────────
-  async addExperience(payload: Omit<UserExperience, "id" | "user_id" | "created_at" | "updated_at">): Promise<UserExperience> {
+  async addExperience(
+    payload: Omit<
+      UserExperience,
+      "id" | "user_id" | "created_at" | "updated_at"
+    >,
+  ): Promise<UserExperience> {
     const { data } = await apiClient.post(`${this.base}/experiences`, payload);
     return data.data;
   }
-  async updateExperience(id: string, payload: Partial<UserExperience>): Promise<UserExperience> {
-    const { data } = await apiClient.patch(`${this.base}/experiences/${id}`, payload);
+  async updateExperience(
+    id: string,
+    payload: Partial<UserExperience>,
+  ): Promise<UserExperience> {
+    const { data } = await apiClient.patch(
+      `${this.base}/experiences/${id}`,
+      payload,
+    );
     return data.data;
   }
   async deleteExperience(id: string): Promise<void> {
@@ -271,12 +404,23 @@ class ProfileService {
   }
 
   // ── Portfolios ─────────────────────────────────────────────────────────────
-  async addPortfolio(payload: Omit<UserPortfolio, "id" | "user_id" | "created_at" | "updated_at">): Promise<UserPortfolio> {
+  async addPortfolio(
+    payload: Omit<
+      UserPortfolio,
+      "id" | "user_id" | "created_at" | "updated_at"
+    >,
+  ): Promise<UserPortfolio> {
     const { data } = await apiClient.post(`${this.base}/portfolios`, payload);
     return data.data;
   }
-  async updatePortfolio(id: string, payload: Partial<UserPortfolio>): Promise<UserPortfolio> {
-    const { data } = await apiClient.patch(`${this.base}/portfolios/${id}`, payload);
+  async updatePortfolio(
+    id: string,
+    payload: Partial<UserPortfolio>,
+  ): Promise<UserPortfolio> {
+    const { data } = await apiClient.patch(
+      `${this.base}/portfolios/${id}`,
+      payload,
+    );
     return data.data;
   }
   async deletePortfolio(id: string): Promise<void> {
@@ -284,18 +428,28 @@ class ProfileService {
   }
 
   // ── Rate Settings ──────────────────────────────────────────────────────────
-  async updateRateSettings(payload: Partial<UserRateSettings>): Promise<UserRateSettings> {
+  async updateRateSettings(
+    payload: Partial<UserRateSettings>,
+  ): Promise<UserRateSettings> {
     const { data } = await apiClient.put(`${this.base}/rate-settings`, payload);
     return data.data;
   }
 
   // ── Languages (Individual endpoints) ───────────────────────────────────────
-  async addLanguage(payload: Omit<UserLanguage, "id" | "user_id" | "created_at">): Promise<UserLanguage> {
+  async addLanguage(
+    payload: Omit<UserLanguage, "id" | "user_id" | "created_at">,
+  ): Promise<UserLanguage> {
     const { data } = await apiClient.post(`${this.base}/languages`, payload);
     return data.data;
   }
-  async updateLanguage(id: string, payload: Partial<UserLanguage>): Promise<UserLanguage> {
-    const { data } = await apiClient.patch(`${this.base}/languages/${id}`, payload);
+  async updateLanguage(
+    id: string,
+    payload: Partial<UserLanguage>,
+  ): Promise<UserLanguage> {
+    const { data } = await apiClient.patch(
+      `${this.base}/languages/${id}`,
+      payload,
+    );
     return data.data;
   }
   async deleteLanguage(id: string): Promise<void> {
@@ -303,12 +457,26 @@ class ProfileService {
   }
 
   // ── Specializations ────────────────────────────────────────────────────────
-  async addSpecialization(payload: Omit<UserSpecialization, "id" | "user_id" | "created_at" | "updated_at">): Promise<UserSpecialization> {
-    const { data } = await apiClient.post(`${this.base}/specializations`, payload);
+  async addSpecialization(
+    payload: Omit<
+      UserSpecialization,
+      "id" | "user_id" | "created_at" | "updated_at"
+    >,
+  ): Promise<UserSpecialization> {
+    const { data } = await apiClient.post(
+      `${this.base}/specializations`,
+      payload,
+    );
     return data.data;
   }
-  async updateSpecialization(id: string, payload: Partial<UserSpecialization>): Promise<UserSpecialization> {
-    const { data } = await apiClient.patch(`${this.base}/specializations/${id}`, payload);
+  async updateSpecialization(
+    id: string,
+    payload: UpdateSpecializationPayload,
+  ): Promise<UserSpecialization> {
+    const { data } = await apiClient.patch(
+      `${this.base}/specializations/${id}`,
+      payload,
+    );
     return data.data;
   }
   async deleteSpecialization(id: string): Promise<void> {
@@ -316,12 +484,20 @@ class ProfileService {
   }
 
   // ── Licenses ───────────────────────────────────────────────────────────────
-  async addLicense(payload: Omit<UserLicense, "id" | "user_id" | "created_at" | "updated_at">): Promise<UserLicense> {
+  async addLicense(
+    payload: Omit<UserLicense, "id" | "user_id" | "created_at" | "updated_at">,
+  ): Promise<UserLicense> {
     const { data } = await apiClient.post(`${this.base}/licenses`, payload);
     return data.data;
   }
-  async updateLicense(id: string, payload: Partial<UserLicense>): Promise<UserLicense> {
-    const { data } = await apiClient.patch(`${this.base}/licenses/${id}`, payload);
+  async updateLicense(
+    id: string,
+    payload: Partial<UserLicense>,
+  ): Promise<UserLicense> {
+    const { data } = await apiClient.patch(
+      `${this.base}/licenses/${id}`,
+      payload,
+    );
     return data.data;
   }
   async deleteLicense(id: string): Promise<void> {
@@ -329,8 +505,23 @@ class ProfileService {
   }
 
   // ── Identity Documents ─────────────────────────────────────────────────────
-  async addIdentityDocument(payload: Omit<UserIdentityDocument, "id" | "user_id" | "is_verified" | "verified_at" | "verified_by" | "uploaded_at" | "created_at" | "updated_at">): Promise<UserIdentityDocument> {
-    const { data } = await apiClient.post(`${this.base}/identity_documents`, payload);
+  async addIdentityDocument(
+    payload: Omit<
+      UserIdentityDocument,
+      | "id"
+      | "user_id"
+      | "is_verified"
+      | "verified_at"
+      | "verified_by"
+      | "uploaded_at"
+      | "created_at"
+      | "updated_at"
+    >,
+  ): Promise<UserIdentityDocument> {
+    const { data } = await apiClient.post(
+      `${this.base}/identity_documents`,
+      payload,
+    );
     return data.data;
   }
   async deleteIdentityDocument(id: string): Promise<void> {
@@ -346,12 +537,62 @@ class ProfileService {
     const { data } = await apiClient.get(`${this.base}/meta/languages`);
     return data.data;
   }
+
+  async goLive(): Promise<{ is_public: boolean }> {
+    const { data } = await apiClient.post(`${this.marketplaceBase}/go-live`);
+    return data.data;
+  }
+
+  async getMarketplaceFreelancers(
+    filters: MarketplaceFreelancersQuery = {},
+  ): Promise<MarketplaceFreelancerCard[]> {
+    const { data } = await apiClient.get(
+      `${this.marketplaceBase}/freelancers`,
+      {
+        params: filters,
+      },
+    );
+    return data.data;
+  }
+
+  async inviteFreelancer(payload: {
+    projectId: string;
+    inviteeId: string;
+    message?: string;
+  }): Promise<{ id: string; status: string }> {
+    const { data } = await apiClient.post(
+      `${this.marketplaceBase}/invite`,
+      payload,
+    );
+    return data.data;
+  }
+
+  async getMyInvites(): Promise<MarketplaceInviteItem[]> {
+    const { data } = await apiClient.get(`${this.marketplaceBase}/invites/me`);
+    return data.data;
+  }
+
+  async respondToInvite(payload: {
+    inviteId: string;
+    status: "accepted" | "declined";
+  }): Promise<{ id: string; status: string }> {
+    const { data } = await apiClient.patch(
+      `${this.marketplaceBase}/invites/${payload.inviteId}/respond`,
+      { status: payload.status },
+    );
+    return data.data;
+  }
 }
 
 export const profileService = new ProfileService();
 
 // ─── Consultant Application ───────────────────────────────────────────────────
-export type ApplicationStatus = "draft" | "submitted" | "under_review" | "approved" | "rejected";
+export type ApplicationStatus =
+  | "draft"
+  | "submitted"
+  | "under_review"
+  | "approved"
+  | "rejected";
 
 export interface ConsultantApplication {
   id: string;
@@ -377,7 +618,14 @@ class ApplicationService {
     return data.data;
   }
 
-  async saveDraft(payload: Partial<Omit<ConsultantApplication, "id" | "user_id" | "status" | "created_at" | "updated_at">>): Promise<ConsultantApplication> {
+  async saveDraft(
+    payload: Partial<
+      Omit<
+        ConsultantApplication,
+        "id" | "user_id" | "status" | "created_at" | "updated_at"
+      >
+    >,
+  ): Promise<ConsultantApplication> {
     const { data } = await apiClient.post(this.base, payload);
     return data.data;
   }
@@ -389,4 +637,3 @@ class ApplicationService {
 }
 
 export const applicationService = new ApplicationService();
-

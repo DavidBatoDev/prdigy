@@ -12,53 +12,78 @@ const DashboardHeader = () => {
   const isAuthLoading = useIsLoading();
   const isLoading = isAuthLoading || (isAuthenticated && !profile);
   const [consultantsMenuOpen, setConsultantsMenuOpen] = useState(false);
-  
+
   const navItems = [
     { label: "Home", href: "/dashboard" },
     { label: "Projects", href: "/" },
-    { label: "Market place", href: "/" },
+    {
+      label: "Market place",
+      href: profile?.is_consultant_verified
+        ? "/consultant/marketplace"
+        : "/consultant/browse",
+    },
   ];
 
   const getPersonaMenu = () => {
-    const persona = profile?.active_persona || 'client';
+    const persona = profile?.active_persona || "client";
     const isConsultantVerified = profile?.is_consultant_verified;
 
     // Shared CTA — only shown when not yet a verified consultant
     const applyItem = !isConsultantVerified
-      ? [{ label: "Apply as Consultant", href: "/consultant/apply", divider: true }]
+      ? [
+          {
+            label: "Apply as Consultant",
+            href: "/consultant/apply",
+            divider: true,
+          },
+        ]
       : [];
-    
+
     switch (persona) {
-      case 'freelancer':
+      case "freelancer":
         return {
-          label: 'Mentorship',
+          label: "Mentorship",
           items: [
+            profile?.is_public
+              ? { label: "You're Live", href: "/consultant/marketplace" }
+              : {
+                  label: "Get Hired (I Want to Work)",
+                  href: "/freelancer/go-live",
+                },
+            { label: "My Invites", href: "/freelancer/invites" },
             { label: "Find a Mentor", href: "/mentors" },
             { label: "My Applications", href: "/applications" },
             { label: "Saved Mentors", href: "/saved-mentors" },
             ...applyItem,
-          ]
+          ],
         };
-      case 'consultant':
+      case "consultant":
         return {
-          label: 'My Clients',
+          label: "My Clients",
           items: [
+            {
+              label: "Private Freelancer Marketplace",
+              href: "/consultant/marketplace",
+            },
             { label: "Browse Opportunities", href: "/projects" },
             { label: "My Clients", href: "/clients" },
             { label: "Active Contracts", href: "/contracts" },
-          ]
+          ],
         };
-      case 'client':
+      case "client":
       default:
         return {
-          label: 'My Consultants',
+          label: "My Consultants",
           items: [
             { label: "Post a Project", href: "/client/project-posting" },
-            { label: "Browse Professional Consultants", href: "/consultant/browse" },
+            {
+              label: "Browse Professional Consultants",
+              href: "/consultant/browse",
+            },
             { label: "My Consultant Pool", href: "/consultant-pool" },
             { label: "Direct Contacts", href: "/direct-contacts" },
             ...applyItem,
-          ]
+          ],
         };
     }
   };
@@ -67,124 +92,134 @@ const DashboardHeader = () => {
 
   return (
     <div className="w-full h-full flex items-center justify-between px-6 shrink-0 z-10">
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          width: "100%",
+          gap: { xs: 2, md: 3 },
+        }}
+      >
+        {/* Left Side: Logo + Navigation */}
         <Box
           sx={{
             display: "flex",
             alignItems: "center",
-            justifyContent: "space-between",
-            width: "100%",
-            gap: { xs: 2, md: 3 },
+            gap: { xs: 2, md: 3, lg: 4 },
           }}
         >
-          {/* Left Side: Logo + Navigation */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 2, md: 3, lg: 4 } }}>
-            {/* Logo */}
-            <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
-              <Link to="/" className="cursor-pointer flex items-center shrink-0 border-r border-gray-200 pr-4">
-                <img src={Logo} alt="Prodigy Logo" style={{ height: "24px" }} />
-              </Link>
-            </Box>
-
-            {/* Navigation Items */}
-            <Stack
-              direction="row"
-              spacing={{ xs: 1.5, md: 2, lg: 3 }}
-              sx={{
-                alignItems: "center",
-              }}
+          {/* Logo */}
+          <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+            <Link
+              to="/"
+              className="cursor-pointer flex items-center shrink-0 border-r border-gray-200 pr-4"
             >
-              {navItems.map((item) => (
-                <Link
-                  key={item.label}
-                  to={item.href}
-                  style={{ textDecoration: "none" }}
-                >
-                  <Typography
-                    component="span"
-                    sx={{
-                      color: "#2F302F",
-                      cursor: "pointer",
-                      whiteSpace: "nowrap",
-                      fontSize: { xs: "0.8rem", md: "0.85rem" },
-                      fontWeight: 600,
-                      "&:hover": {
-                        color: "var(--primary)",
-                      },
-                    }}
-                  >
-                    {item.label}
-                  </Typography>
-                </Link>
-              ))}
-              
-              {/* My Consultants Dropdown */}
-              <Box
-                sx={{ position: "relative" }}
-                onMouseEnter={() => setConsultantsMenuOpen(true)}
-                onMouseLeave={() => setConsultantsMenuOpen(false)}
+              <img src={Logo} alt="Prodigy Logo" style={{ height: "24px" }} />
+            </Link>
+          </Box>
+
+          {/* Navigation Items */}
+          <Stack
+            direction="row"
+            spacing={{ xs: 1.5, md: 2, lg: 3 }}
+            sx={{
+              alignItems: "center",
+            }}
+          >
+            {navItems.map((item) => (
+              <Link
+                key={item.label}
+                to={item.href}
+                style={{ textDecoration: "none" }}
               >
-                <Box
+                <Typography
+                  component="span"
                   sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 0.5,
+                    color: "#2F302F",
                     cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    fontSize: { xs: "0.8rem", md: "0.85rem" },
+                    fontWeight: 600,
+                    "&:hover": {
+                      color: "var(--primary)",
+                    },
                   }}
                 >
-                  <Typography
-                    component="span"
-                    sx={{
-                      color: "#2F302F",
-                      whiteSpace: "nowrap",
-                      fontSize: { xs: "0.8rem", md: "0.85rem" },
-                      fontWeight: 600,
-                      "&:hover": {
-                        color: "var(--primary)",
-                      },
-                    }}
-                  >
-                    {menuConfig.label}
-                  </Typography>
-                  <ChevronDown
-                    size={16}
-                    color="#2F302F"
-                    style={{
-                      transition: "transform 0.2s ease",
-                      transform: consultantsMenuOpen ? "rotate(180deg)" : "rotate(0deg)",
-                    }}
-                  />
-                </Box>
-                
-                {/* Dropdown Menu */}
-                {consultantsMenuOpen && (
+                  {item.label}
+                </Typography>
+              </Link>
+            ))}
+
+            {/* My Consultants Dropdown */}
+            <Box
+              sx={{ position: "relative" }}
+              onMouseEnter={() => setConsultantsMenuOpen(true)}
+              onMouseLeave={() => setConsultantsMenuOpen(false)}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                  cursor: "pointer",
+                }}
+              >
+                <Typography
+                  component="span"
+                  sx={{
+                    color: "#2F302F",
+                    whiteSpace: "nowrap",
+                    fontSize: { xs: "0.8rem", md: "0.85rem" },
+                    fontWeight: 600,
+                    "&:hover": {
+                      color: "var(--primary)",
+                    },
+                  }}
+                >
+                  {menuConfig.label}
+                </Typography>
+                <ChevronDown
+                  size={16}
+                  color="#2F302F"
+                  style={{
+                    transition: "transform 0.2s ease",
+                    transform: consultantsMenuOpen
+                      ? "rotate(180deg)"
+                      : "rotate(0deg)",
+                  }}
+                />
+              </Box>
+
+              {/* Dropdown Menu */}
+              {consultantsMenuOpen && (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: "100%",
+                    left: 0,
+                    pt: 1, // Padding top acts as a transparent bridge
+                    zIndex: 10004,
+                  }}
+                >
                   <Box
                     sx={{
-                      position: "absolute",
-                      top: "100%",
-                      left: 0,
-                      pt: 1, // Padding top acts as a transparent bridge
-                      zIndex: 10004,
+                      bgcolor: "white",
+                      borderRadius: "8px",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                      minWidth: "250px",
+                      py: 1,
                     }}
                   >
-                    <Box
-                      sx={{
-                        bgcolor: "white",
-                        borderRadius: "8px",
-                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                        minWidth: "250px",
-                        py: 1,
-                      }}
-                    >
-                      {menuConfig.items.map((item) => (
+                    {menuConfig.items.map((item) => (
                       <Box key={item.label}>
                         {/* Divider before special items */}
                         {(item as any).divider && (
-                          <Box sx={{ my: 1, borderTop: "1px solid #eee", mx: 2 }} />
+                          <Box
+                            sx={{ my: 1, borderTop: "1px solid #eee", mx: 2 }}
+                          />
                         )}
-                        <Link
-                          to={item.href}
-                          style={{ textDecoration: "none" }}
-                        >
+                        <Link to={item.href} style={{ textDecoration: "none" }}>
                           <Box
                             sx={{
                               px: 3,
@@ -208,117 +243,148 @@ const DashboardHeader = () => {
                         </Link>
                       </Box>
                     ))}
-                    </Box>
                   </Box>
-                )}
-              </Box>
-            </Stack>
-          </Box>
-
-          {/* Right Side: Search + Icons + Auth */}
-          <Stack direction="row" spacing={2} sx={{ flexShrink: 0, alignItems: "center" }}>
-            {isLoading ? (
-              // Skeleton Loader
-              <Stack direction="row" spacing={2} alignItems="center">
-                {/* Search Skeleton */}
-                <Box
-                  sx={{
-                    width: { xs: "150px", md: "250px" },
-                    height: "32px",
-                    bgcolor: "rgba(0,0,0,0.05)",
-                    borderRadius: "16px",
-                  }}
-                  className="animate-pulse"
-                />
-                {/* Icons Skeleton */}
-                <Box sx={{ width: 32, height: 32, bgcolor: "rgba(0,0,0,0.05)", borderRadius: "50%" }} className="animate-pulse" />
-                <Box sx={{ width: 32, height: 32, bgcolor: "rgba(0,0,0,0.05)", borderRadius: "50%" }} className="animate-pulse" />
-                {/* Avatar Skeleton */}
-                <Box sx={{ width: 32, height: 32, bgcolor: "rgba(0,0,0,0.05)", borderRadius: "50%" }} className="animate-pulse" />
-              </Stack>
-            ) : isAuthenticated ? (
-              <>
-                {/* Search Bar */}
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    backgroundColor: "#F5F5F5",
-                    borderRadius: "16px",
-                    px: 1.5,
-                    py: 0.5,
-                    minWidth: { xs: "150px", md: "250px" },
-                    transition: "all 0.3s ease",
-                    "&:hover": {
-                      backgroundColor: "#EBEBEB",
-                    },
-                    "&:focus-within": {
-                      backgroundColor: "#FFFFFF",
-                      boxShadow: "0 0 0 2px var(--primary)",
-                    },
-                  }}
-                >
-                  <Search size={18} style={{ color: "#666", marginRight: "6px" }} />
-                  <InputBase
-                    placeholder="Search..."
-                    sx={{
-                      flex: 1,
-                      fontSize: "0.85rem",
-                      color: "#2F302F",
-                      "& input::placeholder": {
-                        color: "#999",
-                        opacity: 1,
-                      },
-                    }}
-                  />
                 </Box>
-
-                {/* Message Icon */}
-                <IconButton
-                  sx={{
-                    color: "#2F302F",
-                    "&:hover": {
-                      backgroundColor: "rgba(0, 0, 0, 0.04)",
-                    },
-                  }}
-                  aria-label="Messages"
-                >
-                  <MessageCircle size={20} />
-                </IconButton>
-
-                {/* Notification Icon */}
-                <IconButton
-                  sx={{
-                    color: "#2F302F",
-                    "&:hover": {
-                      backgroundColor: "rgba(0, 0, 0, 0.04)",
-                    },
-                  }}
-                  aria-label="Notifications"
-                >
-                  <Bell size={20} />
-                </IconButton>
-
-                {/* User Menu */}
-                <UserMenu />
-              </>
-            ) : (
-              <>
-                <Link to="/auth/login">
-                  <Button variant="outlined" colorScheme="primary">
-                    Login
-                  </Button>
-                </Link>
-                <Link to="/auth/signup">
-                  <Button variant="contained" colorScheme="primary">
-                    Sign Up
-                  </Button>
-                </Link>
-              </>
-            )}
+              )}
+            </Box>
           </Stack>
         </Box>
-      </div>
+
+        {/* Right Side: Search + Icons + Auth */}
+        <Stack
+          direction="row"
+          spacing={2}
+          sx={{ flexShrink: 0, alignItems: "center" }}
+        >
+          {isLoading ? (
+            // Skeleton Loader
+            <Stack direction="row" spacing={2} alignItems="center">
+              {/* Search Skeleton */}
+              <Box
+                sx={{
+                  width: { xs: "150px", md: "250px" },
+                  height: "32px",
+                  bgcolor: "rgba(0,0,0,0.05)",
+                  borderRadius: "16px",
+                }}
+                className="animate-pulse"
+              />
+              {/* Icons Skeleton */}
+              <Box
+                sx={{
+                  width: 32,
+                  height: 32,
+                  bgcolor: "rgba(0,0,0,0.05)",
+                  borderRadius: "50%",
+                }}
+                className="animate-pulse"
+              />
+              <Box
+                sx={{
+                  width: 32,
+                  height: 32,
+                  bgcolor: "rgba(0,0,0,0.05)",
+                  borderRadius: "50%",
+                }}
+                className="animate-pulse"
+              />
+              {/* Avatar Skeleton */}
+              <Box
+                sx={{
+                  width: 32,
+                  height: 32,
+                  bgcolor: "rgba(0,0,0,0.05)",
+                  borderRadius: "50%",
+                }}
+                className="animate-pulse"
+              />
+            </Stack>
+          ) : isAuthenticated ? (
+            <>
+              {/* Search Bar */}
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  backgroundColor: "#F5F5F5",
+                  borderRadius: "16px",
+                  px: 1.5,
+                  py: 0.5,
+                  minWidth: { xs: "150px", md: "250px" },
+                  transition: "all 0.3s ease",
+                  "&:hover": {
+                    backgroundColor: "#EBEBEB",
+                  },
+                  "&:focus-within": {
+                    backgroundColor: "#FFFFFF",
+                    boxShadow: "0 0 0 2px var(--primary)",
+                  },
+                }}
+              >
+                <Search
+                  size={18}
+                  style={{ color: "#666", marginRight: "6px" }}
+                />
+                <InputBase
+                  placeholder="Search..."
+                  sx={{
+                    flex: 1,
+                    fontSize: "0.85rem",
+                    color: "#2F302F",
+                    "& input::placeholder": {
+                      color: "#999",
+                      opacity: 1,
+                    },
+                  }}
+                />
+              </Box>
+
+              {/* Message Icon */}
+              <IconButton
+                sx={{
+                  color: "#2F302F",
+                  "&:hover": {
+                    backgroundColor: "rgba(0, 0, 0, 0.04)",
+                  },
+                }}
+                aria-label="Messages"
+              >
+                <MessageCircle size={20} />
+              </IconButton>
+
+              {/* Notification Icon */}
+              <IconButton
+                sx={{
+                  color: "#2F302F",
+                  "&:hover": {
+                    backgroundColor: "rgba(0, 0, 0, 0.04)",
+                  },
+                }}
+                aria-label="Notifications"
+              >
+                <Bell size={20} />
+              </IconButton>
+
+              {/* User Menu */}
+              <UserMenu />
+            </>
+          ) : (
+            <>
+              <Link to="/auth/login">
+                <Button variant="outlined" colorScheme="primary">
+                  Login
+                </Button>
+              </Link>
+              <Link to="/auth/signup">
+                <Button variant="contained" colorScheme="primary">
+                  Sign Up
+                </Button>
+              </Link>
+            </>
+          )}
+        </Stack>
+      </Box>
+    </div>
   );
 };
 
