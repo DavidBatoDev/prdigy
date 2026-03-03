@@ -11,10 +11,11 @@ const Header = () => {
     "/project",
     "/profile",
     "/consultant",
+    "/notifications",
     "/client/project-posting",
   ];
 
-  if (!validPaths.some(path => currentPath.startsWith(path))) {
+  if (!validPaths.some((path) => currentPath.startsWith(path))) {
     return null;
   }
 
@@ -26,11 +27,9 @@ const Header = () => {
     content = <DashboardHeader />;
   }
   // Any other routes can default to DashboardHeader
-  
+
   return (
-    <header 
-      className="fixed top-0 left-0 right-0 h-14 bg-white/90 backdrop-blur-sm border-b border-[#EAEAEA] z-50 flex items-center justify-center transition-all duration-300"
-    >
+    <header className="fixed top-0 left-0 right-0 h-14 bg-white/90 backdrop-blur-sm border-b border-[#EAEAEA] z-50 flex items-center justify-center transition-all duration-300">
       {content}
     </header>
   );

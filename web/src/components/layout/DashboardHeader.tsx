@@ -1,17 +1,84 @@
-import { useState } from "react";
+import { type MouseEvent, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Box, Typography, Stack, IconButton, InputBase } from "@mui/material";
+import {
+  Badge,
+  Box,
+  Divider,
+  IconButton,
+  InputBase,
+  Menu,
+  MenuItem,
+  Stack,
+  Typography,
+} from "@mui/material";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "../../ui/button";
 import Logo from "/prodigylogos/light/logovector.svg";
 import { useAuthStore, useIsLoading } from "@/stores/authStore";
 import UserMenu from "./UserMenu";
 import { MessageCircle, Bell, Search, ChevronDown } from "lucide-react";
+import { notificationsService } from "@/services/notifications.service";
+import { useNotificationsRealtime } from "@/hooks/useNotificationsRealtime";
 
 const DashboardHeader = () => {
   const { isAuthenticated, profile } = useAuthStore();
   const isAuthLoading = useIsLoading();
   const isLoading = isAuthLoading || (isAuthenticated && !profile);
   const [consultantsMenuOpen, setConsultantsMenuOpen] = useState(false);
+  const [notificationAnchor, setNotificationAnchor] =
+    useState<HTMLElement | null>(null);
+  const queryClient = useQueryClient();
+
+  useNotificationsRealtime(profile?.id);
+
+  const unreadCountQuery = useQuery({
+    queryKey: ["notifications", "unread-count"],
+    queryFn: () => notificationsService.unreadCount(),
+    enabled: isAuthenticated,
+  });
+
+  const recentNotificationsQuery = useQuery({
+    queryKey: ["notifications", "recent"],
+    queryFn: () => notificationsService.list({ limit: 5 }),
+    enabled: isAuthenticated,
+  });
+
+  const markReadMutation = useMutation({
+    mutationFn: (id: string) => notificationsService.markRead(id, true),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+
+  const markAllReadMutation = useMutation({
+    mutationFn: () => notificationsService.markAllRead(),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+
+  const unreadCount = unreadCountQuery.data ?? 0;
+  const recentNotifications = recentNotificationsQuery.data || [];
+
+  const openNotifications = (event: MouseEvent<HTMLElement>) => {
+    setNotificationAnchor(event.currentTarget);
+  };
+
+  const closeNotifications = () => {
+    setNotificationAnchor(null);
+  };
+
+  const handleNotificationClick = async (
+    id: string,
+    linkUrl?: string | null,
+  ) => {
+    if (!id) return;
+    await markReadMutation.mutateAsync(id);
+    closeNotifications();
+    if (linkUrl) {
+      window.location.href = linkUrl;
+    }
+  };
 
   const navItems = [
     { label: "Home", href: "/dashboard" },
@@ -361,9 +428,124 @@ const DashboardHeader = () => {
                   },
                 }}
                 aria-label="Notifications"
+                onClick={openNotifications}
               >
-                <Bell size={20} />
+                <Badge
+                  badgeContent={unreadCount > 99 ? "99+" : unreadCount}
+                  color="error"
+                >
+                  <Bell size={20} />
+                </Badge>
               </IconButton>
+
+              <Menu
+                anchorEl={notificationAnchor}
+                open={Boolean(notificationAnchor)}
+                onClose={closeNotifications}
+                disableScrollLock
+                PaperProps={{
+                  sx: {
+                    width: 360,
+                    maxWidth: "90vw",
+                    borderRadius: "12px",
+                    mt: 1,
+                  },
+                }}
+              >
+                <Box className="px-4 py-3 flex items-center justify-between">
+                  <Typography sx={{ fontSize: "0.95rem", fontWeight: 700 }}>
+                    Notifications
+                  </Typography>
+                  <button
+                    type="button"
+                    onClick={() => markAllReadMutation.mutate()}
+                    className="text-xs text-[#ff9933] hover:underline disabled:opacity-60"
+                    disabled={
+                      markAllReadMutation.isPending || unreadCount === 0
+                    }
+                  >
+                    Mark all read
+                  </button>
+                </Box>
+                <Divider />
+
+                {recentNotifications.length === 0 ? (
+                  <Box className="px-4 py-8 text-center text-sm text-gray-500">
+                    No notifications yet.
+                  </Box>
+                ) : (
+                  recentNotifications.map((notification) => {
+                    const typeName = notification.type?.name;
+                    const title =
+                      typeName === "project_invite_received"
+                        ? "New project invite"
+                        : typeName === "project_invite_responded"
+                          ? "Invite response"
+                          : typeName === "marketplace_profile_live"
+                            ? "Profile is live"
+                            : "Notification";
+
+                    const messageValue = notification.content?.message;
+                    const statusValue = notification.content?.status;
+                    const message =
+                      typeof messageValue === "string" && messageValue.trim()
+                        ? messageValue
+                        : typeof statusValue === "string"
+                          ? `Invite was ${statusValue}.`
+                          : "You have a new update.";
+
+                    return (
+                      <MenuItem
+                        key={notification.id}
+                        onClick={() =>
+                          handleNotificationClick(
+                            notification.id,
+                            notification.link_url,
+                          )
+                        }
+                        sx={{
+                          alignItems: "flex-start",
+                          whiteSpace: "normal",
+                          borderLeft: notification.is_read
+                            ? "3px solid transparent"
+                            : "3px solid #ff9933",
+                          py: 1.5,
+                          px: 2,
+                        }}
+                      >
+                        <Box>
+                          <Typography
+                            sx={{ fontSize: "0.85rem", fontWeight: 600 }}
+                          >
+                            {title}
+                          </Typography>
+                          <Typography
+                            sx={{ fontSize: "0.8rem", color: "#666", mt: 0.25 }}
+                          >
+                            {message}
+                          </Typography>
+                          <Typography
+                            sx={{ fontSize: "0.75rem", color: "#999", mt: 0.5 }}
+                          >
+                            {new Date(notification.created_at).toLocaleString()}
+                          </Typography>
+                        </Box>
+                      </MenuItem>
+                    );
+                  })
+                )}
+
+                <Divider />
+                <Box className="px-4 py-2">
+                  <Link
+                    to="/notifications"
+                    className="text-sm text-[#ff9933] hover:underline"
+                    onClick={closeNotifications}
+                  >
+                    View all notifications
+                  </Link>
+                </Box>
+              </Menu>
 
               {/* User Menu */}
               <UserMenu />

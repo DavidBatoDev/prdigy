@@ -5,8 +5,6 @@ import { projectService, type Project } from "@/services/project.service";
 import Logo from "/prodigylogos/light/logovector.svg";
 import ProjectUserMenu from "./ProjectUserMenu";
 
-type ViewingRole = "CLIENT" | "CONSULTANT" | "OWNER" | "VIEWER" | string;
-
 const roleBadgeColor: Record<string, string> = {
   CONSULTANT: "bg-emerald-100 text-emerald-700 border-emerald-200",
   CLIENT: "bg-blue-100 text-blue-700 border-blue-200",
@@ -60,7 +58,7 @@ export function ProjectHeader() {
     <div className="w-full h-full flex items-center justify-between px-6 shrink-0 z-10">
       {/* Left: Logo + Breadcrumbs */}
       <div className="flex flex-row items-center gap-4 min-w-0">
-        <Link to="/" className="cursor-pointer flex items-center shrink-0 border-r border-gray-200 pr-4">
+        <Link to="/dashboard" className="cursor-pointer flex items-center shrink-0 border-r border-gray-200 pr-4">
           <img src={Logo} alt="Prodigy Logo" className="h-[24px]" />
         </Link>
         <div className="flex items-center text-sm font-medium text-gray-900 min-w-0 gap-2">
@@ -144,7 +142,7 @@ export function ProjectHeader() {
 
         {/* User Menu */}
         <div className="ml-1">
-          <ProjectUserMenu />
+          <ProjectUserMenu role={viewingAs} />
         </div>
       </div>
     </div>

@@ -4,7 +4,11 @@ import { useAuthStore } from "@/stores/authStore";
 import { useProfileQuery } from "@/hooks/useProfileQuery";
 import { User, LogOut, ChevronDown, Briefcase } from "lucide-react";
 
-export default function ProjectUserMenu() {
+interface ProjectUserMenuProps {
+  role?: string;
+}
+
+export default function ProjectUserMenu({ role }: ProjectUserMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -79,7 +83,7 @@ export default function ProjectUserMenu() {
             {getDisplayName()}
           </span>
           <span className="text-[10px] text-gray-500">
-            {getPersonaLabel(profile?.active_persona || "client")}
+            {role ? getPersonaLabel(role.toLowerCase()) : getPersonaLabel(profile?.active_persona || "client")}
           </span>
         </div>
 
