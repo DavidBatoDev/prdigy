@@ -15,11 +15,49 @@ interface ResetEmailRequest {
   email: string;
 }
 
+type EmailErrorCode =
+  | "BAD_REQUEST"
+  | "SERVER_CONFIG_ERROR"
+  | "EMAIL_AUTH_INVALID"
+  | "EMAIL_AUTH_REQUEST_FAILED"
+  | "EMAIL_SEND_FAILED"
+  | "EMAIL_INTERNAL";
+
+class EmailFunctionError extends Error {
+  code: EmailErrorCode;
+  stage: string;
+  httpStatus: number;
+  details?: Record<string, unknown>;
+
+  constructor(
+    code: EmailErrorCode,
+    message: string,
+    stage: string,
+    httpStatus: number,
+    details?: Record<string, unknown>,
+  ) {
+    super(message);
+    this.name = "EmailFunctionError";
+    this.code = code;
+    this.stage = stage;
+    this.httpStatus = httpStatus;
+    this.details = details;
+  }
+}
+
+function safeJsonParse(text: string): Record<string, unknown> | null {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
 // Gmail API token refresh helper (reused from signup email pattern)
 async function refreshAccessToken(
   clientId: string,
   clientSecret: string,
-  refreshToken: string
+  refreshToken: string,
 ): Promise<string> {
   const tokenUrl = "https://oauth2.googleapis.com/token";
   const body = new URLSearchParams({
@@ -29,18 +67,71 @@ async function refreshAccessToken(
     grant_type: "refresh_token",
   });
 
-  const response = await fetch(tokenUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: body.toString(),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to refresh token: ${await response.text()}`);
+  let response: Response;
+  try {
+    response = await fetch(tokenUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+    });
+  } catch (error) {
+    throw new EmailFunctionError(
+      "EMAIL_AUTH_REQUEST_FAILED",
+      "Failed to reach Google OAuth token endpoint",
+      "refresh_access_token",
+      500,
+      { cause: error instanceof Error ? error.message : String(error) },
+    );
   }
 
-  const data = await response.json();
-  return data.access_token;
+  const responseText = await response.text();
+  const parsed = safeJsonParse(responseText);
+  const oauthError = typeof parsed?.error === "string" ? parsed.error : null;
+  const oauthErrorDescription =
+    typeof parsed?.error_description === "string"
+      ? parsed.error_description
+      : null;
+
+  if (!response.ok) {
+    if (oauthError === "invalid_grant") {
+      throw new EmailFunctionError(
+        "EMAIL_AUTH_INVALID",
+        "Google OAuth refresh token is invalid or revoked",
+        "refresh_access_token",
+        500,
+        {
+          status: response.status,
+          oauthError,
+          oauthErrorDescription,
+        },
+      );
+    }
+
+    throw new EmailFunctionError(
+      "EMAIL_AUTH_REQUEST_FAILED",
+      "Google OAuth token refresh request failed",
+      "refresh_access_token",
+      500,
+      {
+        status: response.status,
+        oauthError,
+        oauthErrorDescription,
+      },
+    );
+  }
+
+  const accessToken =
+    typeof parsed?.access_token === "string" ? parsed.access_token : null;
+  if (!accessToken) {
+    throw new EmailFunctionError(
+      "EMAIL_AUTH_REQUEST_FAILED",
+      "Google OAuth token response missing access_token",
+      "refresh_access_token",
+      500,
+    );
+  }
+
+  return accessToken;
 }
 
 // Send email via Gmail API
@@ -48,7 +139,7 @@ async function sendEmail(
   accessToken: string,
   to: string,
   subject: string,
-  htmlBody: string
+  htmlBody: string,
 ) {
   const fromEmail = "batobatodavid20@gmail.com"; // Your Gmail address
   const fromName = "Prodigitality Services";
@@ -75,12 +166,42 @@ async function sendEmail(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ raw: encodedEmail }),
-    }
+    },
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Gmail API error: ${error}`);
+    const errorText = await response.text();
+    const parsed = safeJsonParse(errorText);
+    const gmailMessage =
+      typeof parsed?.error === "object" &&
+      parsed.error &&
+      typeof (parsed.error as Record<string, unknown>).message === "string"
+        ? ((parsed.error as Record<string, unknown>).message as string)
+        : null;
+
+    if (response.status === 401 || response.status === 403) {
+      throw new EmailFunctionError(
+        "EMAIL_AUTH_INVALID",
+        "Gmail authorization failed while sending email",
+        "send_gmail_message",
+        500,
+        {
+          status: response.status,
+          gmailMessage,
+        },
+      );
+    }
+
+    throw new EmailFunctionError(
+      "EMAIL_SEND_FAILED",
+      "Gmail API rejected email send request",
+      "send_gmail_message",
+      500,
+      {
+        status: response.status,
+        gmailMessage,
+      },
+    );
   }
 
   return await response.json();
@@ -94,14 +215,18 @@ async function sha256Hex(input: string): Promise<string> {
   const data = new TextEncoder().encode(input);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  const hashHex = hashArray
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
   return hashHex;
 }
 
 function randomSalt(length = 16): string {
   const bytes = new Uint8Array(length);
   crypto.getRandomValues(bytes);
-  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 function getResetEmailHtml(code: string): string {
@@ -160,7 +285,12 @@ serve(async (req) => {
   try {
     const { email }: ResetEmailRequest = await req.json();
     if (!email || typeof email !== "string") {
-      throw new Error("Missing or invalid 'email'");
+      throw new EmailFunctionError(
+        "BAD_REQUEST",
+        "Missing or invalid 'email'",
+        "validate_request",
+        400,
+      );
     }
 
     // Env
@@ -176,10 +306,20 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!clientId || !clientSecret || !refreshToken) {
-      throw new Error("Missing Google OAuth credentials");
+      throw new EmailFunctionError(
+        "SERVER_CONFIG_ERROR",
+        "Missing Google OAuth credentials",
+        "load_env",
+        500,
+      );
     }
     if (!supabaseUrl || !serviceRoleKey) {
-      throw new Error("Missing Supabase service credentials");
+      throw new EmailFunctionError(
+        "SERVER_CONFIG_ERROR",
+        "Missing Supabase service credentials",
+        "load_env",
+        500,
+      );
     }
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
@@ -189,33 +329,84 @@ serve(async (req) => {
     const codeHash = await sha256Hex(`${salt}|${code}`);
 
     // Insert reset row
-    const { error: insertError } = await supabase.from("password_resets").insert({
-      email,
-      user_id: null,
-      code_hash: codeHash,
-      salt,
-      // expires_at defaults to now()+10m
-    });
-    if (insertError) throw insertError;
+    const { error: insertError } = await supabase
+      .from("password_resets")
+      .insert({
+        email,
+        user_id: null,
+        code_hash: codeHash,
+        salt,
+        // expires_at defaults to now()+10m
+      });
+    if (insertError) {
+      throw new EmailFunctionError(
+        "EMAIL_INTERNAL",
+        "Failed to persist password reset code",
+        "insert_password_reset",
+        500,
+        {
+          dbCode: (insertError as { code?: string }).code ?? null,
+          dbMessage: insertError.message,
+        },
+      );
+    }
 
     // Send email
     const accessToken = await refreshAccessToken(
       clientId,
       clientSecret,
-      refreshToken
+      refreshToken,
     );
     const htmlBody = getResetEmailHtml(code);
-    await sendEmail(accessToken, email, `Reset Your Password - Code: ${code}`, htmlBody);
+    await sendEmail(
+      accessToken,
+      email,
+      `Reset Your Password - Code: ${code}`,
+      htmlBody,
+    );
 
     return new Response(
       JSON.stringify({ success: true, message: "Password reset code sent" }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      },
     );
   } catch (error) {
-    console.error("Error in send-password-reset-email:", error);
+    const handledError =
+      error instanceof EmailFunctionError
+        ? error
+        : new EmailFunctionError(
+            "EMAIL_INTERNAL",
+            "Unexpected error in send-password-reset-email",
+            "unknown",
+            500,
+            {
+              cause: error instanceof Error ? error.message : String(error),
+            },
+          );
+
+    console.error(
+      "send-password-reset-email failed",
+      JSON.stringify({
+        code: handledError.code,
+        stage: handledError.stage,
+        message: handledError.message,
+        details: handledError.details ?? null,
+      }),
+    );
+
     return new Response(
-      JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      JSON.stringify({
+        success: false,
+        error: handledError.message,
+        errorCode: handledError.code,
+        errorStage: handledError.stage,
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: handledError.httpStatus,
+      },
     );
   }
 });

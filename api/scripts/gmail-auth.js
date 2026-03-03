@@ -19,7 +19,7 @@ const CLIENT_SECRET =
 if (!CLIENT_ID || !CLIENT_SECRET) {
   console.error("Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET in .env");
   console.error(
-    "Add them then re-run. Provided values can be copied into .env:"
+    "Add them then re-run. Provided values can be copied into .env:",
   );
   console.error("GOOGLE_CLIENT_ID=<your client id>");
   console.error("GOOGLE_CLIENT_SECRET=<your client secret>");
@@ -29,25 +29,28 @@ if (!CLIENT_ID || !CLIENT_SECRET) {
 const oauth2Client = new google.auth.OAuth2(
   CLIENT_ID,
   CLIENT_SECRET,
-  REDIRECT_URI
+  REDIRECT_URI,
 );
 
-// Gmail scopes for full access: read, compose, send, draft, modify, delete
-const scopes = [
-  "https://www.googleapis.com/auth/gmail.modify", // Read, compose, send, and delete emails
-  "https://www.googleapis.com/auth/gmail.compose", // Create drafts and send emails
-  "https://www.googleapis.com/auth/gmail.readonly", // Read emails and settings
-  "https://www.googleapis.com/auth/gmail.send", // Send emails on behalf of user
-];
+// Keep scope as small as possible for long-term token stability
+const scopes = ["https://www.googleapis.com/auth/gmail.send"];
+
+// Only force consent when intentionally rotating/regenerating refresh token.
+// Set GOOGLE_OAUTH_FORCE_CONSENT=true for that one run.
+const forceConsent = process.env.GOOGLE_OAUTH_FORCE_CONSENT === "true";
 
 const authUrl = oauth2Client.generateAuthUrl({
-  access_type: "offline", // ensures refresh_token is returned on first consent
-  prompt: "consent", // always prompt to guarantee refresh_token
+  access_type: "offline", // required to receive refresh_token
+  include_granted_scopes: true,
+  prompt: forceConsent ? "consent" : undefined,
   scope: scopes,
 });
 
 console.log("\nAuthorize this app by visiting the URL:\n");
 console.log(authUrl);
+console.log(
+  `\nMode: ${forceConsent ? "FORCE_CONSENT (token rotation)" : "NORMAL (reuse existing grant)"}`,
+);
 console.log("\nWaiting for approval... (Ctrl+C to cancel)\n");
 
 const app = express();
@@ -67,7 +70,7 @@ app.get("/oauth2callback", async (req, res) => {
 
     if (!refreshToken) {
       console.warn(
-        "No refresh_token returned. Ensure you used prompt=consent and access_type=offline and that this is the first consent."
+        "No refresh_token returned. Re-run with GOOGLE_OAUTH_FORCE_CONSENT=true to rotate and issue a new refresh token.",
       );
     }
 
