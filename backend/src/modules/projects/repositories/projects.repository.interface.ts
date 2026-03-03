@@ -1,5 +1,10 @@
 import { Project } from '../../../common/entities';
-import { CreateProjectDto, UpdateProjectDto } from '../dto/project.dto';
+import {
+  AddProjectMemberDto,
+  CreateProjectDto,
+  UpdateProjectDto,
+  UpdateProjectMemberDto,
+} from '../dto/project.dto';
 
 export interface ProjectsRepository {
   findByUser(userId: string): Promise<Project[]>;
@@ -16,4 +21,11 @@ export interface ProjectsRepository {
   update(id: string, dto: UpdateProjectDto): Promise<Project>;
   assignConsultant(projectId: string, consultantId: string): Promise<Project>;
   isOwner(projectId: string, userId: string): Promise<boolean>;
+  addMember(projectId: string, dto: AddProjectMemberDto): Promise<unknown>;
+  updateMember(
+    projectId: string,
+    memberId: string,
+    dto: UpdateProjectMemberDto,
+  ): Promise<unknown>;
+  removeMember(projectId: string, memberId: string): Promise<void>;
 }

@@ -1,15 +1,33 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_ADMIN } from '../../../config/supabase.module';
 import { ProjectsRepository } from './projects.repository.interface';
 import { Project } from '../../../common/entities';
-import { CreateProjectDto, UpdateProjectDto } from '../dto/project.dto';
+import {
+  AddProjectMemberDto,
+  CreateProjectDto,
+  UpdateProjectDto,
+  UpdateProjectMemberDto,
+} from '../dto/project.dto';
 
 @Injectable()
 export class SupabaseProjectsRepository implements ProjectsRepository {
   constructor(
     @Inject(SUPABASE_ADMIN) private readonly supabase: SupabaseClient,
   ) {}
+
+  private isMissingMemberTypeColumn(error: unknown): boolean {
+    if (!error || typeof error !== 'object') return false;
+    const maybeError = error as { message?: string; details?: string };
+    const haystack =
+      `${maybeError.message ?? ''} ${maybeError.details ?? ''}`.toLowerCase();
+    return haystack.includes('member_type') && haystack.includes('column');
+  }
 
   private toProjectsTablePayload(
     dto: CreateProjectDto | UpdateProjectDto,
@@ -93,21 +111,64 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
       })
     | null
   > {
-    const { data, error } = await this.supabase
+    const withMemberType = await this.supabase
       .from('projects')
       .select(
         `
         *,
         client:profiles!projects_client_id_fkey(id, display_name, avatar_url, headline),
         consultant:profiles!projects_consultant_id_fkey(id, display_name, avatar_url, headline),
-        members:project_members(*, user:profiles(id, display_name, avatar_url))
+        members:project_members(id, project_id, user_id, role, member_type, joined_at, user:profiles(id, display_name, avatar_url, email, first_name, last_name))
       `,
       )
       .eq('id', id)
       .single();
 
-    if (error || !data) return null;
-    return data as Project & {
+    if (!withMemberType.error && withMemberType.data) {
+      return withMemberType.data as Project & {
+        client?: unknown;
+        consultant?: unknown;
+        members?: unknown[];
+      };
+    }
+
+    if (!this.isMissingMemberTypeColumn(withMemberType.error)) {
+      return null;
+    }
+
+    const withoutMemberType = await this.supabase
+      .from('projects')
+      .select(
+        `
+        *,
+        client:profiles!projects_client_id_fkey(id, display_name, avatar_url, headline),
+        consultant:profiles!projects_consultant_id_fkey(id, display_name, avatar_url, headline),
+        members:project_members(id, project_id, user_id, role, joined_at, user:profiles(id, display_name, avatar_url, email, first_name, last_name))
+      `,
+      )
+      .eq('id', id)
+      .single();
+
+    if (withoutMemberType.error || !withoutMemberType.data) return null;
+
+    const normalized = withoutMemberType.data as Project & {
+      client?: unknown;
+      consultant?: unknown;
+      members?: Array<Record<string, unknown>>;
+    };
+
+    normalized.members = (normalized.members ?? []).map((member) => {
+      const role = String(member.role ?? '').toLowerCase();
+      const inferredType =
+        role === 'client' ||
+        role === 'consultant' ||
+        role === 'consultant (lead)'
+          ? 'stakeholder'
+          : 'freelancer';
+      return { ...member, member_type: inferredType };
+    });
+
+    return normalized as Project & {
       client?: unknown;
       consultant?: unknown;
       members?: unknown[];
@@ -131,6 +192,7 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
       project_id: project.id,
       user_id: userId,
       role: 'client',
+      member_type: 'stakeholder',
     });
 
     return project as Project;
@@ -169,6 +231,7 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
         project_id: projectId,
         user_id: consultantId,
         role: 'consultant',
+        member_type: 'stakeholder',
       },
       { onConflict: 'project_id,user_id' },
     );
@@ -184,5 +247,95 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
       .or(`client_id.eq.${userId},consultant_id.eq.${userId}`)
       .single();
     return !!data;
+  }
+
+  async addMember(
+    projectId: string,
+    dto: AddProjectMemberDto,
+  ): Promise<unknown> {
+    let userId: string | null = null;
+
+    if (dto.member_type !== 'open_role') {
+      // Resolve user by email
+      if (!dto.email) {
+        throw new BadRequestException(
+          'Email is required when adding a real member.',
+        );
+      }
+      const { data: profile } = await this.supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', dto.email)
+        .single();
+
+      if (!profile) {
+        throw new NotFoundException(
+          `No registered user found with email ${dto.email}`,
+        );
+      }
+      userId = profile.id as string;
+    }
+
+    const { data, error } = await this.supabase
+      .from('project_members')
+      .insert({
+        project_id: projectId,
+        user_id: userId,
+        role: dto.role,
+        member_type: dto.member_type,
+      })
+      .select(
+        'id, project_id, user_id, role, member_type, joined_at, user:profiles(id, display_name, avatar_url, email, first_name, last_name)',
+      )
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
+  async updateMember(
+    projectId: string,
+    memberId: string,
+    dto: UpdateProjectMemberDto,
+  ): Promise<unknown> {
+    const patch: Record<string, unknown> = {};
+    if (dto.role !== undefined) patch.role = dto.role;
+    if (dto.member_type !== undefined) patch.member_type = dto.member_type;
+
+    const { data, error } = await this.supabase
+      .from('project_members')
+      .update(patch)
+      .eq('id', memberId)
+      .eq('project_id', projectId)
+      .select(
+        'id, project_id, user_id, role, member_type, joined_at, user:profiles(id, display_name, avatar_url, email, first_name, last_name)',
+      )
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
+  async removeMember(projectId: string, memberId: string): Promise<void> {
+    // Prevent removing stakeholder rows
+    const { data: existing } = await this.supabase
+      .from('project_members')
+      .select('id, member_type')
+      .eq('id', memberId)
+      .eq('project_id', projectId)
+      .single();
+
+    if (!existing) throw new NotFoundException('Member not found');
+    if ((existing as Record<string, unknown>).member_type === 'stakeholder') {
+      throw new BadRequestException('Stakeholder members cannot be removed.');
+    }
+
+    const { error } = await this.supabase
+      .from('project_members')
+      .delete()
+      .eq('id', memberId)
+      .eq('project_id', projectId);
+
+    if (error) throw new BadRequestException(error.message);
   }
 }

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -15,9 +16,11 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Personas } from '../../common/decorators/personas.decorator';
 import type { AuthenticatedUser } from '../../common/interfaces/authenticated-request.interface';
 import {
+  AddProjectMemberDto,
   AssignConsultantDto,
   CreateProjectDto,
   UpdateProjectDto,
+  UpdateProjectMemberDto,
 } from './dto/project.dto';
 
 @Controller('projects')
@@ -63,5 +66,35 @@ export class ProjectsController {
   @UseGuards(AdminGuard)
   assignConsultant(@Param('id') id: string, @Body() dto: AssignConsultantDto) {
     return this.projectsService.assignConsultant(id, dto.consultant_id);
+  }
+
+  // ─── Team Member Endpoints ───────────────────────────────────────────────
+
+  @Post(':id/members')
+  addMember(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: AddProjectMemberDto,
+  ) {
+    return this.projectsService.addMember(id, user.id, dto);
+  }
+
+  @Patch(':id/members/:memberId')
+  updateMember(
+    @Param('id') id: string,
+    @Param('memberId') memberId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateProjectMemberDto,
+  ) {
+    return this.projectsService.updateMember(id, memberId, user.id, dto);
+  }
+
+  @Delete(':id/members/:memberId')
+  removeMember(
+    @Param('id') id: string,
+    @Param('memberId') memberId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.projectsService.removeMember(id, memberId, user.id);
   }
 }

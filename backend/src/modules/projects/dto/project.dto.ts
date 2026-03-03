@@ -1,10 +1,27 @@
 import {
   IsArray,
+  IsEmail,
   IsEnum,
   IsOptional,
   IsString,
   MaxLength,
 } from 'class-validator';
+
+export type MemberType = 'stakeholder' | 'freelancer' | 'open_role';
+
+export class AddProjectMemberDto {
+  @IsEmail() @IsOptional() email?: string;
+  @IsString() @MaxLength(100) role: string;
+  @IsEnum(['stakeholder', 'freelancer', 'open_role'])
+  member_type: MemberType;
+}
+
+export class UpdateProjectMemberDto {
+  @IsString() @IsOptional() @MaxLength(100) role?: string;
+  @IsEnum(['stakeholder', 'freelancer', 'open_role'])
+  @IsOptional()
+  member_type?: MemberType;
+}
 
 type ProjectStatus =
   | 'draft'

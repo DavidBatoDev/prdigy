@@ -51,8 +51,9 @@ export interface Project {
 export interface ProjectMember {
   id: string;
   project_id: string;
-  user_id: string;
+  user_id: string | null;
   role: string;
+  member_type: "stakeholder" | "freelancer" | "open_role";
   joined_at?: string;
   user?: {
     id: string;
@@ -229,6 +230,97 @@ class ProjectService {
   async getMembers(projectId: string): Promise<ProjectMember[]> {
     const project = await this.get(projectId);
     return project.members ?? [];
+  }
+
+  async addMember(
+    projectId: string,
+    data: {
+      email?: string;
+      role: string;
+      member_type: "stakeholder" | "freelancer" | "open_role";
+    },
+  ): Promise<ProjectMember> {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("Authentication required");
+
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/api/projects/${projectId}/members`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(data),
+      },
+    );
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(
+        err.message || err.error?.message || "Failed to add member",
+      );
+    }
+    const result = await response.json();
+    return result.data ?? result;
+  }
+
+  async updateMember(
+    projectId: string,
+    memberId: string,
+    data: {
+      role?: string;
+      member_type?: "stakeholder" | "freelancer" | "open_role";
+    },
+  ): Promise<ProjectMember> {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("Authentication required");
+
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/api/projects/${projectId}/members/${memberId}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(data),
+      },
+    );
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(
+        err.message || err.error?.message || "Failed to update member",
+      );
+    }
+    const result = await response.json();
+    return result.data ?? result;
+  }
+
+  async removeMember(projectId: string, memberId: string): Promise<void> {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("Authentication required");
+
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/api/projects/${projectId}/members/${memberId}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      },
+    );
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(
+        err.message || err.error?.message || "Failed to remove member",
+      );
+    }
   }
 }
 
