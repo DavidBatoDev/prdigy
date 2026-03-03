@@ -2,8 +2,10 @@ import {
   IsArray,
   IsEmail,
   IsEnum,
+  IsIn,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
 } from 'class-validator';
 
@@ -21,6 +23,31 @@ export class UpdateProjectMemberDto {
   @IsEnum(['stakeholder', 'freelancer', 'open_role'])
   @IsOptional()
   member_type?: MemberType;
+}
+
+export class InviteProjectByEmailDto {
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  @MaxLength(100)
+  role: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1200)
+  message?: string;
+}
+
+export class RespondProjectInviteDto {
+  @IsIn(['accepted', 'declined'])
+  status: 'accepted' | 'declined';
+}
+
+export class ProjectInviteQueryDto {
+  @IsOptional()
+  @IsUUID()
+  project_id?: string;
 }
 
 type ProjectStatus =

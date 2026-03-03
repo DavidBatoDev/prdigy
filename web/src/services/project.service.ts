@@ -66,6 +66,30 @@ export interface ProjectMember {
   };
 }
 
+export interface ProjectInvite {
+  id: string;
+  project_id: string;
+  invited_by: string;
+  invitee_id: string | null;
+  invitee_email: string | null;
+  invited_role: string | null;
+  status: "pending" | "accepted" | "declined";
+  message: string | null;
+  created_at: string;
+  updated_at: string;
+  responded_at?: string | null;
+  project?: {
+    id: string;
+    title: string;
+    status: string;
+  } | null;
+  inviter?: {
+    id: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
+}
+
 class ProjectService {
   /**
    * Create a new project
@@ -297,6 +321,106 @@ class ProjectService {
         err.message || err.error?.message || "Failed to update member",
       );
     }
+    const result = await response.json();
+    return result.data ?? result;
+  }
+
+  async inviteByEmail(
+    projectId: string,
+    data: {
+      email: string;
+      role: string;
+      message?: string;
+    },
+  ): Promise<ProjectInvite> {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("Authentication required");
+
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/api/projects/${projectId}/invites`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(data),
+      },
+    );
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(
+        err.message || err.error?.message || "Failed to send invite",
+      );
+    }
+
+    const result = await response.json();
+    return result.data ?? result;
+  }
+
+  async getMyInvites(): Promise<ProjectInvite[]> {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("Authentication required");
+
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/api/projects/me/invites`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      },
+    );
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(
+        err.message || err.error?.message || "Failed to fetch invites",
+      );
+    }
+
+    const result = await response.json();
+    return result.data ?? result;
+  }
+
+  async respondInvite(
+    inviteId: string,
+    status: "accepted" | "declined",
+  ): Promise<{
+    id: string;
+    project_id: string;
+    invited_by: string;
+    status: string;
+  }> {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("Authentication required");
+
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/api/projects/invites/${inviteId}/respond`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ status }),
+      },
+    );
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(
+        err.message || err.error?.message || "Failed to respond to invite",
+      );
+    }
+
     const result = await response.json();
     return result.data ?? result;
   }

@@ -1,10 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import {
-  profileService,
-  type MarketplaceInviteItem,
-} from "@/services/profile.service";
+import { projectService, type ProjectInvite } from "@/services/project.service";
 import { useAuthStore } from "@/stores/authStore";
 
 export const Route = createFileRoute("/freelancer/invites")({
@@ -15,7 +12,7 @@ export const Route = createFileRoute("/freelancer/invites")({
   component: FreelancerInvitesPage,
 });
 
-function statusBadge(status: MarketplaceInviteItem["status"]) {
+function statusBadge(status: ProjectInvite["status"]) {
   if (status === "accepted") {
     return "bg-green-100 text-green-700";
   }
@@ -29,8 +26,8 @@ function FreelancerInvitesPage() {
   const queryClient = useQueryClient();
 
   const invitesQuery = useQuery({
-    queryKey: ["marketplace", "my-invites"],
-    queryFn: () => profileService.getMyInvites(),
+    queryKey: ["projects", "my-invites"],
+    queryFn: () => projectService.getMyInvites(),
   });
 
   const respondMutation = useMutation({
@@ -40,10 +37,10 @@ function FreelancerInvitesPage() {
     }: {
       inviteId: string;
       status: "accepted" | "declined";
-    }) => profileService.respondToInvite({ inviteId, status }),
+    }) => projectService.respondInvite(inviteId, status),
     onSuccess: async () => {
       await queryClient.invalidateQueries({
-        queryKey: ["marketplace", "my-invites"],
+        queryKey: ["projects", "my-invites"],
       });
     },
   });
@@ -88,8 +85,13 @@ function FreelancerInvitesPage() {
                       {invite.project?.title || "Untitled Project"}
                     </h2>
                     <p className="text-sm text-gray-600 mt-1">
-                      Invited by {invite.inviter?.display_name || "Consultant"}
+                      Invited by {invite.inviter?.display_name || "Team lead"}
                     </p>
+                    {invite.invited_role ? (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Role: {invite.invited_role}
+                      </p>
+                    ) : null}
                     <p className="text-xs text-gray-500 mt-1">
                       Sent {new Date(invite.created_at).toLocaleString()}
                     </p>

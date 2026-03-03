@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
@@ -19,6 +20,9 @@ import {
   AddProjectMemberDto,
   AssignConsultantDto,
   CreateProjectDto,
+  InviteProjectByEmailDto,
+  ProjectInviteQueryDto,
+  RespondProjectInviteDto,
   UpdateProjectDto,
   UpdateProjectMemberDto,
 } from './dto/project.dto';
@@ -77,6 +81,32 @@ export class ProjectsController {
     @Body() dto: AddProjectMemberDto,
   ) {
     return this.projectsService.addMember(id, user.id, dto);
+  }
+
+  @Post(':id/invites')
+  inviteByEmail(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: InviteProjectByEmailDto,
+  ) {
+    return this.projectsService.inviteByEmail(id, user.id, dto);
+  }
+
+  @Get('me/invites')
+  listMyInvites(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: ProjectInviteQueryDto,
+  ) {
+    return this.projectsService.listInvitesForUser(user.id, query);
+  }
+
+  @Patch('invites/:inviteId/respond')
+  respondInvite(
+    @Param('inviteId') inviteId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: RespondProjectInviteDto,
+  ) {
+    return this.projectsService.respondInvite(user.id, inviteId, dto);
   }
 
   @Patch(':id/members/:memberId')

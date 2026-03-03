@@ -1,6 +1,7 @@
 import { useRouterState } from "@tanstack/react-router";
 import DashboardHeader from "./DashboardHeader";
 import { ProjectHeader } from "../project/ProjectHeader";
+import { ProjectInvitePromptManager } from "../invites/ProjectInvitePromptManager";
 
 const Header = () => {
   const routerState = useRouterState();
@@ -29,9 +30,12 @@ const Header = () => {
   // Any other routes can default to DashboardHeader
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-14 bg-white/90 backdrop-blur-sm border-b border-[#EAEAEA] z-50 flex items-center justify-center transition-all duration-300">
-      {content}
-    </header>
+    <>
+      <header className="fixed top-0 left-0 right-0 h-14 bg-white/90 backdrop-blur-sm border-b border-[#EAEAEA] z-50 flex items-center justify-center transition-all duration-300">
+        {content}
+      </header>
+      <ProjectInvitePromptManager />
+    </>
   );
 };
 

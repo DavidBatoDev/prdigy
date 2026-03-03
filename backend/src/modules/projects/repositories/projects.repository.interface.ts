@@ -2,6 +2,9 @@ import { Project } from '../../../common/entities';
 import {
   AddProjectMemberDto,
   CreateProjectDto,
+  InviteProjectByEmailDto,
+  ProjectInviteQueryDto,
+  RespondProjectInviteDto,
   UpdateProjectDto,
   UpdateProjectMemberDto,
 } from '../dto/project.dto';
@@ -22,6 +25,21 @@ export interface ProjectsRepository {
   assignConsultant(projectId: string, consultantId: string): Promise<Project>;
   isOwner(projectId: string, userId: string): Promise<boolean>;
   addMember(projectId: string, dto: AddProjectMemberDto): Promise<unknown>;
+  getProfileDisplayName(userId: string): Promise<string | null>;
+  inviteByEmail(
+    projectId: string,
+    invitedBy: string,
+    dto: InviteProjectByEmailDto,
+  ): Promise<unknown>;
+  listInvitesForUser(
+    userId: string,
+    query?: ProjectInviteQueryDto,
+  ): Promise<unknown[]>;
+  respondInvite(
+    userId: string,
+    inviteId: string,
+    dto: RespondProjectInviteDto,
+  ): Promise<unknown>;
   updateMember(
     projectId: string,
     memberId: string,

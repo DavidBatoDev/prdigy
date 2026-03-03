@@ -241,15 +241,27 @@ function AddMemberModal({
     setError(null);
     setSaving(true);
     try {
-      const added = await projectService.addMember(projectId, {
-        email: tab === "email" ? email.trim() : undefined,
-        role: roleVal,
-        member_type: tab === "open_role" ? "open_role" : "freelancer",
-      });
-      onAdded(added);
+      if (tab === "email") {
+        await projectService.inviteByEmail(projectId, {
+          email: email.trim(),
+          role: roleVal,
+        });
+      } else {
+        const added = await projectService.addMember(projectId, {
+          role: roleVal,
+          member_type: "open_role",
+        });
+        onAdded(added);
+      }
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to add member.");
+      setError(
+        e instanceof Error
+          ? e.message
+          : tab === "email"
+            ? "Failed to send invite."
+            : "Failed to add member.",
+      );
     } finally {
       setSaving(false);
     }
@@ -321,7 +333,8 @@ function AddMemberModal({
                 className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#ff9933]/30 focus:border-[#ff9933] placeholder:text-gray-300"
               />
               <p className="mt-1.5 text-[11px] text-gray-400">
-                The person must have a registered Prdigy account.
+                If they already have an account they’ll be notified right away.
+                If not, they’ll get the invite after signup.
               </p>
             </div>
           )}

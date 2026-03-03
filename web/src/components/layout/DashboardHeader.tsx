@@ -68,13 +68,27 @@ const DashboardHeader = () => {
     setNotificationAnchor(null);
   };
 
-  const handleNotificationClick = async (
+  const handleNotificationClick = (
     id: string,
     linkUrl?: string | null,
+    typeName?: string,
+    inviteId?: string | null,
   ) => {
     if (!id) return;
-    await markReadMutation.mutateAsync(id);
     closeNotifications();
+
+    if (typeName === "project_invite_received" && inviteId) {
+      window.dispatchEvent(
+        new CustomEvent("open-project-invite-modal", {
+          detail: { inviteId },
+        }),
+      );
+      markReadMutation.mutate(id);
+      return;
+    }
+
+    markReadMutation.mutate(id);
+
     if (linkUrl) {
       window.location.href = linkUrl;
     }
@@ -487,6 +501,7 @@ const DashboardHeader = () => {
 
                     const messageValue = notification.content?.message;
                     const statusValue = notification.content?.status;
+                    const inviteIdValue = notification.content?.invite_id;
                     const message =
                       typeof messageValue === "string" && messageValue.trim()
                         ? messageValue
@@ -501,35 +516,71 @@ const DashboardHeader = () => {
                           handleNotificationClick(
                             notification.id,
                             notification.link_url,
+                            typeName,
+                            typeof inviteIdValue === "string"
+                              ? inviteIdValue
+                              : null,
                           )
                         }
                         sx={{
+                          display: "flex",
                           alignItems: "flex-start",
                           whiteSpace: "normal",
-                          borderLeft: notification.is_read
-                            ? "3px solid transparent"
-                            : "3px solid #ff9933",
+                          backgroundColor: notification.is_read
+                            ? "transparent"
+                            : "#fff8f3",
+                          borderBottom: "1px solid #f8fafc",
                           py: 1.5,
                           px: 2,
                         }}
                       >
-                        <Box>
+                        <Box sx={{ flex: 1, pr: 2 }}>
                           <Typography
-                            sx={{ fontSize: "0.85rem", fontWeight: 600 }}
+                            sx={{
+                              fontSize: "0.85rem",
+                              fontWeight: notification.is_read ? 500 : 700,
+                              color: notification.is_read
+                                ? "#475569"
+                                : "#0f172a",
+                            }}
                           >
                             {title}
                           </Typography>
                           <Typography
-                            sx={{ fontSize: "0.8rem", color: "#666", mt: 0.25 }}
+                            sx={{
+                              fontSize: "0.8rem",
+                              color: notification.is_read
+                                ? "#64748b"
+                                : "#334155",
+                              mt: 0.25,
+                              fontWeight: notification.is_read ? 400 : 500,
+                            }}
                           >
                             {message}
                           </Typography>
                           <Typography
-                            sx={{ fontSize: "0.75rem", color: "#999", mt: 0.5 }}
+                            sx={{
+                              fontSize: "0.75rem",
+                              color: "#94a3b8",
+                              mt: 0.5,
+                            }}
                           >
                             {new Date(notification.created_at).toLocaleString()}
                           </Typography>
                         </Box>
+                        {!notification.is_read && (
+                          <Box
+                            sx={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: "50%",
+                              bgcolor: "#ff9933",
+                              mt: 1,
+                              flexShrink: 0,
+                              boxShadow: "0 0 8px rgba(255, 153, 51, 0.5)",
+                            }}
+                          />
+                        )}
                       </MenuItem>
                     );
                   })
