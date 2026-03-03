@@ -4,6 +4,7 @@
  */
 
 import { apiClient } from "@/api";
+import { isAxiosError } from "axios";
 import type {
   Roadmap,
   RoadmapMilestone,
@@ -327,7 +328,7 @@ export const roadmapService = {
       );
       return response.data.data ?? null;
     } catch (error) {
-      if (axios.isAxiosError(error) && error.response?.status === 404) {
+      if (isAxiosError(error) && error.response?.status === 404) {
         return null;
       }
       throw handleServiceError(error, `Get roadmap for project ${projectId}`);
