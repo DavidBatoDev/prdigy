@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_ADMIN } from '../../config/supabase.module';
+import { NotificationsService } from '../notifications/notifications.service';
 import {
   InviteFreelancerDto,
   MarketplaceQueryDto,
@@ -51,7 +52,18 @@ export interface MarketplaceInviteItem {
 export class MarketplaceService {
   constructor(
     @Inject(SUPABASE_ADMIN) private readonly supabase: SupabaseClient,
+    private readonly notificationsService: NotificationsService,
   ) {}
+
+  private async emitNotification(
+    payload: Parameters<NotificationsService['createNotification']>[0],
+  ): Promise<void> {
+    try {
+      await this.notificationsService.createNotification(payload);
+    } catch {
+      return;
+    }
+  }
 
   private async ensureConsultant(userId: string): Promise<void> {
     const { data, error } = await this.supabase
@@ -211,6 +223,16 @@ export class MarketplaceService {
       throw new BadRequestException(error?.message || 'Failed to go live');
     }
 
+    await this.emitNotification({
+      user_id: userId,
+      type_name: 'marketplace_profile_live',
+      actor_id: userId,
+      content: {
+        message: 'Your freelancer profile is now live in the marketplace.',
+      },
+      link_url: '/freelancer/profile',
+    });
+
     return { is_public: data.is_public as boolean };
   }
 
@@ -270,6 +292,18 @@ export class MarketplaceService {
         error?.message || 'Failed to create invite',
       );
     }
+
+    await this.emitNotification({
+      user_id: dto.inviteeId,
+      project_id: dto.projectId,
+      type_name: 'project_invite_received',
+      actor_id: userId,
+      content: {
+        invite_id: data.id,
+        message: dto.message || null,
+      },
+      link_url: '/freelancer/marketplace/invites',
+    });
 
     return {
       id: data.id as string,
@@ -358,7 +392,7 @@ export class MarketplaceService {
   ): Promise<{ id: string; status: string }> {
     const { data: invite, error: inviteError } = await this.supabase
       .from('project_invites')
-      .select('id, project_id, invitee_id, status')
+      .select('id, project_id, invitee_id, invited_by, status')
       .eq('id', inviteId)
       .single();
 
@@ -408,6 +442,18 @@ export class MarketplaceService {
         );
       }
     }
+
+    await this.emitNotification({
+      user_id: invite.invited_by as string,
+      project_id: invite.project_id as string,
+      type_name: 'project_invite_responded',
+      actor_id: userId,
+      content: {
+        invite_id: inviteId,
+        status: dto.status,
+      },
+      link_url: '/consultant/marketplace',
+    });
 
     return {
       id: updatedInvite.id as string,

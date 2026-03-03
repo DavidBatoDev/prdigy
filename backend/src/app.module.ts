@@ -17,6 +17,7 @@ import { GuestsModule } from './modules/guests/guests.module';
 import { RoadmapsModule } from './modules/roadmaps/roadmaps.module';
 import { RoadmapSharesModule } from './modules/roadmap-shares/roadmap-shares.module';
 import { MarketplaceModule } from './modules/marketplace/marketplace.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { MarketplaceModule } from './modules/marketplace/marketplace.module';
     RoadmapsModule,
     RoadmapSharesModule,
     MarketplaceModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}

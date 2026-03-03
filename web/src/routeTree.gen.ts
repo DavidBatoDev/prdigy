@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as LandingRouteImport } from './routes/landing'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -51,6 +52,11 @@ import { Route as ProjectProjectIdRoadmapRoadmapIdRouteImport } from './routes/p
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LandingRoute = LandingRouteImport.update({
@@ -250,6 +256,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/landing': typeof LandingRoute
+  '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
   '/admin/applications': typeof AdminApplicationsRoute
   '/admin/approve-admin': typeof AdminApproveAdminRoute
@@ -289,6 +296,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/landing': typeof LandingRoute
+  '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
   '/admin/applications': typeof AdminApplicationsRoute
   '/admin/approve-admin': typeof AdminApproveAdminRoute
@@ -330,6 +338,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/landing': typeof LandingRoute
+  '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
   '/admin/applications': typeof AdminApplicationsRoute
   '/admin/approve-admin': typeof AdminApproveAdminRoute
@@ -372,6 +381,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/dashboard'
     | '/landing'
+    | '/notifications'
     | '/onboarding'
     | '/admin/applications'
     | '/admin/approve-admin'
@@ -411,6 +421,7 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/landing'
+    | '/notifications'
     | '/onboarding'
     | '/admin/applications'
     | '/admin/approve-admin'
@@ -451,6 +462,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/dashboard'
     | '/landing'
+    | '/notifications'
     | '/onboarding'
     | '/admin/applications'
     | '/admin/approve-admin'
@@ -492,6 +504,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   LandingRoute: typeof LandingRoute
+  NotificationsRoute: typeof NotificationsRoute
   OnboardingRoute: typeof OnboardingRoute
   AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
   AuthLoginRoute: typeof AuthLoginRoute
@@ -520,6 +533,13 @@ declare module '@tanstack/react-router' {
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/landing': {
@@ -849,6 +869,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   DashboardRoute: DashboardRoute,
   LandingRoute: LandingRoute,
+  NotificationsRoute: NotificationsRoute,
   OnboardingRoute: OnboardingRoute,
   AuthForgotPasswordRoute: AuthForgotPasswordRoute,
   AuthLoginRoute: AuthLoginRoute,
