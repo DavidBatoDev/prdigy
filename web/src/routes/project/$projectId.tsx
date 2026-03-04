@@ -1,9 +1,4 @@
-import {
-  createFileRoute,
-  Outlet,
-  redirect,
-  useNavigate,
-} from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { projectService, type Project } from "@/services/project.service";
@@ -71,7 +66,12 @@ function ProjectLayout() {
   return (
     <div className="flex flex-col h-screen bg-[#f6f7f8] overflow-hidden pt-14">
       <div className="flex flex-1 overflow-hidden">
-        <ProjectSidebar project={project} projectId={projectId} hasProject={!isRoadmapOnly && !!project} roadmapId={linkedRoadmapId ?? undefined} />
+        <ProjectSidebar
+          project={project}
+          projectId={projectId}
+          hasProject={!isRoadmapOnly && !!project}
+          roadmapId={linkedRoadmapId ?? undefined}
+        />
         <main className="flex-1 overflow-hidden">
           <Outlet />
         </main>

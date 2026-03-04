@@ -547,7 +547,8 @@ export const SidePanel = ({
                             const memberName =
                               member.user?.display_name ||
                               member.user?.email ||
-                              member.user_id;
+                              member.user_id ||
+                              "Unassigned";
 
                             return (
                               <button

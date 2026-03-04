@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Header } from "@/components/root/Header";
 import { HeroSection } from "@/components/root/HeroSection";
-import { ProjectTypes } from "@/components/root/ProjectTypes";
 import { TemplatesSection } from "@/components/root/TemplatesSection";
 import { CTASection } from "@/components/root/CTASection";
 import { RootFooter } from "@/components/root/RootFooter";

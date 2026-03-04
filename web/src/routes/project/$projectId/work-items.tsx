@@ -1377,6 +1377,7 @@ function WorkItemsPage() {
   const assigneeFilterOptions = useMemo(() => {
     const unique = new globalThis.Map<string, ProjectMember>();
     for (const member of projectMembers) {
+      if (!member.user_id) continue;
       if (!unique.has(member.user_id)) unique.set(member.user_id, member);
     }
     return Array.from(unique.values());
@@ -1710,7 +1711,8 @@ function WorkItemsPage() {
                     {assigneeFilterMemberOptions.length > 0 && (
                       <div className="mt-1 pt-1 border-t border-gray-100">
                         {assigneeFilterMemberOptions.map((member) => {
-                          const isSelected = assigneeFilter === member.user_id;
+                          const memberUserId = member.user_id!;
+                          const isSelected = assigneeFilter === memberUserId;
                           const memberName =
                             member.user?.display_name ||
                             member.user?.email ||
@@ -1718,10 +1720,10 @@ function WorkItemsPage() {
 
                           return (
                             <button
-                              key={member.user_id}
+                              key={memberUserId}
                               type="button"
                               onClick={() => {
-                                setAssigneeFilter(member.user_id);
+                                setAssigneeFilter(memberUserId);
                                 setIsAssigneeFilterMenuOpen(false);
                               }}
                               className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${isSelected ? "bg-gray-50 font-medium" : ""}`}
