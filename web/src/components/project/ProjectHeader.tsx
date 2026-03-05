@@ -1,7 +1,22 @@
-import { Briefcase, Search, MessageCircle, Bell, ChevronRight, ChevronsUpDown, Boxes } from "lucide-react";
-import { Link, useParams, useChildMatches, useNavigate, useLocation } from "@tanstack/react-router";
+import {
+  Briefcase,
+  Search,
+  MessageCircle,
+  Bell,
+  ChevronRight,
+  ChevronsUpDown,
+  Boxes,
+} from "lucide-react";
+import {
+  Link,
+  useParams,
+  useChildMatches,
+  useNavigate,
+  useLocation,
+} from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { projectService, type Project } from "@/services/project.service";
+import { useUser } from "@/stores/authStore";
 import Logo from "/prodigylogos/light/logovector.svg";
 import ProjectUserMenu from "./ProjectUserMenu";
 
@@ -9,6 +24,7 @@ const roleBadgeColor: Record<string, string> = {
   CONSULTANT: "bg-emerald-100 text-emerald-700 border-emerald-200",
   CLIENT: "bg-blue-100 text-blue-700 border-blue-200",
   OWNER: "bg-orange-100 text-orange-700 border-orange-200",
+  MEMBER: "bg-purple-100 text-purple-700 border-purple-200",
   VIEWER: "bg-gray-100 text-gray-600 border-gray-200",
 };
 
@@ -18,11 +34,14 @@ export function ProjectHeader() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const user = useUser();
   const [project, setProject] = useState<Project | null>(null);
 
   // For the 'n' (roadmap-only) case
   const childMatches = useChildMatches();
-  const childRoadmapId = (childMatches[0]?.params as any)?.roadmapId as string | undefined;
+  const childRoadmapId = (childMatches[0]?.params as any)?.roadmapId as
+    | string
+    | undefined;
 
   const isRoadmapOnly = projectId === "n";
 
@@ -48,29 +67,41 @@ export function ProjectHeader() {
 
   const title = project?.title ?? (isRoadmapOnly ? "Roadmap" : "Project");
   const showMakeProject = isRoadmapOnly;
-  const viewingAs = isRoadmapOnly ? undefined : (project?.consultant_id ? "CONSULTANT" : "CLIENT");
-  
+  const viewingAs = isRoadmapOnly
+    ? undefined
+    : user?.id && project
+      ? user.id === project.consultant_id
+        ? "CONSULTANT"
+        : user.id === project.client_id
+          ? "CLIENT"
+          : "MEMBER"
+      : undefined;
+
   const badgeClass =
-    roleBadgeColor[(viewingAs ?? "").toUpperCase()] ??
-    roleBadgeColor["VIEWER"];
+    roleBadgeColor[(viewingAs ?? "").toUpperCase()] ?? roleBadgeColor["VIEWER"];
 
   return (
     <div className="w-full h-full flex items-center justify-between px-6 shrink-0 z-10">
       {/* Left: Logo + Breadcrumbs */}
       <div className="flex flex-row items-center gap-4 min-w-0">
-        <Link to="/dashboard" className="cursor-pointer flex items-center shrink-0 border-r border-gray-200 pr-4">
+        <Link
+          to="/dashboard"
+          className="cursor-pointer flex items-center shrink-0 border-r border-gray-200 pr-4"
+        >
           <img src={Logo} alt="Prodigy Logo" className="h-[24px]" />
         </Link>
         <div className="flex items-center text-sm font-medium text-gray-900 min-w-0 gap-2">
           {/* Project Dropdown Button */}
           <button className="flex items-center gap-2 hover:bg-gray-100 px-2 py-1.5 rounded-lg transition-colors truncate max-w-[250px]">
             <Boxes className="w-5 h-5 text-gray-500 shrink-0" />
-            <span className="truncate text-[15px]">{title || "Untitled Project"}</span>
+            <span className="truncate text-[15px]">
+              {title || "Untitled Project"}
+            </span>
             <ChevronsUpDown className="w-4 h-4 text-gray-400 shrink-0 ml-1" />
           </button>
-          
+
           <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
-          
+
           {/* Current Page */}
           <span className="text-gray-600 truncate px-2 text-[15px] capitalize">
             {(() => {
@@ -80,12 +111,16 @@ export function ProjectHeader() {
               if (path.includes("/settings")) return "Settings";
               if (path.includes("/team")) return "Team";
               if (path.includes("/files")) return "Files";
-              if (path.includes("/task-items") || path.includes("/tasks")) return "Tasks";
+              if (path.includes("/task-items") || path.includes("/tasks"))
+                return "Tasks";
               if (path.includes("/meetings")) return "Meetings";
-              if (path.includes("/overview") || path.endsWith(projectId)) return "Overview";
+              if (path.includes("/overview") || path.endsWith(projectId))
+                return "Overview";
               // Fallback
               const segment = path.split("/").pop() || "Overview";
-              return segment.length > 20 ? "Overview" : segment.replace("-", " ");
+              return segment.length > 20
+                ? "Overview"
+                : segment.replace("-", " ");
             })()}
           </span>
         </div>
@@ -117,15 +152,15 @@ export function ProjectHeader() {
         {/* Search Bar */}
         <div className="hidden md:flex items-center bg-[#F5F5F5] hover:bg-[#EBEBEB] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#ff9933] rounded-2xl px-3 py-1.5 min-w-[200px] lg:min-w-[250px] transition-all duration-300">
           <Search size={18} className="text-[#666] mr-2 shrink-0" />
-          <input 
-            type="text" 
-            placeholder="Search..." 
-            className="flex-1 bg-transparent border-none focus:outline-none text-[0.85rem] text-[#2F302F] placeholder-[#999] min-w-0" 
+          <input
+            type="text"
+            placeholder="Search..."
+            className="flex-1 bg-transparent border-none focus:outline-none text-[0.85rem] text-[#2F302F] placeholder-[#999] min-w-0"
           />
         </div>
 
         {/* Message Icon */}
-        <button 
+        <button
           className="text-[#2F302F] hover:bg-black/5 p-2 rounded-full transition-colors flex items-center justify-center"
           aria-label="Messages"
         >
@@ -133,7 +168,7 @@ export function ProjectHeader() {
         </button>
 
         {/* Notification Icon */}
-        <button 
+        <button
           className="text-[#2F302F] hover:bg-black/5 p-2 rounded-full transition-colors flex items-center justify-center"
           aria-label="Notifications"
         >
