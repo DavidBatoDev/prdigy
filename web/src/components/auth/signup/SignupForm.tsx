@@ -1,0 +1,644 @@
+import { AnimatePresence, motion } from "framer-motion";
+import { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import { useAuthStore } from "../../../stores/authStore";
+import { supabase } from "../../../lib/supabase";
+import { useToast } from "../../../hooks/useToast";
+import { profileKeys } from "../../../queries/profile";
+import { StepIndicator } from "./StepIndicator";
+import { SignupStepAccount } from "./SignupStepAccount";
+import { SignupStepProfile } from "./SignupStepProfile";
+import Logo from "/prodigylogos/light/logo1.svg";
+
+interface SignupFormProps {
+  redirectUrl?: string;
+}
+
+// ── Motion variants ────────────────────────────────────────────────────────
+const slideIn = {
+  initial: { x: 24, opacity: 0 },
+  animate: { x: 0, opacity: 1 },
+  exit: { x: -24, opacity: 0 },
+  transition: { duration: 0.25, ease: "easeOut" as const },
+};
+const slideInReverse = {
+  initial: { x: -24, opacity: 0 },
+  animate: { x: 0, opacity: 1 },
+  exit: { x: 24, opacity: 0 },
+  transition: { duration: 0.25, ease: "easeOut" as const },
+};
+
+export function SignupForm({ redirectUrl }: SignupFormProps) {
+  const signUp = useAuthStore((state) => state.signUp);
+  const navigate = useNavigate();
+  const toast = useToast();
+  const queryClient = useQueryClient();
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  const getStored = (key: string, fallback = "") =>
+    sessionStorage.getItem(key) ?? fallback;
+
+  // ── Step state (1=Account, 2=Profile, 3=Verify) ──────────────────────────
+  const [step, setStepState] = useState<1 | 2 | 3>(() => {
+    const saved = parseInt(sessionStorage.getItem("signupStep") ?? "1");
+    return (saved as 1 | 2 | 3) || 1;
+  });
+  const [prevStep, setPrevStep] = useState<1 | 2 | 3>(1);
+
+  const setStep = (n: 1 | 2 | 3) => {
+    setPrevStep(step);
+    sessionStorage.setItem("signupStep", n.toString());
+    setStepState(n);
+  };
+
+  // ── Form fields ──────────────────────────────────────────────────────────
+  const [firstName, setFirstName] = useState(() => getStored("signup_firstName"));
+  const [lastName, setLastName] = useState(() => getStored("signup_lastName"));
+  const [email, setEmail] = useState(() => getStored("signup_email"));
+  const [password, setPassword] = useState(() => getStored("signup_password"));
+  const [confirmPassword, setConfirmPassword] = useState(() =>
+    getStored("signup_confirmPassword"),
+  );
+  const [gender, setGender] = useState(() => getStored("signup_gender"));
+  const [phoneNumber, setPhoneNumber] = useState(() => getStored("signup_phoneNumber"));
+  const [dateOfBirth, setDateOfBirth] = useState(() => getStored("signup_dateOfBirth"));
+  const [country, setCountry] = useState(() => getStored("signup_country"));
+  const [city, setCity] = useState(() => getStored("signup_city"));
+  const [zipCode, setZipCode] = useState(() => getStored("signup_zipCode"));
+  const [acceptedTerms, setAcceptedTerms] = useState(
+    () => getStored("signup_acceptedTerms", "false") === "true",
+  );
+
+  const [verificationCode, setVerificationCode] = useState("");
+  const [sentVerificationCode, setSentVerificationCode] = useState(() =>
+    getStored("signup_sentCode"),
+  );
+  const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+
+  // ── Utilities ────────────────────────────────────────────────────────────
+  const EMAIL_TIMEOUT = 8000;
+
+  const clearSignupData = () => {
+    [
+      "signupStep",
+      "isInSignupFlow",
+      "signup_firstName",
+      "signup_lastName",
+      "signup_gender",
+      "signup_phoneNumber",
+      "signup_email",
+      "signup_dateOfBirth",
+      "signup_country",
+      "signup_city",
+      "signup_zipCode",
+      "signup_password",
+      "signup_confirmPassword",
+      "signup_acceptedTerms",
+      "signup_sentCode",
+      "signup_redirect",
+    ].forEach((k) => sessionStorage.removeItem(k));
+  };
+
+  async function fetchWithTimeout(
+    resource: string,
+    options: RequestInit = {},
+    timeout = EMAIL_TIMEOUT,
+  ) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+      return await fetch(resource, { ...options, signal: controller.signal });
+    } finally {
+      clearTimeout(id);
+    }
+  }
+
+  async function waitForProfile(maxWaitMs: number) {
+    const start = Date.now();
+    while (Date.now() - start < maxWaitMs) {
+      const { data: authData } = await supabase.auth.getUser();
+      if (authData.user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", authData.user.id)
+          .maybeSingle();
+        if (profile) return profile;
+      }
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    throw new Error("Profile creation timeout");
+  }
+
+  async function sendVerificationEmail(code: string) {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    try {
+      const res = await fetchWithTimeout(
+        `${supabaseUrl}/functions/v1/send-signup-email`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${supabaseAnonKey}`,
+            apikey: supabaseAnonKey,
+          },
+          body: JSON.stringify({ to: email, firstName, lastName, verificationCode: code }),
+        },
+      );
+      if (!res.ok) {
+        console.warn("send-signup-email", await res.text().catch(() => null));
+        toast.error("Verification email could not be sent. You can resend the code.");
+        return;
+      }
+      toast.success("Check your email for the verification code");
+    } catch (err: any) {
+      if (err?.name === "AbortError") {
+        toast.error("Email sending timed out. You can resend the code.");
+      } else {
+        toast.error("Failed to send verification email. You can resend the code.");
+      }
+    }
+  }
+
+  async function updateProfileDetails() {
+    const { data: authData } = await supabase.auth.getUser();
+    if (!authData.user) return;
+    await supabase
+      .from("profiles")
+      .update({
+        first_name: firstName,
+        last_name: lastName,
+        display_name: `${firstName} ${lastName}`,
+        gender: gender || null,
+        phone_number: phoneNumber?.trim() || null,
+        country: country || null,
+        date_of_birth: dateOfBirth || null,
+        city: city || null,
+        zip_code: zipCode || null,
+      })
+      .eq("id", authData.user.id);
+  }
+
+  // ── Step 1 → 2 (account validated, advance to profile) ──────────────────
+  const handleStepOneNext = () => {
+    sessionStorage.setItem("signup_firstName", firstName);
+    sessionStorage.setItem("signup_lastName", lastName);
+    sessionStorage.setItem("signup_email", email);
+    sessionStorage.setItem("signup_password", password);
+    sessionStorage.setItem("signup_confirmPassword", confirmPassword);
+    setStep(2);
+  };
+
+  // ── Step 2 submit (profile → create account + verify) ───────────────────
+  const handleProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!acceptedTerms) {
+      toast.error("Please accept the terms and conditions");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Persist all data
+      sessionStorage.setItem("signup_firstName", firstName);
+      sessionStorage.setItem("signup_lastName", lastName);
+      sessionStorage.setItem("signup_gender", gender);
+      sessionStorage.setItem("signup_phoneNumber", phoneNumber);
+      sessionStorage.setItem("signup_email", email);
+      sessionStorage.setItem("signup_dateOfBirth", dateOfBirth);
+      sessionStorage.setItem("signup_country", country);
+      sessionStorage.setItem("signup_city", city);
+      sessionStorage.setItem("signup_zipCode", zipCode);
+      sessionStorage.setItem("signup_password", password);
+      sessionStorage.setItem("signup_confirmPassword", confirmPassword);
+      sessionStorage.setItem("signup_acceptedTerms", acceptedTerms.toString());
+      sessionStorage.setItem("isInSignupFlow", "true");
+
+      const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
+      setSentVerificationCode(generatedCode);
+      sessionStorage.setItem("signup_sentCode", generatedCode);
+
+      // Move to verification step immediately (before async ops)
+      setStep(3);
+
+      localStorage.removeItem("sb-ftuiloyegcipkupbtias-auth-token");
+
+      await signUp(email, password);
+      await waitForProfile(15000);
+      await updateProfileDetails();
+      await supabase.auth.signOut();
+      await sendVerificationEmail(generatedCode);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      sessionStorage.removeItem("isInSignupFlow");
+      sessionStorage.removeItem("signupStep");
+
+      if (
+        msg.toLowerCase().includes("already registered") ||
+        msg.toLowerCase().includes("already exists") ||
+        msg.toLowerCase().includes("duplicate")
+      ) {
+        toast.error("Email already exists. Try logging in instead.");
+      } else {
+        toast.error(msg || "Signup failed");
+      }
+      setStep(2);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ── Step 3: verify code ──────────────────────────────────────────────────
+  const handleVerificationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verificationCode) {
+      toast.error("Please enter the verification code");
+      return;
+    }
+    if (verificationCode !== sentVerificationCode) {
+      toast.error("Invalid verification code");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (signInError) throw signInError;
+
+      const { data: authData } = await supabase.auth.getUser();
+      if (authData.user) {
+        await supabase
+          .from("profiles")
+          .update({ is_email_verified: true })
+          .eq("id", authData.user.id);
+
+        await queryClient.invalidateQueries({
+          queryKey: profileKeys.byUser(authData.user.id),
+        });
+        await queryClient.refetchQueries({
+          queryKey: profileKeys.byUser(authData.user.id),
+        });
+      }
+
+      toast.success("Email verified successfully!");
+      const storedRedirect =
+        sessionStorage.getItem("signup_redirect") || redirectUrl || "/onboarding";
+      clearSignupData();
+      navigate({ to: storedRedirect });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Verification failed");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setIsResending(true);
+    try {
+      const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
+      setSentVerificationCode(generatedCode);
+      setVerificationCode("");
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const res = await fetchWithTimeout(
+        `${supabaseUrl}/functions/v1/send-signup-email`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${supabaseAnonKey}`,
+            apikey: supabaseAnonKey,
+          },
+          body: JSON.stringify({
+            to: email,
+            firstName,
+            lastName,
+            verificationCode: generatedCode,
+          }),
+        },
+      );
+      if (!res.ok) throw new Error("Failed to resend verification email");
+      toast.success("Verification code resent to your email");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to resend code");
+    } finally {
+      setIsResending(false);
+    }
+  };
+
+  // ── Derived motion variant direction ─────────────────────────────────────
+  const isForward = step >= prevStep;
+  const motionProps = isForward ? slideIn : slideInReverse;
+
+  // ── UI ────────────────────────────────────────────────────────────────────
+  return (
+    <div
+      style={{
+        background: "white",
+        borderRadius: "18px",
+        boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+        padding: "32px",
+        width: "100%",
+      }}
+    >
+      {/* Logo */}
+      <img
+        src={Logo}
+        alt="Prodigitality"
+        style={{ height: "32px", marginBottom: "24px", display: "block" }}
+      />
+
+      {/* Header + Step indicator (only on form steps 1 & 2) */}
+      {step < 3 && (
+        <div style={{ marginBottom: "24px" }}>
+          <h1
+            style={{
+              fontFamily: "'Glacial Indifference', 'Open Sans', sans-serif",
+              fontSize: "1.6rem",
+              fontWeight: 700,
+              color: "#2E2E2E",
+              margin: "0 0 4px",
+              lineHeight: 1.25,
+            }}
+          >
+            {step === 1 ? "Create your account" : "Complete your profile"}
+          </h1>
+          <p
+            style={{
+              fontSize: "13px",
+              color: "#BDBDBD",
+              margin: "0 0 20px",
+              fontFamily: "'Open Sans', sans-serif",
+            }}
+          >
+            {step === 1
+              ? "Let's start with the basics."
+              : "Tell us a bit more about yourself."}
+          </p>
+          <StepIndicator currentStep={step as 1 | 2} />
+        </div>
+      )}
+
+      {/* Animated step panels */}
+      <AnimatePresence mode="wait">
+        {step === 1 && (
+          <motion.div key="step-account" {...motionProps}>
+            <SignupStepAccount
+              firstName={firstName}
+              setFirstName={setFirstName}
+              lastName={lastName}
+              setLastName={setLastName}
+              email={email}
+              setEmail={setEmail}
+              password={password}
+              setPassword={setPassword}
+              confirmPassword={confirmPassword}
+              setConfirmPassword={setConfirmPassword}
+              onNext={handleStepOneNext}
+            />
+          </motion.div>
+        )}
+
+        {step === 2 && (
+          <motion.div key="step-profile" {...motionProps}>
+            <SignupStepProfile
+              gender={gender}
+              setGender={setGender}
+              phoneNumber={phoneNumber}
+              setPhoneNumber={setPhoneNumber}
+              dateOfBirth={dateOfBirth}
+              setDateOfBirth={setDateOfBirth}
+              country={country}
+              setCountry={setCountry}
+              city={city}
+              setCity={setCity}
+              zipCode={zipCode}
+              setZipCode={setZipCode}
+              acceptedTerms={acceptedTerms}
+              setAcceptedTerms={setAcceptedTerms}
+              onBack={() => setStep(1)}
+              onSubmit={handleProfileSubmit}
+              isLoading={isLoading}
+            />
+          </motion.div>
+        )}
+
+        {step === 3 && (
+          <motion.div key="step-verify" {...motionProps}>
+            {/* ── Verification screen ── */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+              {/* Icon */}
+              <div style={{ textAlign: "center" }}>
+                <div
+                  style={{
+                    width: "64px",
+                    height: "64px",
+                    borderRadius: "50%",
+                    background: "rgba(255,150,46,0.08)",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginBottom: "16px",
+                  }}
+                >
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
+                      stroke="#FF962E"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <polyline
+                      points="22,6 12,13 2,6"
+                      stroke="#FF962E"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+                <h2
+                  style={{
+                    fontFamily: "'Glacial Indifference', 'Open Sans', sans-serif",
+                    fontSize: "1.4rem",
+                    fontWeight: 700,
+                    color: "#2E2E2E",
+                    margin: "0 0 8px",
+                  }}
+                >
+                  Verify your email
+                </h2>
+                <p
+                  style={{
+                    fontSize: "13px",
+                    color: "#BDBDBD",
+                    margin: 0,
+                    fontFamily: "'Open Sans', sans-serif",
+                  }}
+                >
+                  We sent a 6-digit code to{" "}
+                  <strong style={{ color: "#2E2E2E" }}>{email}</strong>
+                </p>
+              </div>
+
+              {/* Code input */}
+              <form onSubmit={handleVerificationSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={verificationCode}
+                  onChange={(e) =>
+                    setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                  }
+                  placeholder="000000"
+                  style={{
+                    width: "100%",
+                    height: "64px",
+                    borderRadius: "12px",
+                    border: "2px solid #E5E5E5",
+                    textAlign: "center",
+                    fontSize: "28px",
+                    fontWeight: 700,
+                    letterSpacing: "8px",
+                    color: "#2E2E2E",
+                    outline: "none",
+                    fontFamily: "monospace",
+                    transition: "border-color 0.2s",
+                    boxSizing: "border-box",
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = "#FF962E";
+                    e.currentTarget.style.boxShadow = "0 0 0 3px rgba(255,150,46,0.12)";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "#E5E5E5";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                />
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  style={{
+                    width: "100%",
+                    height: "48px",
+                    borderRadius: "12px",
+                    border: "none",
+                    background: "#FF962E",
+                    color: "white",
+                    fontFamily: "'Open Sans', sans-serif",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    cursor: isLoading ? "not-allowed" : "pointer",
+                    opacity: isLoading ? 0.7 : 1,
+                    boxShadow: "0 4px 14px rgba(255, 150, 46, 0.35)",
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isLoading) {
+                      (e.currentTarget as HTMLButtonElement).style.background =
+                        "linear-gradient(135deg, #FF962E, #FF2D75)";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.background = "#FF962E";
+                  }}
+                >
+                  {isLoading ? "Verifying…" : "Verify Code"}
+                </button>
+              </form>
+
+              {/* Actions */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "16px",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVerificationCode("");
+                    setStep(2);
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    color: "#BDBDBD",
+                    fontFamily: "'Open Sans', sans-serif",
+                    padding: 0,
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.color = "#FF962E";
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.color = "#BDBDBD";
+                  }}
+                >
+                  ← Back
+                </button>
+                <div style={{ width: "1px", height: "14px", background: "#E5E5E5" }} />
+                <button
+                  type="button"
+                  onClick={handleResendCode}
+                  disabled={isResending}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: isResending ? "not-allowed" : "pointer",
+                    fontSize: "13px",
+                    color: "#BDBDBD",
+                    fontFamily: "'Open Sans', sans-serif",
+                    padding: 0,
+                    opacity: isResending ? 0.5 : 1,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isResending) {
+                      (e.currentTarget as HTMLButtonElement).style.color = "#FF962E";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.color = "#BDBDBD";
+                  }}
+                >
+                  {isResending ? "Resending…" : "Resend Code"}
+                </button>
+              </div>
+
+              <p
+                style={{
+                  textAlign: "center",
+                  fontSize: "13px",
+                  color: "#BDBDBD",
+                  margin: 0,
+                  fontFamily: "'Open Sans', sans-serif",
+                }}
+              >
+                Already have an account?{" "}
+                <Link
+                  to="/auth/login"
+                  style={{ color: "#FF962E", fontWeight: 600, textDecoration: "none" }}
+                >
+                  Sign in
+                </Link>
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

@@ -1,0 +1,243 @@
+import { MuiTelInput } from "mui-tel-input";
+import { DatePickerField } from "./DatePickerField";
+import { CountrySelect } from "./CountrySelect";
+import { CitySelect } from "./CitySelect";
+import { ZipInput } from "./ZipInput";
+import { PrimaryButton, SecondaryButton } from "./SignupButtons";
+
+interface SignupStepProfileProps {
+  gender: string;
+  setGender: (v: string) => void;
+  phoneNumber: string;
+  setPhoneNumber: (v: string) => void;
+  dateOfBirth: string;
+  setDateOfBirth: (v: string) => void;
+  /** ISO country code, e.g. "PH" */
+  country: string;
+  setCountry: (code: string) => void;
+  city: string;
+  setCity: (v: string) => void;
+  zipCode: string;
+  setZipCode: (v: string) => void;
+  acceptedTerms: boolean;
+  setAcceptedTerms: (v: boolean) => void;
+  onBack: () => void;
+  onSubmit: (e: React.FormEvent) => void;
+  isLoading: boolean;
+}
+
+const GENDERS = ["Male", "Female", "Other"];
+
+export function SignupStepProfile({
+  gender,
+  setGender,
+  phoneNumber,
+  setPhoneNumber,
+  dateOfBirth,
+  setDateOfBirth,
+  country,
+  setCountry,
+  city,
+  setCity,
+  zipCode,
+  setZipCode,
+  acceptedTerms,
+  setAcceptedTerms,
+  onBack,
+  onSubmit,
+  isLoading,
+}: SignupStepProfileProps) {
+  return (
+    <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      {/* Gender */}
+      <div>
+        <p
+          style={{
+            fontSize: "11px",
+            fontWeight: 600,
+            color: "#BDBDBD",
+            marginBottom: "8px",
+            margin: "0 0 8px",
+            fontFamily: "'Open Sans', sans-serif",
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
+          Gender
+        </p>
+        <div style={{ display: "flex", gap: "10px" }}>
+          {GENDERS.map((g) => {
+            const isSelected = gender.toLowerCase() === g.toLowerCase();
+            return (
+              <button
+                key={g}
+                type="button"
+                onClick={() => setGender(g.toLowerCase())}
+                style={{
+                  flex: 1,
+                  height: "48px",
+                  borderRadius: "10px",
+                  border: isSelected ? "1px solid #FF962E" : "1px solid #E5E5E5",
+                  background: isSelected ? "rgba(255, 150, 46, 0.06)" : "white",
+                  color: isSelected ? "#FF962E" : "#BDBDBD",
+                  fontFamily: "'Open Sans', sans-serif",
+                  fontSize: "14px",
+                  fontWeight: isSelected ? 600 : 500,
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                  boxShadow: isSelected ? "0 0 0 3px rgba(255,150,46,0.1)" : "none",
+                }}
+              >
+                {g}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Phone */}
+      <MuiTelInput
+        label="Phone (optional)"
+        placeholder="Optional"
+        value={phoneNumber}
+        onChange={(value) => setPhoneNumber(value)}
+        defaultCountry="PH"
+        fullWidth
+        variant="outlined"
+        sx={{
+          "& .MuiOutlinedInput-root": {
+            borderRadius: "10px",
+            height: "52px",
+            "& fieldset": { borderColor: "#E5E5E5" },
+            "&:hover fieldset": { borderColor: "#FF962E" },
+            "&.Mui-focused fieldset": { borderColor: "#FF962E", boxShadow: "0 0 0 3px rgba(255,150,46,0.12)" },
+          },
+          "& .MuiInputLabel-root": {
+            fontFamily: "'Open Sans', sans-serif",
+            fontSize: "14px",
+            color: "#BDBDBD",
+            "&.Mui-focused": { color: "#FF962E" },
+          },
+          "& .MuiOutlinedInput-input": {
+            fontFamily: "'Open Sans', sans-serif",
+            fontSize: "14px",
+            color: "#2E2E2E",
+          },
+        }}
+      />
+
+      {/* Date of birth */}
+      <DatePickerField
+        label="Date of Birth"
+        value={dateOfBirth}
+        onChange={setDateOfBirth}
+      />
+
+      {/* Country */}
+      <CountrySelect
+        value={country}
+        onChange={(code) => {
+          setCountry(code);
+          // Reset city & zip when country changes
+          setCity("");
+          setZipCode("");
+        }}
+      />
+
+      {/* City + Zip */}
+      <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
+        <CitySelect
+          value={city}
+          onChange={setCity}
+          countryCode={country}
+        />
+        <ZipInput
+          value={zipCode}
+          onChange={setZipCode}
+          countryCode={country}
+        />
+      </div>
+
+      {/* Terms */}
+      <label
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: "10px",
+          cursor: "pointer",
+        }}
+      >
+        <div style={{ position: "relative", flexShrink: 0, marginTop: "1px" }}>
+          <input
+            type="checkbox"
+            checked={acceptedTerms}
+            onChange={(e) => setAcceptedTerms(e.target.checked)}
+            required
+            style={{ opacity: 0, position: "absolute", width: "18px", height: "18px", cursor: "pointer", margin: 0 }}
+          />
+          <div
+            style={{
+              width: "18px",
+              height: "18px",
+              borderRadius: "5px",
+              border: acceptedTerms ? "2px solid #FF962E" : "2px solid #E5E5E5",
+              background: acceptedTerms ? "#FF962E" : "white",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 0.15s ease",
+            }}
+          >
+            {acceptedTerms && (
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                <path
+                  d="M1.5 5l2.5 2.5L8.5 2"
+                  stroke="white"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
+          </div>
+        </div>
+        <span
+          style={{
+            fontSize: "13px",
+            color: "#2E2E2E",
+            lineHeight: 1.5,
+            fontFamily: "'Open Sans', sans-serif",
+          }}
+        >
+          I have read and accept the{" "}
+          <a href="/terms" style={{ color: "#FF962E", textDecoration: "none", fontWeight: 600 }}>
+            Terms of Use
+          </a>
+          ,{" "}
+          <a href="/privacy" style={{ color: "#FF962E", textDecoration: "none", fontWeight: 600 }}>
+            Privacy Policy
+          </a>{" "}
+          &{" "}
+          <a href="/conditions" style={{ color: "#FF962E", textDecoration: "none", fontWeight: 600 }}>
+            Terms &amp; Conditions
+          </a>
+        </span>
+      </label>
+
+      {/* Submit */}
+      <PrimaryButton
+        type="submit"
+        isLoading={isLoading}
+        loadingText="Creating account…"
+        style={{ marginTop: "4px" }}
+      >
+        Create Account
+      </PrimaryButton>
+
+      {/* Back */}
+      <SecondaryButton type="button" onClick={onBack}>
+        ← Back
+      </SecondaryButton>
+    </form>
+  );
+}
