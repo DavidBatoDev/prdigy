@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { X, CornerDownLeft } from "lucide-react";
+import { useRef, useState } from "react";
+import { X, CornerDownLeft, ImagePlus, Loader2, Trash2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { uploadService } from "@/services/upload.service";
 import { TileOption } from "./TileOption";
 import type { FormData } from "./types";
 
@@ -11,9 +12,29 @@ interface Step2Props {
   compact?: boolean; // For modal vs full-page styling
 }
 
-export function Step2({ formData, updateFormData, compact = false }: Step2Props) {
+export function Step2({
+  formData,
+  updateFormData,
+  compact = false,
+}: Step2Props) {
   const [skillInput, setSkillInput] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
+  const [previewUploading, setPreviewUploading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePreviewUpload = async (file: File) => {
+    setPreviewError(null);
+    setPreviewUploading(true);
+    try {
+      const publicUrl = await uploadService.upload("roadmap_previews", file);
+      updateFormData({ preview_url: publicUrl });
+    } catch (err) {
+      setPreviewError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setPreviewUploading(false);
+    }
+  };
 
   const { data: skillsData } = useQuery({
     queryKey: ["skills"],
@@ -165,14 +186,18 @@ export function Step2({ formData, updateFormData, compact = false }: Step2Props)
               onClick={() => removeSkill(skill)}
             >
               {skill}
-              <X className={`${skillIconSize} text-gray-400 group-hover:text-red-500 transition-colors`} />
+              <X
+                className={`${skillIconSize} text-gray-400 group-hover:text-red-500 transition-colors`}
+              />
             </div>
           ))}
         </div>
 
         {/* Popular Suggestions */}
         <div className={popularMarginTop}>
-          <p className={`${suggestionSize} text-[#92969f] ${popularMarginBottom} font-medium`}>
+          <p
+            className={`${suggestionSize} text-[#92969f] ${popularMarginBottom} font-medium`}
+          >
             Popular Skills
           </p>
           <div className={`flex flex-wrap ${skillChipGap}`}>
@@ -192,9 +217,82 @@ export function Step2({ formData, updateFormData, compact = false }: Step2Props)
         </div>
       </div>
 
+      {/* Roadmap Preview Image */}
+      <div>
+        <label className={`block font-semibold text-[#333438] ${labelSize}`}>
+          Preview Image{" "}
+          <span className="font-normal text-[#92969f]">(optional)</span>
+        </label>
+        <p
+          className={`${compact ? "text-[11px]" : "text-xs"} text-[#92969f] mb-2`}
+        >
+          Upload a thumbnail that will appear on roadmap cards.
+        </p>
+        {formData.preview_url ? (
+          <div className="relative inline-block group">
+            <img
+              src={formData.preview_url}
+              alt="Roadmap preview"
+              className="h-24 w-auto rounded-lg border border-gray-200 object-cover shadow-sm"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                updateFormData({ preview_url: undefined });
+                if (fileInputRef.current) fileInputRef.current.value = "";
+              }}
+              className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+              aria-label="Remove preview image"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={previewUploading}
+            className={`flex items-center justify-center gap-2 w-full border-2 border-dashed border-gray-200 rounded-lg ${
+              compact ? "py-3" : "py-4"
+            } text-[#92969f] hover:border-[#ff9933] hover:text-[#ff9933] transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            {previewUploading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className={compact ? "text-xs" : "text-sm"}>
+                  Uploading…
+                </span>
+              </>
+            ) : (
+              <>
+                <ImagePlus className="w-4 h-4" />
+                <span className={compact ? "text-xs" : "text-sm"}>
+                  Click to upload image
+                </span>
+              </>
+            )}
+          </button>
+        )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handlePreviewUpload(file);
+          }}
+        />
+        {previewError && (
+          <p className="mt-1.5 text-xs text-red-500">{previewError}</p>
+        )}
+      </div>
+
       {/* Expected Duration */}
       <div>
-        <label className={`block font-semibold text-[#333438] ${compact ? "text-sm mb-2.5" : "text-sm mb-4"}`}>
+        <label
+          className={`block font-semibold text-[#333438] ${compact ? "text-sm mb-2.5" : "text-sm mb-4"}`}
+        >
           Expected Duration
         </label>
         <div className={`grid grid-cols-2 ${gridGap}`}>

@@ -12,10 +12,18 @@ type BucketName =
   | 'banners'
   | 'project_banners'
   | 'portfolio_projects'
-  | 'identity_documents';
+  | 'identity_documents'
+  | 'roadmap_previews';
 
 export class SignedUrlDto {
-  @IsEnum(['avatars', 'banners', 'project_banners', 'portfolio_projects', 'identity_documents'])
+  @IsEnum([
+    'avatars',
+    'banners',
+    'project_banners',
+    'portfolio_projects',
+    'identity_documents',
+    'roadmap_previews',
+  ])
   bucket: BucketName;
 
   @IsString() fileName: string;

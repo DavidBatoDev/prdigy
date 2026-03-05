@@ -46,6 +46,10 @@ const BUCKET_CONFIG: Record<
     maxSize: 10 * 1024 * 1024,
     allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
   },
+  roadmap_previews: {
+    maxSize: 10 * 1024 * 1024,
+    allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
+  },
 };
 
 @Injectable()
@@ -125,7 +129,11 @@ export class UploadsService {
       throw new BadRequestException('Project not found');
     }
 
-    const p = project as { id: string; client_id: string; consultant_id: string | null };
+    const p = project as {
+      id: string;
+      client_id: string;
+      consultant_id: string | null;
+    };
 
     // Primary check: user is the registered client or consultant on the project
     let canEdit = p.client_id === userId || p.consultant_id === userId;

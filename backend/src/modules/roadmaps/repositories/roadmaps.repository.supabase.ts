@@ -137,7 +137,7 @@ export class RoadmapsRepositorySupabase implements IRoadmapsRepository {
     const { data: roadmaps, error: roadmapsError } = await this.db
       .from('roadmaps')
       .select(
-        'id, name, description, status, project_id, created_at, updated_at, project:projects(id, title)',
+        'id, name, description, status, project_id, preview_url, created_at, updated_at, project:projects(id, title)',
       )
       .eq('owner_id', userId)
       .order('updated_at', { ascending: false });

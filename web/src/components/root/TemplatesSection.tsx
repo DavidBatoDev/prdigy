@@ -649,7 +649,15 @@ export const TemplatesSection = () => {
               className="group relative bg-white border-2 border-gray-200 rounded-xl overflow-hidden hover:border-[#c68c53] hover:shadow-xl transition-all block cursor-pointer"
             >
               <div className="aspect-4/3 overflow-hidden bg-linear-to-br from-[#f0f7f9] to-[#ffffff] p-2 relative">
-                <EpicOverview preview={template.preview} />
+                {template.preview.preview_url ? (
+                  <img
+                    src={template.preview.preview_url}
+                    alt={template.title}
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                ) : (
+                  <EpicOverview preview={template.preview} />
+                )}
 
                 {/* Consultant Badge Overlay */}
                 <div className="absolute bottom-2 left-2 right-2 bg-white/95 backdrop-blur-sm rounded-lg p-1.5 flex items-center gap-2 shadow-sm border border-gray-100">
@@ -735,7 +743,15 @@ export const TemplatesSection = () => {
                 className="group relative bg-white border-2 border-gray-200 rounded-xl overflow-hidden hover:border-primary hover:shadow-xl transition-all block"
               >
                 <div className="aspect-4/3 overflow-hidden bg-linear-to-br from-blue-50 to-indigo-50 p-2">
-                  <EpicOverview preview={template.preview} />
+                  {template.preview.preview_url ? (
+                    <img
+                      src={template.preview.preview_url}
+                      alt={template.title}
+                      className="w-full h-full object-cover rounded-lg"
+                    />
+                  ) : (
+                    <EpicOverview preview={template.preview} />
+                  )}
                 </div>
                 <div className="p-3">
                   <div className="flex items-center justify-between mb-1.5 gap-2">

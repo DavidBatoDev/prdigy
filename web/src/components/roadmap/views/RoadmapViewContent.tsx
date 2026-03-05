@@ -105,6 +105,7 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
             skills: predefinedSkills,
             customSkills: customSkills,
             duration: source.duration || "1-3_months",
+            preview_url: fullRoadmap.preview_url,
           });
         }
 
@@ -238,6 +239,7 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
         name: formData.title || "Untitled Roadmap",
         description: formData.description,
         project_metadata: projectMetadata,
+        preview_url: formData.preview_url,
         settings: {
           category: formData.category,
           problemSolving: formData.problemSolving,
@@ -309,6 +311,7 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
 
       {/* Top navigation bar: view tabs + share/export */}
       <RoadmapTopBar
+        onEditBrief={() => setIsBriefOpen(true)}
         onShare={() => setIsShareModalOpen(true)}
         onExport={() => {
           /* TODO: Export functionality */

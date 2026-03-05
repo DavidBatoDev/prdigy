@@ -7,9 +7,10 @@ export interface FormData {
   description: string;
   problemSolving: string;
   projectState: ProjectState;
-  
+
   // Step 2
   skills: string[];
   customSkills: string[];
   duration: string;
+  preview_url?: string; // Optional roadmap thumbnail image
 }

@@ -6,7 +6,12 @@
 
 import apiClient from "@/api/axios";
 
-export type UploadBucket = "avatars" | "banners" | "project_banners" | "portfolio_projects";
+export type UploadBucket =
+  | "avatars"
+  | "banners"
+  | "project_banners"
+  | "portfolio_projects"
+  | "roadmap_previews";
 
 export interface SignedUrlResponse {
   signedUrl: string;

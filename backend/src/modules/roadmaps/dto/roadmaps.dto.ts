@@ -24,6 +24,7 @@ export class CreateRoadmapDto {
   @IsDateString() @IsOptional() end_date?: string;
   @IsOptional() settings?: Record<string, unknown>;
   @IsOptional() project_metadata?: Record<string, unknown>;
+  @IsString() @IsOptional() preview_url?: string;
 }
 
 export class UpdateRoadmapDto {
@@ -37,6 +38,7 @@ export class UpdateRoadmapDto {
   @IsDateString() @IsOptional() end_date?: string;
   @IsOptional() settings?: Record<string, unknown>;
   @IsOptional() project_metadata?: Record<string, unknown>;
+  @IsString() @IsOptional() preview_url?: string;
 }
 
 // Milestone DTOs

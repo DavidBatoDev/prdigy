@@ -51,6 +51,7 @@ export interface Roadmap {
   end_date?: string;
   settings?: Record<string, any>;
   project_metadata?: Record<string, any>; // Stores project-posting form data
+  preview_url?: string; // Optional image URL for roadmap thumbnail preview
   created_at: string;
   updated_at: string;
   // Sharing

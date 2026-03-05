@@ -127,7 +127,7 @@ function RoadmapBuilderPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f6f7f8] relative overflow-hidden">
+    <div className="min-h-screen bg-[#f6f7f8] pt-16 relative overflow-hidden">
       <Header />
 
       {/* Guest User Banner */}

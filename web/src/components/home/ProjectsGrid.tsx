@@ -27,9 +27,11 @@ export function ProjectsGrid() {
 
       <div className="grid grid-cols-3 gap-6">
         {isLoading ? (
-          <div className="col-span-3 flex items-center justify-center py-32">
-            <Loader2 className="w-8 h-8 animate-spin text-[#ff9933]" />
-          </div>
+          <>
+            <ProjectCardSkeleton />
+            <ProjectCardSkeleton />
+            <ProjectCardSkeleton />
+          </>
         ) : projects.length === 0 ? (
           <div className="col-span-3 flex flex-col items-center justify-center py-24 text-center px-6">
             <div className="w-16 h-16 bg-[#ff9933]/10 rounded-full flex items-center justify-center mb-4">
@@ -192,6 +194,62 @@ function ProjectCard({
           >
             View Project →
           </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProjectCardSkeleton() {
+  return (
+    <div
+      className="bg-white rounded-xl shadow-sm p-4 h-[385px] flex flex-col border border-gray-100"
+    >
+      <div className="flex-1 space-y-6">
+        {/* Header */}
+        <div>
+          <div className="flex items-center gap-2 mb-2 w-full">
+            <div className="w-8 h-4 bg-gray-200 rounded animate-pulse" />
+            <div className="w-px h-[25px] bg-[#92969f]/30" />
+            <div className="flex items-center gap-1">
+              <div className="w-[12px] h-[12px] rounded-full bg-gray-200 animate-pulse" />
+              <div className="w-20 h-4 bg-gray-200 rounded animate-pulse" />
+            </div>
+          </div>
+          <div className="w-3/4 h-5 bg-gray-200 rounded animate-pulse mb-2" />
+          <div className="w-1/2 h-4 bg-gray-200 rounded animate-pulse" />
+        </div>
+
+        {/* Progress */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="w-16 h-3 bg-gray-200 rounded animate-pulse" />
+            <div className="w-8 h-3 bg-gray-200 rounded animate-pulse" />
+          </div>
+          <div className="w-full h-[8px] bg-gray-200 rounded-full overflow-hidden" />
+        </div>
+
+        {/* Next Up */}
+        <div className="flex gap-2">
+          <div className="w-[18px] h-[18px] bg-gray-200 rounded-full animate-pulse shrink-0 mt-0.5" />
+          <div className="space-y-2 w-full">
+            <div>
+              <div className="w-20 h-4 bg-gray-200 rounded animate-pulse mb-1.5" />
+              <div className="w-1/2 h-4 bg-gray-200 rounded animate-pulse" />
+            </div>
+            <div className="w-24 h-6 bg-gray-200 rounded-[5px] animate-pulse" />
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="pt-4 border-t border-[#92969f]/30">
+        <div className="flex items-center justify-between">
+          <div className="flex -space-x-2">
+            <div className="w-[40px] h-[40px] rounded-full bg-gray-200 border-2 border-white animate-pulse" />
+            <div className="w-[40px] h-[40px] rounded-full bg-gray-200 border-2 border-white animate-pulse" />
+          </div>
+          <div className="w-24 h-4 bg-gray-200 rounded animate-pulse" />
         </div>
       </div>
     </div>

@@ -1,5 +1,10 @@
 import apiClient from "../axios";
-import type { Roadmap, RoadmapEpic, RoadmapFeature, RoadmapTask } from "../../types/roadmap";
+import type {
+  Roadmap,
+  RoadmapEpic,
+  RoadmapFeature,
+  RoadmapTask,
+} from "../../types/roadmap";
 
 // API Response types
 interface ApiResponse<T> {
@@ -15,6 +20,7 @@ export interface CreateRoadmapDto {
   start_date?: string;
   end_date?: string;
   settings?: Record<string, any>;
+  preview_url?: string;
 }
 
 export interface UpdateRoadmapDto {
@@ -24,6 +30,7 @@ export interface UpdateRoadmapDto {
   start_date?: string;
   end_date?: string;
   settings?: Record<string, any>;
+  preview_url?: string;
 }
 
 // Full roadmap structure with nested data
@@ -32,7 +39,7 @@ export interface FullRoadmap extends Roadmap {
   epics: any[];
 }
 
-export interface RoadmapPreview extends Omit<Roadmap, 'epics'> {
+export interface RoadmapPreview extends Omit<Roadmap, "epics"> {
   epics: Array<
     Pick<RoadmapEpic, "id" | "roadmap_id" | "title" | "position" | "status"> & {
       features: Array<

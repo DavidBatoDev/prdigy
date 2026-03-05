@@ -105,6 +105,7 @@ export interface UpdateRoadmapDto {
   end_date?: string;
   settings?: Record<string, any>;
   project_metadata?: Record<string, any>;
+  preview_url?: string;
 }
 
 // Epic DTOs

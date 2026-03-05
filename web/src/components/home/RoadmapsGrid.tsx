@@ -153,11 +153,22 @@ export function RoadmapsGrid() {
             <Link
               key={template.id}
               to="/project/$projectId/roadmap/$roadmapId"
-              params={{ projectId: template.preview.project_id || "n", roadmapId: template.id }}
+              params={{
+                projectId: template.preview.project_id || "n",
+                roadmapId: template.id,
+              }}
               className="group relative bg-white border-2 border-gray-200 rounded-xl overflow-hidden hover:border-primary hover:shadow-xl transition-all block"
             >
               <div className="aspect-4/3 overflow-hidden bg-linear-to-br from-blue-50 to-indigo-50 p-4">
-                <EpicOverview preview={template.preview} />
+                {template.preview.preview_url ? (
+                  <img
+                    src={template.preview.preview_url}
+                    alt={template.title}
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                ) : (
+                  <EpicOverview preview={template.preview} />
+                )}
               </div>
               <div className="p-4">
                 <div className="flex items-center justify-between mb-2">

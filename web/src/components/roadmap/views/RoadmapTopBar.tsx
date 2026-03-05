@@ -1,4 +1,11 @@
-import { X, Download, Share2, LayoutGrid, CalendarDays } from "lucide-react";
+import {
+  X,
+  Download,
+  Share2,
+  LayoutGrid,
+  CalendarDays,
+  FileText,
+} from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -82,11 +89,16 @@ const SortableEpicTab = ({
 };
 
 interface RoadmapTopBarProps {
+  onEditBrief?: () => void;
   onShare?: () => void;
   onExport?: () => void;
 }
 
-export function RoadmapTopBar({ onShare, onExport }: RoadmapTopBarProps) {
+export function RoadmapTopBar({
+  onEditBrief,
+  onShare,
+  onExport,
+}: RoadmapTopBarProps) {
   const epics = useRoadmapStore((state) => state.epics);
   const viewMode = useRoadmapStore((state) => state.canvasViewMode);
   const selectedEpicId = useRoadmapStore((state) => state.canvasSelectedEpicId);
@@ -202,6 +214,17 @@ export function RoadmapTopBar({ onShare, onExport }: RoadmapTopBarProps) {
       </div>
 
       <div className="flex items-center gap-2 px-6 py-2 border-l border-gray-200 bg-gray-100 shrink-0 shadow-sm relative z-20">
+        {onEditBrief && (
+          <button
+            onClick={onEditBrief}
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors"
+            title="Edit Project Brief"
+          >
+            <FileText className="w-4 h-4" />
+            Edit Brief
+          </button>
+        )}
+
         {onShare && (
           <button
             onClick={onShare}
