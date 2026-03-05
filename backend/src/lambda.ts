@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, RequestMethod } from '@nestjs/common';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
@@ -27,12 +27,27 @@ async function createApp(): Promise<express.Express> {
   app.use(helmet());
   app.use(compression());
 
+  const rawOrigins = config.get<string>(
+    'CORS_ORIGINS',
+    'http://localhost:3000,http://localhost:5173',
+  );
+  const allowedOrigins = rawOrigins
+    .split(',')
+    .map((o) => o.trim().replace(/\/$/, ''));
+
   app.enableCors({
-    origin: config.get<string>('CLIENT_URL', 'http://localhost:3000'),
+    origin: (origin, callback) => {
+      // allow server-to-server / curl (no origin header)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      callback(new Error(`CORS: origin ${origin} not allowed`));
+    },
     credentials: true,
   });
 
-  app.setGlobalPrefix('api');
+  app.setGlobalPrefix('api', {
+    exclude: [{ path: '/', method: RequestMethod.GET }],
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({

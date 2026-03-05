@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, RequestMethod } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -16,13 +16,27 @@ async function bootstrap() {
   app.use(compression());
 
   // CORS
+  const rawOrigins = config.get<string>(
+    'CORS_ORIGINS',
+    'http://localhost:3000,http://localhost:5173',
+  );
+  const allowedOrigins = rawOrigins
+    .split(',')
+    .map((o) => o.trim().replace(/\/$/, ''));
+
   app.enableCors({
-    origin: config.get<string>('CLIENT_URL', 'http://localhost:3000'),
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      callback(new Error(`CORS: origin ${origin} not allowed`));
+    },
     credentials: true,
   });
 
   // Global prefix
-  app.setGlobalPrefix('api');
+  app.setGlobalPrefix('api', {
+    exclude: [{ path: '/', method: RequestMethod.GET }],
+  });
 
   // Global validation pipe
   app.useGlobalPipes(

@@ -31,6 +31,10 @@ class EnvironmentVariables {
   @IsString()
   SUPABASE_SERVICE_ROLE_KEY: string;
 
+  @IsOptional()
+  @IsString()
+  CORS_ORIGINS: string = 'http://localhost:3000,http://localhost:5173';
+
   @IsString()
   CLIENT_URL: string = 'http://localhost:3000';
 }
