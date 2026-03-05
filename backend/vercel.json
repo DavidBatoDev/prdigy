@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": ".",
+  "builds": [
+    {
+      "src": "dist/lambda.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/dist/lambda.js"
+    }
+  ],
+  "functions": {
+    "dist/lambda.js": {
+      "memory": 1024,
+      "maxDuration": 30
+    }
+  }
+}

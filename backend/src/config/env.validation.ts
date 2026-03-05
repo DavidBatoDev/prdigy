@@ -2,6 +2,7 @@ import { plainToInstance } from 'class-transformer';
 import {
   IsEnum,
   IsNumber,
+  IsOptional,
   IsString,
   IsUrl,
   validateSync,
@@ -17,6 +18,7 @@ class EnvironmentVariables {
   @IsEnum(Environment)
   NODE_ENV: Environment = Environment.Development;
 
+  @IsOptional()
   @IsNumber()
   PORT: number = 3001;
 
