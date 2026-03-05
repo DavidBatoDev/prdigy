@@ -1,13 +1,61 @@
 import { Calendar, Clock } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { projectService } from "@/services/project.service";
+import { useState, useEffect, useCallback } from "react";
+import { projectService, type Project } from "@/services/project.service";
+import { supabase } from "@/lib/supabase";
+import { useUser } from "@/stores/authStore";
 
 export function ProjectsGrid() {
-  const { data: projects = [], isLoading } = useQuery({
-    queryKey: ["dashboardProjects"],
-    queryFn: () => projectService.listDashboardProjects(),
-  });
+  const user = useUser();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchProjects = useCallback(async () => {
+    try {
+      const data = await projectService.listDashboardProjects();
+      setProjects(data);
+    } catch {
+      setProjects([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel("dashboard-projects-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "projects",
+          filter: `client_id=eq.${user.id}`,
+        },
+        () => fetchProjects(),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "projects",
+          filter: `consultant_id=eq.${user.id}`,
+        },
+        () => fetchProjects(),
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, fetchProjects]);
 
   return (
     <div data-tutorial="projects-grid">
