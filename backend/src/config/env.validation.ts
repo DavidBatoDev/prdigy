@@ -35,6 +35,14 @@ class EnvironmentVariables {
   @IsString()
   CORS_ORIGINS: string = 'http://localhost:3000,http://localhost:5173';
 
+  @IsOptional()
+  @IsUrl({ require_tld: false })
+  UPSTASH_REDIS_REST_URL: string;
+
+  @IsOptional()
+  @IsString()
+  UPSTASH_REDIS_REST_TOKEN: string;
+
   @IsString()
   CLIENT_URL: string = 'http://localhost:3000';
 }

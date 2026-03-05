@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { validateEnv } from './config/env.validation';
 import { SupabaseModule } from './config/supabase.module';
+import { ThrottlerStorageRedisService } from './config/throttler-storage.service';
 
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
@@ -22,8 +24,11 @@ import { AppController } from './app.controller';
 @Module({
   controllers: [AppController],
   imports: [
-    // Rate limiting removed — use Redis-backed @nestjs-throttler-storage-redis when ready
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
+    ThrottlerModule.forRoot({
+      throttlers: [{ ttl: 60_000, limit: 100 }],
+      storage: new ThrottlerStorageRedisService(),
+    }),
     SupabaseModule,
     AuthModule,
     UsersModule,
