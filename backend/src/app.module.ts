@@ -17,8 +17,10 @@ import { RoadmapsModule } from './modules/roadmaps/roadmaps.module';
 import { RoadmapSharesModule } from './modules/roadmap-shares/roadmap-shares.module';
 import { MarketplaceModule } from './modules/marketplace/marketplace.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { AppController } from './app.controller';
 
 @Module({
+  controllers: [AppController],
   imports: [
     // Rate limiting removed — use Redis-backed @nestjs-throttler-storage-redis when ready
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),

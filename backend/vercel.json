@@ -1,23 +1,27 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": ".",
   "builds": [
     {
       "src": "dist/lambda.js",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": {
+        "memory": 1024,
+        "maxDuration": 30
+      }
     }
   ],
   "routes": [
     {
+      "src": "/",
+      "dest": "/dist/lambda.js"
+    },
+    {
+      "src": "/api(.*)",
+      "dest": "/dist/lambda.js"
+    },
+    {
       "src": "/(.*)",
       "dest": "/dist/lambda.js"
     }
-  ],
-  "functions": {
-    "dist/lambda.js": {
-      "memory": 1024,
-      "maxDuration": 30
-    }
-  }
+  ]
 }
