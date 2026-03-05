@@ -47,6 +47,7 @@ import { Route as ProjectProjectIdOverviewRouteImport } from './routes/project/$
 import { Route as ProjectProjectIdChatRouteImport } from './routes/project/$projectId/chat'
 import { Route as AuthAdminSigninRouteImport } from './routes/auth/admin/signin'
 import { Route as AuthAdminLoginRouteImport } from './routes/auth/admin/login'
+import { Route as ProjectProjectIdWorkItemsRoadmapIdRouteImport } from './routes/project/$projectId/work-items/$roadmapId'
 import { Route as ProjectProjectIdRoadmapRoadmapIdRouteImport } from './routes/project/$projectId/roadmap/$roadmapId'
 
 const OnboardingRoute = OnboardingRouteImport.update({
@@ -244,6 +245,12 @@ const AuthAdminLoginRoute = AuthAdminLoginRouteImport.update({
   path: '/auth/admin/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProjectProjectIdWorkItemsRoadmapIdRoute =
+  ProjectProjectIdWorkItemsRoadmapIdRouteImport.update({
+    id: '/$roadmapId',
+    path: '/$roadmapId',
+    getParentRoute: () => ProjectProjectIdWorkItemsRoute,
+  } as any)
 const ProjectProjectIdRoadmapRoadmapIdRoute =
   ProjectProjectIdRoadmapRoadmapIdRouteImport.update({
     id: '/$roadmapId',
@@ -287,10 +294,11 @@ export interface FileRoutesByFullPath {
   '/project/$projectId/settings': typeof ProjectProjectIdSettingsRoute
   '/project/$projectId/team': typeof ProjectProjectIdTeamRoute
   '/project/$projectId/time': typeof ProjectProjectIdTimeRoute
-  '/project/$projectId/work-items': typeof ProjectProjectIdWorkItemsRoute
+  '/project/$projectId/work-items': typeof ProjectProjectIdWorkItemsRouteWithChildren
   '/roadmap/shared/$token': typeof RoadmapSharedTokenRoute
   '/project/roadmap': typeof ProjectRoadmapIndexRoute
   '/project/$projectId/roadmap/$roadmapId': typeof ProjectProjectIdRoadmapRoadmapIdRoute
+  '/project/$projectId/work-items/$roadmapId': typeof ProjectProjectIdWorkItemsRoadmapIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -327,10 +335,11 @@ export interface FileRoutesByTo {
   '/project/$projectId/settings': typeof ProjectProjectIdSettingsRoute
   '/project/$projectId/team': typeof ProjectProjectIdTeamRoute
   '/project/$projectId/time': typeof ProjectProjectIdTimeRoute
-  '/project/$projectId/work-items': typeof ProjectProjectIdWorkItemsRoute
+  '/project/$projectId/work-items': typeof ProjectProjectIdWorkItemsRouteWithChildren
   '/roadmap/shared/$token': typeof RoadmapSharedTokenRoute
   '/project/roadmap': typeof ProjectRoadmapIndexRoute
   '/project/$projectId/roadmap/$roadmapId': typeof ProjectProjectIdRoadmapRoadmapIdRoute
+  '/project/$projectId/work-items/$roadmapId': typeof ProjectProjectIdWorkItemsRoadmapIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -369,10 +378,11 @@ export interface FileRoutesById {
   '/project/$projectId/settings': typeof ProjectProjectIdSettingsRoute
   '/project/$projectId/team': typeof ProjectProjectIdTeamRoute
   '/project/$projectId/time': typeof ProjectProjectIdTimeRoute
-  '/project/$projectId/work-items': typeof ProjectProjectIdWorkItemsRoute
+  '/project/$projectId/work-items': typeof ProjectProjectIdWorkItemsRouteWithChildren
   '/roadmap/shared/$token': typeof RoadmapSharedTokenRoute
   '/project/roadmap/': typeof ProjectRoadmapIndexRoute
   '/project/$projectId/roadmap/$roadmapId': typeof ProjectProjectIdRoadmapRoadmapIdRoute
+  '/project/$projectId/work-items/$roadmapId': typeof ProjectProjectIdWorkItemsRoadmapIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -416,6 +426,7 @@ export interface FileRouteTypes {
     | '/roadmap/shared/$token'
     | '/project/roadmap'
     | '/project/$projectId/roadmap/$roadmapId'
+    | '/project/$projectId/work-items/$roadmapId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -456,6 +467,7 @@ export interface FileRouteTypes {
     | '/roadmap/shared/$token'
     | '/project/roadmap'
     | '/project/$projectId/roadmap/$roadmapId'
+    | '/project/$projectId/work-items/$roadmapId'
   id:
     | '__root__'
     | '/'
@@ -497,6 +509,7 @@ export interface FileRouteTypes {
     | '/roadmap/shared/$token'
     | '/project/roadmap/'
     | '/project/$projectId/roadmap/$roadmapId'
+    | '/project/$projectId/work-items/$roadmapId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -794,6 +807,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthAdminLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/project/$projectId/work-items/$roadmapId': {
+      id: '/project/$projectId/work-items/$roadmapId'
+      path: '/$roadmapId'
+      fullPath: '/project/$projectId/work-items/$roadmapId'
+      preLoaderRoute: typeof ProjectProjectIdWorkItemsRoadmapIdRouteImport
+      parentRoute: typeof ProjectProjectIdWorkItemsRoute
+    }
     '/project/$projectId/roadmap/$roadmapId': {
       id: '/project/$projectId/roadmap/$roadmapId'
       path: '/$roadmapId'
@@ -837,6 +857,21 @@ const ProjectProjectIdRoadmapRouteWithChildren =
     ProjectProjectIdRoadmapRouteChildren,
   )
 
+interface ProjectProjectIdWorkItemsRouteChildren {
+  ProjectProjectIdWorkItemsRoadmapIdRoute: typeof ProjectProjectIdWorkItemsRoadmapIdRoute
+}
+
+const ProjectProjectIdWorkItemsRouteChildren: ProjectProjectIdWorkItemsRouteChildren =
+  {
+    ProjectProjectIdWorkItemsRoadmapIdRoute:
+      ProjectProjectIdWorkItemsRoadmapIdRoute,
+  }
+
+const ProjectProjectIdWorkItemsRouteWithChildren =
+  ProjectProjectIdWorkItemsRoute._addFileChildren(
+    ProjectProjectIdWorkItemsRouteChildren,
+  )
+
 interface ProjectProjectIdRouteChildren {
   ProjectProjectIdChatRoute: typeof ProjectProjectIdChatRoute
   ProjectProjectIdOverviewRoute: typeof ProjectProjectIdOverviewRoute
@@ -846,7 +881,7 @@ interface ProjectProjectIdRouteChildren {
   ProjectProjectIdSettingsRoute: typeof ProjectProjectIdSettingsRoute
   ProjectProjectIdTeamRoute: typeof ProjectProjectIdTeamRoute
   ProjectProjectIdTimeRoute: typeof ProjectProjectIdTimeRoute
-  ProjectProjectIdWorkItemsRoute: typeof ProjectProjectIdWorkItemsRoute
+  ProjectProjectIdWorkItemsRoute: typeof ProjectProjectIdWorkItemsRouteWithChildren
 }
 
 const ProjectProjectIdRouteChildren: ProjectProjectIdRouteChildren = {
@@ -858,7 +893,7 @@ const ProjectProjectIdRouteChildren: ProjectProjectIdRouteChildren = {
   ProjectProjectIdSettingsRoute: ProjectProjectIdSettingsRoute,
   ProjectProjectIdTeamRoute: ProjectProjectIdTeamRoute,
   ProjectProjectIdTimeRoute: ProjectProjectIdTimeRoute,
-  ProjectProjectIdWorkItemsRoute: ProjectProjectIdWorkItemsRoute,
+  ProjectProjectIdWorkItemsRoute: ProjectProjectIdWorkItemsRouteWithChildren,
 }
 
 const ProjectProjectIdRouteWithChildren =

@@ -7,7 +7,6 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Map, ExternalLink } from "lucide-react";
-import { projectService } from "@/services/project.service";
 import { roadmapService } from "@/services/roadmap.service";
 import { LinkRoadmapModal } from "@/components/roadmap/modals/LinkRoadmapModal";
 import { RoadmapPageSkeleton } from "@/components/roadmap/views/RoadmapPageSkeleton";
@@ -42,8 +41,6 @@ function RoadmapPage() {
 
     const load = async () => {
       try {
-        await projectService.get(projectId);
-        if (cancelled) return;
         const roadmap = await roadmapService.getByProjectId(projectId);
         const linkedRoadmapId = roadmap?.id ?? null;
 

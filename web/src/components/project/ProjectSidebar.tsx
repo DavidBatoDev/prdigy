@@ -30,6 +30,13 @@ export function ProjectSidebar({
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
 
+  // Fallback: extract roadmapId from current URL when it isn't passed as prop
+  // (e.g. projectId="n" skips the getByProjectId lookup in the parent layout)
+  const roadmapIdFromPath =
+    currentPath.match(/\/roadmap\/([^/]+)/)?.[1] ??
+    currentPath.match(/\/work-items\/([^/]+)/)?.[1];
+  const effectiveRoadmapId = roadmapId ?? roadmapIdFromPath;
+
   const [isExpanded, setIsExpanded] = useState(false);
 
   // If we're on a project route (like /project/.../overview), we should show tabs.
@@ -51,15 +58,17 @@ export function ProjectSidebar({
         {
           label: "Roadmap",
           icon: Map,
-          to: roadmapId
-            ? `/project/${projectId}/roadmap/${roadmapId}`
+          to: effectiveRoadmapId
+            ? `/project/${projectId}/roadmap/${effectiveRoadmapId}`
             : `/project/${projectId}/roadmap`,
           requiresProject: false,
         },
         {
           label: "Work Items",
           icon: ListChecks,
-          to: `/project/${projectId}/work-items`,
+          to: effectiveRoadmapId
+            ? `/project/${projectId}/work-items/${effectiveRoadmapId}`
+            : `/project/${projectId}/work-items`,
           requiresProject: false,
         },
         {
@@ -145,7 +154,9 @@ export function ProjectSidebar({
                   const isActive =
                     currentPath.startsWith(item.to) ||
                     (item.label === "Roadmap" &&
-                      currentPath.includes("/roadmap"));
+                      currentPath.includes("/roadmap")) ||
+                    (item.label === "Work Items" &&
+                      currentPath.includes("/work-items"));
                   return (
                     <Link
                       key={item.label}
