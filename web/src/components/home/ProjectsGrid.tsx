@@ -1,4 +1,4 @@
-import { Calendar, Clock, Loader2 } from "lucide-react";
+import { Calendar, Clock } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { projectService } from "@/services/project.service";
@@ -202,9 +202,7 @@ function ProjectCard({
 
 function ProjectCardSkeleton() {
   return (
-    <div
-      className="bg-white rounded-xl shadow-sm p-4 h-[385px] flex flex-col border border-gray-100"
-    >
+    <div className="bg-white rounded-xl shadow-sm p-4 h-[385px] flex flex-col border border-gray-100">
       <div className="flex-1 space-y-6">
         {/* Header */}
         <div>
