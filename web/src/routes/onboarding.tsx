@@ -1,6 +1,6 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "framer-motion";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { useToast } from "@/hooks/useToast";
 import { useProfileQuery } from "@/hooks/useProfileQuery";
@@ -16,39 +16,23 @@ export const Route = createFileRoute("/onboarding")({
   beforeLoad: () => {
     const { isAuthenticated } = useAuthStore.getState();
 
-    console.log('[ONBOARDING BEFORELOAD] isAuthenticated:', isAuthenticated);
-
-    // Only check authentication here
     if (!isAuthenticated) {
-      throw redirect({
-        to: "/auth/login",
-      });
+      throw redirect({ to: "/auth/login" });
     }
   },
   loader: async () => {
     const { user, setProfile } = useAuthStore.getState();
-    
-    console.log('[ONBOARDING LOADER] User:', user);
-    
-    if (!user) {
-      console.log('[ONBOARDING LOADER] No user found, returning null');
-      return null;
+
+    if (!user) return null;
+
+    const profile = await fetchProfile(user.id);
+    setProfile(profile);
+
+    // If the user already finished onboarding, send them straight to the dashboard.
+    if (profile?.has_completed_onboarding) {
+      throw redirect({ to: "/dashboard" });
     }
 
-    // Fetch and sync profile to store
-    const profile = await fetchProfile(user.id);
-    console.log('[ONBOARDING LOADER] Fetched profile:', profile);
-    console.log('[ONBOARDING LOADER] has_completed_onboarding:', profile?.has_completed_onboarding);
-    setProfile(profile);
-    
-    // Check if onboarding is already completed AFTER fetching profile
-    if (profile?.has_completed_onboarding) {
-      console.log('[ONBOARDING LOADER] Redirecting to dashboard - already completed');
-      throw redirect({
-        to: "/dashboard",
-      });
-    }
-    
     return { profile };
   },
   component: OnboardingPage,
@@ -58,15 +42,7 @@ function OnboardingPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const { refetch: refetchProfile } = useProfileQuery();
-  const assets = useMemo(
-    () => ({
-      ellipseLeft:
-        "https://www.figma.com/api/mcp/asset/ebe4b2ef-391d-4d0c-b657-d8261121afd3",
-      ellipseCenter:
-        "https://www.figma.com/api/mcp/asset/4aac7a25-1ae2-4fd7-ac3e-d6a8287b18c5",
-    }),
-    []
-  );
+  // No external image assets needed — decorative circles are rendered with CSS below.
 
   const [isFreelancer, setIsFreelancer] = useState(false);
   const [isClient, setIsClient] = useState(false);
@@ -107,10 +83,10 @@ function OnboardingPage() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-white">
       {/* Decorative accents */}
-      <img
-        src={assets.ellipseLeft}
-        alt=""
-        className="pointer-events-none absolute -left-36 top-1/2 h-[250px] w-[250px] -translate-y-1/2 opacity-60"
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -left-36 top-1/2 h-[250px] w-[250px] -translate-y-1/2 opacity-30 rounded-full"
+        style={{ background: "radial-gradient(circle, #FF962E 0%, #FF2D75 100%)" }}
       />
       
       <motion.svg
@@ -133,10 +109,10 @@ function OnboardingPage() {
             fillOpacity="0.3"
         />
       </motion.svg>
-      <img
-        src={assets.ellipseCenter}
-        alt=""
-        className="pointer-events-none absolute left-1/2 top-8 h-[190px] w-[190px] -translate-x-1/2"
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-1/2 top-8 h-[200px] w-[200px] -translate-x-1/2 rounded-full opacity-20"
+        style={{ background: "radial-gradient(circle, #FF962E 0%, #FF2D75 80%, transparent 100%)", filter: "blur(32px)" }}
       />
 
       <div className="relative mx-auto flex h-screen max-w-6xl flex-col items-center justify-center px-6 lg:px-12 z-10">

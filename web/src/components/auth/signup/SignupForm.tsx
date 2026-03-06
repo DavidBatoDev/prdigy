@@ -30,7 +30,7 @@ const slideInReverse = {
   transition: { duration: 0.25, ease: "easeOut" as const },
 };
 
-export function SignupForm({ redirectUrl }: SignupFormProps) {
+export function SignupForm(_props: SignupFormProps) {
   const signUp = useAuthStore((state) => state.signUp);
   const navigate = useNavigate();
   const toast = useToast();
@@ -116,23 +116,6 @@ export function SignupForm({ redirectUrl }: SignupFormProps) {
     }
   }
 
-  async function waitForProfile(maxWaitMs: number) {
-    const start = Date.now();
-    while (Date.now() - start < maxWaitMs) {
-      const { data: authData } = await supabase.auth.getUser();
-      if (authData.user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", authData.user.id)
-          .maybeSingle();
-        if (profile) return profile;
-      }
-      await new Promise((r) => setTimeout(r, 500));
-    }
-    throw new Error("Profile creation timeout");
-  }
-
   async function sendVerificationEmail(code: string) {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -162,25 +145,6 @@ export function SignupForm({ redirectUrl }: SignupFormProps) {
         toast.error("Failed to send verification email. You can resend the code.");
       }
     }
-  }
-
-  async function updateProfileDetails() {
-    const { data: authData } = await supabase.auth.getUser();
-    if (!authData.user) return;
-    await supabase
-      .from("profiles")
-      .update({
-        first_name: firstName,
-        last_name: lastName,
-        display_name: `${firstName} ${lastName}`,
-        gender: gender || null,
-        phone_number: phoneNumber?.trim() || null,
-        country: country || null,
-        date_of_birth: dateOfBirth || null,
-        city: city || null,
-        zip_code: zipCode || null,
-      })
-      .eq("id", authData.user.id);
   }
 
   // ── Step 1 → 2 (account validated, advance to profile) ──────────────────
@@ -222,15 +186,44 @@ export function SignupForm({ redirectUrl }: SignupFormProps) {
       setSentVerificationCode(generatedCode);
       sessionStorage.setItem("signup_sentCode", generatedCode);
 
-      // Move to verification step immediately (before async ops)
-      setStep(3);
-
       localStorage.removeItem("sb-ftuiloyegcipkupbtias-auth-token");
 
+      // 1. Create the Supabase auth user
       await signUp(email, password);
-      await waitForProfile(15000);
-      await updateProfileDetails();
+
+      // 2. Upsert profile directly — do not rely on DB trigger alone.
+      //    Trigger may silently fail; upsert ensures data is saved regardless.
+      const { data: authData } = await supabase.auth.getUser();
+      if (authData.user) {
+        const { error: upsertError } = await supabase.from("profiles").upsert(
+          {
+            id: authData.user.id,
+            email,
+            first_name: firstName,
+            last_name: lastName,
+            display_name: `${firstName} ${lastName}`,
+            gender: gender || null,
+            phone_number: phoneNumber?.trim() || null,
+            country: country || null,
+            date_of_birth: dateOfBirth || null,
+            city: city || null,
+            zip_code: zipCode || null,
+          },
+          { onConflict: "id" },
+        );
+        if (upsertError) {
+          // Non-fatal: log but continue — DB trigger may have already created the row
+          console.warn("Profile upsert warning:", upsertError.message);
+        }
+      }
+
+      // 3. Sign out so the session is clean before the user verifies their email
       await supabase.auth.signOut();
+
+      // 4. Advance to email verification step (only after account is created)
+      setStep(3);
+
+      // 5. Send verification email — errors handled inside; user can resend
       await sendVerificationEmail(generatedCode);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
@@ -288,10 +281,29 @@ export function SignupForm({ redirectUrl }: SignupFormProps) {
       }
 
       toast.success("Email verified successfully!");
-      const storedRedirect =
-        sessionStorage.getItem("signup_redirect") || redirectUrl || "/onboarding";
       clearSignupData();
-      navigate({ to: storedRedirect });
+
+      // Sync the auth store NOW — before navigating — so route guards
+      // (beforeLoad) see isAuthenticated:true immediately rather than waiting
+      // for the async onAuthStateChange listener to fire.
+      if (authData.user) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        useAuthStore.setState({
+          session: sessionData.session,
+          user: authData.user,
+          isAuthenticated: true,
+          isLoading: false,
+          // Clear any stale profile so the onboarding loader fetches fresh data
+          profile: null,
+        });
+      }
+
+      // New users always go to onboarding first.
+      // Do NOT use signup_redirect here — that value may be "/auth/login"
+      // (set when the user was bounced from login → signup), which would
+      // cause the login route's beforeLoad to redirect straight to /dashboard,
+      // bypassing onboarding entirely.
+      navigate({ to: "/onboarding" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Verification failed");
     } finally {
