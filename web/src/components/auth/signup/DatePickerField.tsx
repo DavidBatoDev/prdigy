@@ -116,7 +116,13 @@ export function DatePickerField({
   useEffect(() => {
     if (!open) return;
     function onPointerDown(e: PointerEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      // Use composedPath() instead of contains(e.target) because by the time
+      // this document listener fires, React may have already re-rendered and
+      // removed the clicked node from the DOM (e.g. after selecting a month/year
+      // which triggers setViewDate). composedPath() is captured at dispatch time
+      // and remains valid even after DOM mutations.
+      const path = e.composedPath();
+      if (containerRef.current && !path.includes(containerRef.current)) {
         setOpen(false);
         setFocused(false);
       }
@@ -204,11 +210,11 @@ export function DatePickerField({
           setFocused(true);
           setOpen(true);
         }}
-        onBlur={(e) => {
-          if (!containerRef.current?.contains(e.relatedTarget as Node)) {
-            setFocused(false);
-            setOpen(false);
-          }
+        onBlur={() => {
+          // Do not close the calendar on blur; blur also happens during
+          // internal interactions (month/year controls). Outside-click and
+          // Escape handlers control popover dismissal.
+          setFocused(false);
         }}
         onKeyDown={(e) => {
           if (e.key === "Escape") {
@@ -532,10 +538,15 @@ function MonthDropdown({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
+  function toggleOpen() {
+    setOpen((p) => !p);
+  }
+
   useEffect(() => {
     if (!open) return;
     function onPointerDown(e: PointerEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      const path = e.composedPath();
+      if (ref.current && !path.includes(ref.current)) {
         setOpen(false);
       }
     }
@@ -550,9 +561,10 @@ function MonthDropdown({
         aria-label="Select month"
         aria-haspopup="listbox"
         aria-expanded={open}
-        onClick={(e) => {
+        onMouseDown={(e) => {
+          e.preventDefault();
           e.stopPropagation();
-          setOpen((p) => !p);
+          toggleOpen();
         }}
         style={{
           display: "flex",
@@ -680,10 +692,16 @@ function YearDropdown({
   const ref = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
+  function toggleOpen() {
+    setOpen((p) => !p);
+    setYearInput("");
+  }
+
   useEffect(() => {
     if (!open) return;
     function onPointerDown(e: PointerEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      const path = e.composedPath();
+      if (ref.current && !path.includes(ref.current)) {
         setOpen(false);
         setYearInput("");
       }
@@ -712,10 +730,10 @@ function YearDropdown({
         aria-label="Select year"
         aria-haspopup="listbox"
         aria-expanded={open}
-        onClick={(e) => {
+        onMouseDown={(e) => {
+          e.preventDefault();
           e.stopPropagation();
-          setOpen((p) => !p);
-          setYearInput("");
+          toggleOpen();
         }}
         style={{
           display: "flex",

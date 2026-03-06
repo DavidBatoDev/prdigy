@@ -46,6 +46,11 @@ export function CountrySelect({
   const listId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Guard: set to true when the user picks an option via mouse/touch so the
+  // blur handler that fires synchronously afterwards does NOT call commitOrReset
+  // with stale query state (which would revert the selection back to the
+  // previously-selected country).
+  const justSelectedRef = useRef(false);
 
   const selectedCountry = COUNTRIES.find((c) => c.code === value) ?? null;
 
@@ -74,7 +79,8 @@ export function CountrySelect({
   useEffect(() => {
     if (!open) return;
     function onPointerDown(e: PointerEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const path = e.composedPath();
+      if (containerRef.current && !path.includes(containerRef.current)) {
         commitOrReset();
         setOpen(false);
         setFocused(false);
@@ -85,6 +91,12 @@ export function CountrySelect({
   }, [open, query, value]);
 
   function commitOrReset() {
+    // If a dropdown item was just selected via pointer, the query state is
+    // stale (React hasn't flushed it yet), so skip the revert logic entirely.
+    if (justSelectedRef.current) {
+      justSelectedRef.current = false;
+      return;
+    }
     // If the user typed something that exactly matches a country, commit it
     const exact = COUNTRIES.find(
       (c) => c.name.toLowerCase() === query.toLowerCase(),
@@ -102,6 +114,7 @@ export function CountrySelect({
   }
 
   function selectCountry(c: Country) {
+    justSelectedRef.current = true;
     onChange(c.code, c.name);
     setQuery(c.name);
     setOpen(false);
