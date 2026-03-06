@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { Link } from "@tanstack/react-router";
 import {
   RoadmapLeftSidePanel,
+  JSONRoadmapSidePanel,
   type Message,
   RoadmapCanvas,
   ShareRoadmapModal,
@@ -15,12 +16,62 @@ import { RoadmapPageSkeleton } from "./RoadmapPageSkeleton";
 import { callGeminiAPI } from "@/lib/gemini";
 import { useRoadmapStore } from "@/stores/roadmapStore";
 import { useProjectSettingsStore } from "@/stores/projectSettingsStore";
+import {
+  roadmapService,
+  type UpsertFullRoadmapDto,
+} from "@/services/roadmap.service";
+import type { Roadmap } from "@/types/roadmap";
+import { useToast } from "@/contexts/ToastContext";
 
 interface RoadmapViewContentProps {
   roadmapId: string;
 }
 
+const buildRoadmapJsonDocument = (roadmap: Roadmap): UpsertFullRoadmapDto => ({
+  id: roadmap.id,
+  name: roadmap.name,
+  description: roadmap.description,
+  project_id: roadmap.project_id ?? undefined,
+  status: roadmap.status,
+  start_date: roadmap.start_date,
+  end_date: roadmap.end_date,
+  settings: roadmap.settings,
+  roadmap_epics: (roadmap.epics ?? []).map((epic) => ({
+    id: epic.id,
+    title: epic.title,
+    description: epic.description,
+    status: epic.status,
+    priority: epic.priority,
+    position: epic.position,
+    color: epic.color,
+    start_date: epic.start_date,
+    end_date: epic.end_date,
+    tags: epic.tags,
+    roadmap_features: (epic.features ?? []).map((feature) => ({
+      id: feature.id,
+      title: feature.title,
+      description: feature.description,
+      status: feature.status,
+      position: feature.position,
+      is_deliverable: feature.is_deliverable,
+      start_date: feature.start_date,
+      end_date: feature.end_date,
+      roadmap_tasks: (feature.tasks ?? []).map((task) => ({
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        status: task.status,
+        priority: task.priority,
+        assignee_id: task.assignee_id ?? undefined,
+        due_date: task.due_date,
+        position: task.position,
+      })),
+    })),
+  })),
+});
+
 export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
+  const toast = useToast();
   // Roadmap data and actions from store
   const roadmap = useRoadmapStore((state) => state.roadmap);
   const isLoadingRoadmap = useRoadmapStore((state) => state.isLoadingRoadmap);
@@ -42,6 +93,8 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
   const openTaskDetail = useRoadmapStore((state) => state.openTaskDetail);
   const canvasViewMode = useRoadmapStore((state) => state.canvasViewMode);
   const [roadmapError, setRoadmapError] = useState<string | null>(null);
+  const [isJsonPanelOpen, setIsJsonPanelOpen] = useState(false);
+  const [isSavingRoadmapJson, setIsSavingRoadmapJson] = useState(false);
 
   const setSidebarExpanded = useProjectSettingsStore(
     (state) => state.setSidebarExpanded,
@@ -158,6 +211,11 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  const roadmapJsonValue = useMemo(() => {
+    if (!roadmap) return "{}";
+    return JSON.stringify(buildRoadmapJsonDocument(roadmap), null, 2);
+  }, [roadmap]);
+
   const handleSendMessage = async (message: string) => {
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -215,6 +273,45 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
 
   const handleModalSubmit = async () => {
     await handleUpdateRoadmap();
+  };
+
+  const handleSaveRoadmapJson = async (parsedJson: unknown) => {
+    if (!roadmap) {
+      throw new Error("Roadmap is not loaded");
+    }
+
+    if (!parsedJson || typeof parsedJson !== "object") {
+      throw new Error("Roadmap JSON must be an object");
+    }
+
+    const payload = parsedJson as UpsertFullRoadmapDto;
+
+    if (!payload.name || typeof payload.name !== "string") {
+      throw new Error("Roadmap JSON must include a valid 'name'");
+    }
+
+    if (payload.id && payload.id !== roadmapId) {
+      throw new Error("Roadmap JSON id must match the current roadmap page");
+    }
+
+    setIsSavingRoadmapJson(true);
+
+    try {
+      await roadmapService.upsertFull({
+        ...payload,
+        id: roadmapId,
+      });
+      await loadRoadmap(roadmapId);
+      setIsJsonPanelOpen(false);
+      toast.success("Roadmap JSON saved successfully");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to save roadmap JSON";
+      toast.error(message);
+      throw new Error(message);
+    } finally {
+      setIsSavingRoadmapJson(false);
+    }
   };
 
   const handleUpdateRoadmap = async () => {
@@ -313,6 +410,7 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
       <RoadmapTopBar
         onEditBrief={() => setIsBriefOpen(true)}
         onShare={() => setIsShareModalOpen(true)}
+        onOpenJsonPanel={() => setIsJsonPanelOpen(true)}
         onExport={() => {
           /* TODO: Export functionality */
         }}
@@ -396,6 +494,14 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
           roadmapName={roadmap.name}
         />
       )}
+
+      <JSONRoadmapSidePanel
+        isOpen={isJsonPanelOpen}
+        initialJson={roadmapJsonValue}
+        isSaving={isSavingRoadmapJson}
+        onClose={() => setIsJsonPanelOpen(false)}
+        onSave={handleSaveRoadmapJson}
+      />
     </div>
   );
 }

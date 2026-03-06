@@ -1,0 +1,39 @@
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { SUPABASE_ADMIN } from '../../../config/supabase.module';
+import type { IRoadmapPatchRepository } from './roadmap-patch.repository.interface';
+import type { FullRoadmapState } from '../dto/patch-roadmap.dto';
+
+@Injectable()
+export class RoadmapPatchRepositorySupabase implements IRoadmapPatchRepository {
+  constructor(@Inject(SUPABASE_ADMIN) private readonly db: SupabaseClient) {}
+
+  async upsertFullRoadmap(params: {
+    roadmapId: string;
+    ownerId: string;
+    fullState: FullRoadmapState;
+    createIfMissing?: boolean;
+  }): Promise<void> {
+    const { roadmapId, ownerId, fullState, createIfMissing = false } = params;
+
+    const { error } = await this.db.rpc('upsert_full_roadmap', {
+      p_roadmap_id: roadmapId,
+      p_owner_id: ownerId,
+      p_full_state: fullState,
+      p_create_if_missing: createIfMissing,
+    });
+
+    if (!error) return;
+
+    if (error.code === 'P0001') {
+      throw new BadRequestException(error.message);
+    }
+
+    throw new InternalServerErrorException(error.message);
+  }
+}

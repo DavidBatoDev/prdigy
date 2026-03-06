@@ -7,6 +7,7 @@ import { EpicsController } from './controllers/epics.controller';
 import { FeaturesController } from './controllers/features.controller';
 import { TasksController } from './controllers/tasks.controller';
 import { TaskExtrasController } from './controllers/task-extras.controller';
+import { RoadmapPatchController } from './controllers/roadmap-patch.controller';
 
 // Services & tokens
 import {
@@ -27,6 +28,10 @@ import {
   TaskExtrasService,
   TASK_EXTRAS_REPOSITORY,
 } from './services/task-extras.service';
+import {
+  RoadmapPatchService,
+  ROADMAP_PATCH_REPOSITORY,
+} from './services/roadmap-patch.service';
 
 // Repository implementations
 import { RoadmapsRepositorySupabase } from './repositories/roadmaps.repository.supabase';
@@ -35,6 +40,8 @@ import { EpicsRepositorySupabase } from './repositories/epics.repository.supabas
 import { FeaturesRepositorySupabase } from './repositories/features.repository.supabase';
 import { TasksRepositorySupabase } from './repositories/tasks.repository.supabase';
 import { TaskExtrasRepositorySupabase } from './repositories/task-extras.repository.supabase';
+import { RoadmapPatchRepositorySupabase } from './repositories/roadmap-patch.repository.supabase';
+import { RoadmapJsonPatchProcessor } from './patch/roadmap-json-patch.processor';
 
 @Module({
   controllers: [
@@ -44,10 +51,17 @@ import { TaskExtrasRepositorySupabase } from './repositories/task-extras.reposit
     FeaturesController,
     TasksController,
     TaskExtrasController,
+    RoadmapPatchController,
   ],
   providers: [
     RoadmapsService,
     { provide: ROADMAPS_REPOSITORY, useClass: RoadmapsRepositorySupabase },
+    RoadmapPatchService,
+    {
+      provide: ROADMAP_PATCH_REPOSITORY,
+      useClass: RoadmapPatchRepositorySupabase,
+    },
+    RoadmapJsonPatchProcessor,
     MilestonesService,
     { provide: MILESTONES_REPOSITORY, useClass: MilestonesRepositorySupabase },
     EpicsService,

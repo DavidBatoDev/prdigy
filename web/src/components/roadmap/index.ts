@@ -19,6 +19,7 @@ export {
   type Message,
 } from "./panels/RoadmapLeftSidePanel";
 export { SidePanel } from "./panels/SidePanel";
+export { JSONRoadmapSidePanel } from "./panels/JSONRoadmapSidePanel";
 export { ChatPanel } from "./panels/ChatPanel";
 
 // Modal components

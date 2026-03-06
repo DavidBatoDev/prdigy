@@ -108,6 +108,55 @@ export interface UpdateRoadmapDto {
   preview_url?: string;
 }
 
+export interface UpsertFullRoadmapTaskDto {
+  id?: string;
+  title: string;
+  description?: string;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  assignee_id?: string;
+  due_date?: string;
+  position?: number;
+}
+
+export interface UpsertFullRoadmapFeatureDto {
+  id?: string;
+  title: string;
+  description?: string;
+  status?: FeatureStatus;
+  position?: number;
+  is_deliverable?: boolean;
+  start_date?: string;
+  end_date?: string;
+  roadmap_tasks?: UpsertFullRoadmapTaskDto[];
+}
+
+export interface UpsertFullRoadmapEpicDto {
+  id?: string;
+  title: string;
+  description?: string;
+  status?: EpicStatus;
+  priority?: EpicPriority;
+  position?: number;
+  color?: string;
+  start_date?: string;
+  end_date?: string;
+  tags?: string[];
+  roadmap_features?: UpsertFullRoadmapFeatureDto[];
+}
+
+export interface UpsertFullRoadmapDto {
+  id?: string;
+  name: string;
+  description?: string;
+  project_id?: string;
+  status?: RoadmapStatus;
+  start_date?: string;
+  end_date?: string;
+  settings?: Record<string, any>;
+  roadmap_epics?: UpsertFullRoadmapEpicDto[];
+}
+
 // Epic DTOs
 export interface CreateEpicDto {
   roadmap_id: string;
@@ -301,6 +350,18 @@ export const roadmapService = {
       return response.data.data;
     } catch (error) {
       throw handleServiceError(error, "Create roadmap");
+    }
+  },
+
+  async upsertFull(data: UpsertFullRoadmapDto): Promise<FullRoadmap> {
+    try {
+      const response = await apiClient.post<ApiResponse<FullRoadmap>>(
+        "/api/roadmaps/full",
+        data,
+      );
+      return response.data.data;
+    } catch (error) {
+      throw handleServiceError(error, "Upsert full roadmap");
     }
   },
 

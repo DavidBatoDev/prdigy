@@ -2,6 +2,7 @@ import {
   X,
   Download,
   Share2,
+  Code2,
   LayoutGrid,
   CalendarDays,
   FileText,
@@ -92,12 +93,14 @@ interface RoadmapTopBarProps {
   onEditBrief?: () => void;
   onShare?: () => void;
   onExport?: () => void;
+  onOpenJsonPanel?: () => void;
 }
 
 export function RoadmapTopBar({
   onEditBrief,
   onShare,
   onExport,
+  onOpenJsonPanel,
 }: RoadmapTopBarProps) {
   const epics = useRoadmapStore((state) => state.epics);
   const viewMode = useRoadmapStore((state) => state.canvasViewMode);
@@ -233,6 +236,17 @@ export function RoadmapTopBar({
           >
             <Share2 className="w-4 h-4" />
             Share
+          </button>
+        )}
+
+        {onOpenJsonPanel && (
+          <button
+            onClick={onOpenJsonPanel}
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors"
+            title="Open roadmap JSON editor"
+          >
+            <Code2 className="w-4 h-4" />
+            DEV Mode
           </button>
         )}
 
