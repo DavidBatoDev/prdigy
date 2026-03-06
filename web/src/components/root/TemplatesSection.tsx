@@ -1,10 +1,13 @@
 import { CheckCircle2, DollarSign, Loader, Inbox } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { getRoadmapsPreview } from "@/api";
 import { ProjectTypes } from "./ProjectTypes";
 import type { RoadmapPreview } from "@/api/endpoints/roadmap";
 import { useAuthStore } from "@/stores/authStore";
+import { roadmapService } from "@/services/roadmap.service";
+import { getOrCreateGuestUser } from "@/lib/guestAuth";
 
 interface Template {
   id: string;
@@ -14,6 +17,11 @@ interface Template {
   budget: string;
   tag: string;
   preview: RoadmapPreview;
+  author?: {
+    name: string;
+    role: string;
+    avatar: string;
+  };
 }
 
 const EpicOverview = ({ preview }: { preview: RoadmapPreview }) => {
@@ -571,10 +579,49 @@ const mockProfessionalTemplates = [
 ];
 
 export const TemplatesSection = () => {
+  const navigate = useNavigate();
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [professionalTemplates, setProfessionalTemplates] = useState<
+    Template[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isCloningTemplateId, setIsCloningTemplateId] = useState<string | null>(
+    null,
+  );
   const { isAuthenticated } = useAuthStore();
+
+  useEffect(() => {
+    const fetchPublicTemplates = async () => {
+      try {
+        const roadmaps = await roadmapService.getPublicTemplates();
+
+        const transformed: Template[] = roadmaps.map((roadmap) => ({
+          id: roadmap.id,
+          title: roadmap.name,
+          category: roadmap.description || "Consultant Template",
+          milestones: "Ready template",
+          budget: "Custom",
+          tag: "Template",
+          preview: roadmap as unknown as RoadmapPreview,
+          author: {
+            name: roadmap.owner?.display_name || "Consultant",
+            role: roadmap.owner?.headline || "Verified Consultant",
+            avatar:
+              roadmap.owner?.avatar_url ||
+              "https://i.pravatar.cc/150?u=consultant-template",
+          },
+        }));
+
+        setProfessionalTemplates(transformed);
+      } catch (err) {
+        console.error("Error fetching public templates:", err);
+        setProfessionalTemplates([]);
+      }
+    };
+
+    fetchPublicTemplates();
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -623,6 +670,35 @@ export const TemplatesSection = () => {
 
     fetchRoadmaps();
   }, [isAuthenticated]);
+
+  const handleUseTemplate = async (templateId: string) => {
+    try {
+      setIsCloningTemplateId(templateId);
+
+      if (!isAuthenticated) {
+        await getOrCreateGuestUser();
+      }
+
+      const cloned = await roadmapService.cloneFromTemplate(templateId);
+      navigate({
+        to: "/project/$projectId/roadmap/$roadmapId",
+        params: {
+          projectId: cloned.project_id || "n",
+          roadmapId: cloned.id,
+        },
+      });
+    } catch (err) {
+      console.error("Error cloning template:", err);
+    } finally {
+      setIsCloningTemplateId(null);
+    }
+  };
+
+  const consultantTemplateCards =
+    professionalTemplates.length > 0
+      ? professionalTemplates
+      : mockProfessionalTemplates;
+
   return (
     <div className="mt-24 space-y-24">
       {/* Professional Templates Section */}
@@ -643,7 +719,7 @@ export const TemplatesSection = () => {
         <ProjectTypes />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-          {mockProfessionalTemplates.map((template) => (
+          {consultantTemplateCards.map((template) => (
             <div
               key={template.id}
               className="group relative bg-white border-2 border-gray-200 rounded-xl overflow-hidden hover:border-[#c68c53] hover:shadow-xl transition-all block cursor-pointer"
@@ -661,19 +737,31 @@ export const TemplatesSection = () => {
 
                 {/* Consultant Badge Overlay */}
                 <div className="absolute bottom-2 left-2 right-2 bg-white/95 backdrop-blur-sm rounded-lg p-1.5 flex items-center gap-2 shadow-sm border border-gray-100">
-                  <img
-                    src={template.author.avatar}
-                    alt={template.author.name}
-                    className="w-5 h-5 rounded-full object-cover shrink-0"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-semibold text-gray-900 truncate leading-none">
-                      {template.author.name}
-                    </p>
-                    <p className="text-[8px] text-gray-500 truncate leading-tight mt-0.5">
-                      {template.author.role}
-                    </p>
-                  </div>
+                  {(() => {
+                    const author = template.author ?? {
+                      name: "Consultant",
+                      role: "Verified Consultant",
+                      avatar: "https://i.pravatar.cc/150?u=consultant-template",
+                    };
+
+                    return (
+                      <>
+                        <img
+                          src={author.avatar}
+                          alt={author.name}
+                          className="w-5 h-5 rounded-full object-cover shrink-0"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[10px] font-semibold text-gray-900 truncate leading-none">
+                            {author.name}
+                          </p>
+                          <p className="text-[8px] text-gray-500 truncate leading-tight mt-0.5">
+                            {author.role}
+                          </p>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
               <div className="p-3 pt-4">
@@ -698,6 +786,19 @@ export const TemplatesSection = () => {
                     {template.budget}
                   </span>
                 </div>
+                <button
+                  type="button"
+                  disabled={
+                    isCloningTemplateId === template.preview.id ||
+                    template.preview.id.startsWith("mock-")
+                  }
+                  onClick={() => handleUseTemplate(template.preview.id)}
+                  className="mt-2 w-full rounded-md bg-[#0f4c5c] text-white text-[10px] font-semibold py-1.5 disabled:opacity-60"
+                >
+                  {isCloningTemplateId === template.preview.id
+                    ? "Creating..."
+                    : "Use Template"}
+                </button>
               </div>
             </div>
           ))}

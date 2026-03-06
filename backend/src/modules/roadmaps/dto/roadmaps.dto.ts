@@ -25,6 +25,8 @@ export class CreateRoadmapDto {
   @IsOptional() settings?: Record<string, unknown>;
   @IsOptional() project_metadata?: Record<string, unknown>;
   @IsString() @IsOptional() preview_url?: string;
+  @IsBoolean() @IsOptional() is_public?: boolean;
+  @IsBoolean() @IsOptional() is_templatable?: boolean;
 }
 
 export class UpdateRoadmapDto {
@@ -39,6 +41,13 @@ export class UpdateRoadmapDto {
   @IsOptional() settings?: Record<string, unknown>;
   @IsOptional() project_metadata?: Record<string, unknown>;
   @IsString() @IsOptional() preview_url?: string;
+  @IsBoolean() @IsOptional() is_public?: boolean;
+  @IsBoolean() @IsOptional() is_templatable?: boolean;
+}
+
+export class UpdateRoadmapTemplateSettingsDto {
+  @IsBoolean() @IsOptional() is_public?: boolean;
+  @IsBoolean() @IsOptional() is_templatable?: boolean;
 }
 
 // Milestone DTOs

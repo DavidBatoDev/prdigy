@@ -21,6 +21,7 @@ import { Route as ProjectProjectIdRouteImport } from './routes/project/$projectI
 import { Route as ProfileProfileIdRouteImport } from './routes/profile/$profileId'
 import { Route as FreelancerInvitesRouteImport } from './routes/freelancer/invites'
 import { Route as FreelancerGoLiveRouteImport } from './routes/freelancer/go-live'
+import { Route as ConsultantTemplatesRouteImport } from './routes/consultant/templates'
 import { Route as ConsultantMarketplaceRouteImport } from './routes/consultant/marketplace'
 import { Route as ConsultantBrowseRouteImport } from './routes/consultant/browse'
 import { Route as ConsultantApplyRouteImport } from './routes/consultant/apply'
@@ -108,6 +109,11 @@ const FreelancerInvitesRoute = FreelancerInvitesRouteImport.update({
 const FreelancerGoLiveRoute = FreelancerGoLiveRouteImport.update({
   id: '/freelancer/go-live',
   path: '/freelancer/go-live',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConsultantTemplatesRoute = ConsultantTemplatesRouteImport.update({
+  id: '/consultant/templates',
+  path: '/consultant/templates',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConsultantMarketplaceRoute = ConsultantMarketplaceRouteImport.update({
@@ -278,6 +284,7 @@ export interface FileRoutesByFullPath {
   '/consultant/apply': typeof ConsultantApplyRoute
   '/consultant/browse': typeof ConsultantBrowseRoute
   '/consultant/marketplace': typeof ConsultantMarketplaceRoute
+  '/consultant/templates': typeof ConsultantTemplatesRoute
   '/freelancer/go-live': typeof FreelancerGoLiveRoute
   '/freelancer/invites': typeof FreelancerInvitesRoute
   '/profile/$profileId': typeof ProfileProfileIdRoute
@@ -319,6 +326,7 @@ export interface FileRoutesByTo {
   '/consultant/apply': typeof ConsultantApplyRoute
   '/consultant/browse': typeof ConsultantBrowseRoute
   '/consultant/marketplace': typeof ConsultantMarketplaceRoute
+  '/consultant/templates': typeof ConsultantTemplatesRoute
   '/freelancer/go-live': typeof FreelancerGoLiveRoute
   '/freelancer/invites': typeof FreelancerInvitesRoute
   '/profile/$profileId': typeof ProfileProfileIdRoute
@@ -362,6 +370,7 @@ export interface FileRoutesById {
   '/consultant/apply': typeof ConsultantApplyRoute
   '/consultant/browse': typeof ConsultantBrowseRoute
   '/consultant/marketplace': typeof ConsultantMarketplaceRoute
+  '/consultant/templates': typeof ConsultantTemplatesRoute
   '/freelancer/go-live': typeof FreelancerGoLiveRoute
   '/freelancer/invites': typeof FreelancerInvitesRoute
   '/profile/$profileId': typeof ProfileProfileIdRoute
@@ -406,6 +415,7 @@ export interface FileRouteTypes {
     | '/consultant/apply'
     | '/consultant/browse'
     | '/consultant/marketplace'
+    | '/consultant/templates'
     | '/freelancer/go-live'
     | '/freelancer/invites'
     | '/profile/$profileId'
@@ -447,6 +457,7 @@ export interface FileRouteTypes {
     | '/consultant/apply'
     | '/consultant/browse'
     | '/consultant/marketplace'
+    | '/consultant/templates'
     | '/freelancer/go-live'
     | '/freelancer/invites'
     | '/profile/$profileId'
@@ -489,6 +500,7 @@ export interface FileRouteTypes {
     | '/consultant/apply'
     | '/consultant/browse'
     | '/consultant/marketplace'
+    | '/consultant/templates'
     | '/freelancer/go-live'
     | '/freelancer/invites'
     | '/profile/$profileId'
@@ -528,6 +540,7 @@ export interface RootRouteChildren {
   ConsultantApplyRoute: typeof ConsultantApplyRoute
   ConsultantBrowseRoute: typeof ConsultantBrowseRoute
   ConsultantMarketplaceRoute: typeof ConsultantMarketplaceRoute
+  ConsultantTemplatesRoute: typeof ConsultantTemplatesRoute
   FreelancerGoLiveRoute: typeof FreelancerGoLiveRoute
   FreelancerInvitesRoute: typeof FreelancerInvitesRoute
   ProfileProfileIdRoute: typeof ProfileProfileIdRoute
@@ -623,6 +636,13 @@ declare module '@tanstack/react-router' {
       path: '/freelancer/go-live'
       fullPath: '/freelancer/go-live'
       preLoaderRoute: typeof FreelancerGoLiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/consultant/templates': {
+      id: '/consultant/templates'
+      path: '/consultant/templates'
+      fullPath: '/consultant/templates'
+      preLoaderRoute: typeof ConsultantTemplatesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/consultant/marketplace': {
@@ -915,6 +935,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConsultantApplyRoute: ConsultantApplyRoute,
   ConsultantBrowseRoute: ConsultantBrowseRoute,
   ConsultantMarketplaceRoute: ConsultantMarketplaceRoute,
+  ConsultantTemplatesRoute: ConsultantTemplatesRoute,
   FreelancerGoLiveRoute: FreelancerGoLiveRoute,
   FreelancerInvitesRoute: FreelancerInvitesRoute,
   ProfileProfileIdRoute: ProfileProfileIdRoute,

@@ -4,8 +4,14 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { SUPABASE_ADMIN } from '../../../config/supabase.module';
 import type { IRoadmapsRepository } from '../repositories/roadmaps.repository.interface';
-import { CreateRoadmapDto, UpdateRoadmapDto } from '../dto/roadmaps.dto';
+import {
+  CreateRoadmapDto,
+  UpdateRoadmapDto,
+  UpdateRoadmapTemplateSettingsDto,
+} from '../dto/roadmaps.dto';
 
 export const ROADMAPS_REPOSITORY = Symbol('ROADMAPS_REPOSITORY');
 
@@ -13,7 +19,20 @@ export const ROADMAPS_REPOSITORY = Symbol('ROADMAPS_REPOSITORY');
 export class RoadmapsService {
   constructor(
     @Inject(ROADMAPS_REPOSITORY) private readonly repo: IRoadmapsRepository,
+    @Inject(SUPABASE_ADMIN) private readonly supabase: SupabaseClient,
   ) {}
+
+  private async ensureConsultant(userId: string): Promise<void> {
+    const { data, error } = await this.supabase
+      .from('profiles')
+      .select('id, is_consultant_verified')
+      .eq('id', userId)
+      .single();
+
+    if (error || !data || !data.is_consultant_verified) {
+      throw new ForbiddenException('Consultant access required');
+    }
+  }
 
   async findAll(userId: string) {
     return this.repo.findAll(userId);
@@ -47,6 +66,35 @@ export class RoadmapsService {
 
   async create(dto: CreateRoadmapDto, userId: string) {
     return this.repo.create(dto, userId);
+  }
+
+  async findConsultantTemplateRoadmaps(userId: string) {
+    await this.ensureConsultant(userId);
+    return this.repo.findConsultantProjectless(userId);
+  }
+
+  async findPublicTemplates() {
+    return this.repo.findPublicTemplatePreviews();
+  }
+
+  async updateTemplateSettings(
+    id: string,
+    dto: UpdateRoadmapTemplateSettingsDto,
+    userId: string,
+  ) {
+    await this.ensureConsultant(userId);
+
+    const existing = await this.repo.findById(id);
+    if (!existing) throw new NotFoundException('Roadmap not found');
+    if (existing.owner_id !== userId) {
+      throw new ForbiddenException('Not the owner');
+    }
+
+    return this.repo.update(id, dto);
+  }
+
+  async cloneFromTemplate(templateId: string, userId: string) {
+    return this.repo.cloneFromTemplate(templateId, userId);
   }
 
   async update(id: string, dto: UpdateRoadmapDto, userId: string) {

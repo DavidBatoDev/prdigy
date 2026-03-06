@@ -103,6 +103,9 @@ const DashboardHeader = () => {
         ? "/consultant/marketplace"
         : "/consultant/browse",
     },
+    ...(profile?.is_consultant_verified
+      ? [{ label: "Templates", href: "/consultant/templates" }]
+      : []),
   ];
 
   const getPersonaMenu = () => {
@@ -145,6 +148,10 @@ const DashboardHeader = () => {
             {
               label: "Private Freelancer Marketplace",
               href: "/consultant/marketplace",
+            },
+            {
+              label: "Template Roadmaps",
+              href: "/consultant/templates",
             },
             { label: "Browse Opportunities", href: "/projects" },
             { label: "My Clients", href: "/clients" },

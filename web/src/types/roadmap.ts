@@ -46,6 +46,8 @@ export interface Roadmap {
   name: string;
   description?: string;
   owner_id: string;
+  is_public?: boolean;
+  is_templatable?: boolean;
   status: RoadmapStatus;
   start_date?: string;
   end_date?: string;
@@ -59,6 +61,12 @@ export interface Roadmap {
   // Related data (populated by getFull())
   epics?: RoadmapEpic[];
   milestones?: RoadmapMilestone[];
+  owner?: {
+    id: string;
+    display_name?: string;
+    avatar_url?: string;
+    headline?: string;
+  };
 }
 
 export interface RoadmapMilestone {
