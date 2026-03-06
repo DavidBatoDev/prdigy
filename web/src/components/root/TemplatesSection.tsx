@@ -24,6 +24,35 @@ interface Template {
   };
 }
 
+const ProfessionalTemplateCardSkeleton = () => {
+  return (
+    <div className="bg-white border-2 border-gray-200 rounded-xl overflow-hidden animate-pulse">
+      <div className="aspect-4/3 bg-gray-100 p-2 relative">
+        <div className="w-full h-full rounded-lg bg-gray-200" />
+        <div className="absolute bottom-2 left-2 right-2 bg-white rounded-lg p-1.5 flex items-center gap-2 border border-gray-100">
+          <div className="w-5 h-5 rounded-full bg-gray-200 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <div className="h-2.5 w-16 bg-gray-200 rounded mb-1" />
+            <div className="h-2 w-20 bg-gray-100 rounded" />
+          </div>
+        </div>
+      </div>
+      <div className="p-3 pt-4">
+        <div className="flex items-center justify-between mb-1.5 gap-2">
+          <div className="h-3 w-24 bg-gray-200 rounded" />
+          <div className="h-4 w-12 bg-gray-200 rounded-full shrink-0" />
+        </div>
+        <div className="h-2.5 w-28 bg-gray-100 rounded mb-2" />
+        <div className="flex items-center justify-between mb-2">
+          <div className="h-2.5 w-16 bg-gray-100 rounded" />
+          <div className="h-2.5 w-16 bg-gray-100 rounded" />
+        </div>
+        <div className="h-6 w-full bg-gray-200 rounded-md" />
+      </div>
+    </div>
+  );
+};
+
 const EpicOverview = ({ preview }: { preview: RoadmapPreview }) => {
   const MAX_EPICS = 3;
 
@@ -584,6 +613,7 @@ export const TemplatesSection = () => {
   const [professionalTemplates, setProfessionalTemplates] = useState<
     Template[]
   >([]);
+  const [professionalLoading, setProfessionalLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCloningTemplateId, setIsCloningTemplateId] = useState<string | null>(
@@ -594,6 +624,7 @@ export const TemplatesSection = () => {
   useEffect(() => {
     const fetchPublicTemplates = async () => {
       try {
+        setProfessionalLoading(true);
         const roadmaps = await roadmapService.getPublicTemplates();
 
         const transformed: Template[] = roadmaps.map((roadmap) => ({
@@ -617,6 +648,8 @@ export const TemplatesSection = () => {
       } catch (err) {
         console.error("Error fetching public templates:", err);
         setProfessionalTemplates([]);
+      } finally {
+        setProfessionalLoading(false);
       }
     };
 
@@ -719,89 +752,96 @@ export const TemplatesSection = () => {
         <ProjectTypes />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-          {consultantTemplateCards.map((template) => (
-            <div
-              key={template.id}
-              className="group relative bg-white border-2 border-gray-200 rounded-xl overflow-hidden hover:border-[#c68c53] hover:shadow-xl transition-all block cursor-pointer"
-            >
-              <div className="aspect-4/3 overflow-hidden bg-linear-to-br from-[#f0f7f9] to-[#ffffff] p-2 relative">
-                {template.preview.preview_url ? (
-                  <img
-                    src={template.preview.preview_url}
-                    alt={template.title}
-                    className="w-full h-full object-cover rounded-lg"
-                  />
-                ) : (
-                  <EpicOverview preview={template.preview} />
-                )}
-
-                {/* Consultant Badge Overlay */}
-                <div className="absolute bottom-2 left-2 right-2 bg-white/95 backdrop-blur-sm rounded-lg p-1.5 flex items-center gap-2 shadow-sm border border-gray-100">
-                  {(() => {
-                    const author = template.author ?? {
-                      name: "Consultant",
-                      role: "Verified Consultant",
-                      avatar: "https://i.pravatar.cc/150?u=consultant-template",
-                    };
-
-                    return (
-                      <>
-                        <img
-                          src={author.avatar}
-                          alt={author.name}
-                          className="w-5 h-5 rounded-full object-cover shrink-0"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[10px] font-semibold text-gray-900 truncate leading-none">
-                            {author.name}
-                          </p>
-                          <p className="text-[8px] text-gray-500 truncate leading-tight mt-0.5">
-                            {author.role}
-                          </p>
-                        </div>
-                      </>
-                    );
-                  })()}
-                </div>
-              </div>
-              <div className="p-3 pt-4">
-                <div className="flex items-center justify-between mb-1.5 gap-2">
-                  <h3 className="font-semibold text-gray-900 text-xs truncate">
-                    {template.title}
-                  </h3>
-                  <span className="px-1.5 py-0.5 bg-[#0f4c5c] text-white text-[9px] font-semibold rounded-full shrink-0">
-                    {template.tag}
-                  </span>
-                </div>
-                <p className="text-[10px] text-gray-600 mb-2 truncate">
-                  {template.category}
-                </p>
-                <div className="flex items-center justify-between text-[10px] text-gray-500">
-                  <span className="flex items-center gap-1">
-                    <CheckCircle2 className="w-2.5 h-2.5" />
-                    {template.milestones}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <DollarSign className="w-2.5 h-2.5" />
-                    {template.budget}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  disabled={
-                    isCloningTemplateId === template.preview.id ||
-                    template.preview.id.startsWith("mock-")
-                  }
-                  onClick={() => handleUseTemplate(template.preview.id)}
-                  className="mt-2 w-full rounded-md bg-[#0f4c5c] text-white text-[10px] font-semibold py-1.5 disabled:opacity-60"
+          {professionalLoading
+            ? Array.from({ length: 6 }).map((_, index) => (
+                <ProfessionalTemplateCardSkeleton
+                  key={`template-skeleton-${index}`}
+                />
+              ))
+            : consultantTemplateCards.map((template) => (
+                <div
+                  key={template.id}
+                  className="group relative bg-white border-2 border-gray-200 rounded-xl overflow-hidden hover:border-[#c68c53] hover:shadow-xl transition-all block cursor-pointer"
                 >
-                  {isCloningTemplateId === template.preview.id
-                    ? "Creating..."
-                    : "Use Template"}
-                </button>
-              </div>
-            </div>
-          ))}
+                  <div className="aspect-4/3 overflow-hidden bg-linear-to-br from-[#f0f7f9] to-[#ffffff] p-2 relative">
+                    {template.preview.preview_url ? (
+                      <img
+                        src={template.preview.preview_url}
+                        alt={template.title}
+                        className="w-full h-full object-cover rounded-lg"
+                      />
+                    ) : (
+                      <EpicOverview preview={template.preview} />
+                    )}
+
+                    {/* Consultant Badge Overlay */}
+                    <div className="absolute bottom-2 left-2 right-2 bg-white/95 backdrop-blur-sm rounded-lg p-1.5 flex items-center gap-2 shadow-sm border border-gray-100">
+                      {(() => {
+                        const author = template.author ?? {
+                          name: "Consultant",
+                          role: "Verified Consultant",
+                          avatar:
+                            "https://i.pravatar.cc/150?u=consultant-template",
+                        };
+
+                        return (
+                          <>
+                            <img
+                              src={author.avatar}
+                              alt={author.name}
+                              className="w-5 h-5 rounded-full object-cover shrink-0"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[10px] font-semibold text-gray-900 truncate leading-none">
+                                {author.name}
+                              </p>
+                              <p className="text-[8px] text-gray-500 truncate leading-tight mt-0.5">
+                                {author.role}
+                              </p>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                  <div className="p-3 pt-4">
+                    <div className="flex items-center justify-between mb-1.5 gap-2">
+                      <h3 className="font-semibold text-gray-900 text-xs truncate">
+                        {template.title}
+                      </h3>
+                      <span className="px-1.5 py-0.5 bg-[#0f4c5c] text-white text-[9px] font-semibold rounded-full shrink-0">
+                        {template.tag}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-gray-600 mb-2 truncate">
+                      {template.category}
+                    </p>
+                    <div className="flex items-center justify-between text-[10px] text-gray-500">
+                      <span className="flex items-center gap-1">
+                        <CheckCircle2 className="w-2.5 h-2.5" />
+                        {template.milestones}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <DollarSign className="w-2.5 h-2.5" />
+                        {template.budget}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={
+                        isCloningTemplateId === template.preview.id ||
+                        template.preview.id.startsWith("mock-")
+                      }
+                      onClick={() => handleUseTemplate(template.preview.id)}
+                      className="mt-2 w-full rounded-md bg-[#0f4c5c] text-white text-[10px] font-semibold py-1.5 disabled:opacity-60"
+                    >
+                      {isCloningTemplateId === template.preview.id
+                        ? "Creating..."
+                        : "Use Template"}
+                    </button>
+                  </div>
+                </div>
+              ))}
         </div>
       </div>
 
