@@ -6,7 +6,7 @@ import type { Profile } from "../types/profile.types";
  */
 export async function fetchConsultants(): Promise<Profile[]> {
   const response = await apiClient.get("/api/consultants");
-  return response.data;
+  return response.data.data ?? response.data;
 }
 
 /**
@@ -14,7 +14,7 @@ export async function fetchConsultants(): Promise<Profile[]> {
  */
 export async function fetchConsultantProfile(userId: string): Promise<Profile> {
   const response = await apiClient.get(`/api/consultants/${userId}`);
-  return response.data;
+  return response.data.data ?? response.data;
 }
 
 /**
