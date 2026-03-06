@@ -106,6 +106,13 @@ export interface UpdateRoadmapDto {
   settings?: Record<string, any>;
   project_metadata?: Record<string, any>;
   preview_url?: string;
+  is_public?: boolean;
+  is_templatable?: boolean;
+}
+
+export interface UpdateRoadmapTemplateSettingsDto {
+  is_public?: boolean;
+  is_templatable?: boolean;
 }
 
 export interface UpsertFullRoadmapTaskDto {
@@ -394,6 +401,57 @@ export const roadmapService = {
         return null;
       }
       throw handleServiceError(error, `Get roadmap for project ${projectId}`);
+    }
+  },
+
+  async getConsultantTemplateRoadmaps(): Promise<Roadmap[]> {
+    try {
+      const response = await apiClient.get<ApiResponse<Roadmap[]>>(
+        "/api/roadmaps/consultant/templates/mine",
+      );
+      return response.data.data;
+    } catch (error) {
+      throw handleServiceError(error, "Get consultant template roadmaps");
+    }
+  },
+
+  async getPublicTemplates(): Promise<Roadmap[]> {
+    try {
+      const response = await apiClient.get<ApiResponse<Roadmap[]>>(
+        "/api/roadmaps/templates/public",
+      );
+      return response.data.data;
+    } catch (error) {
+      throw handleServiceError(error, "Get public templates");
+    }
+  },
+
+  async updateTemplateSettings(
+    id: string,
+    data: UpdateRoadmapTemplateSettingsDto,
+  ): Promise<Roadmap> {
+    try {
+      const response = await apiClient.patch<ApiResponse<Roadmap>>(
+        `/api/roadmaps/${id}/template-settings`,
+        data,
+      );
+      return response.data.data;
+    } catch (error) {
+      throw handleServiceError(
+        error,
+        `Update template settings for roadmap ${id}`,
+      );
+    }
+  },
+
+  async cloneFromTemplate(id: string): Promise<Roadmap> {
+    try {
+      const response = await apiClient.post<ApiResponse<Roadmap>>(
+        `/api/roadmaps/${id}/clone-from-template`,
+      );
+      return response.data.data;
+    } catch (error) {
+      throw handleServiceError(error, `Clone roadmap template ${id}`);
     }
   },
 
