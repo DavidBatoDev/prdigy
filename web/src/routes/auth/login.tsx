@@ -1,17 +1,15 @@
-import {
+﻿import {
   createFileRoute,
   Link,
   useNavigate,
   redirect,
 } from "@tanstack/react-router";
-import { useMemo, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useAuthStore } from "../../stores/authStore";
 import { supabase } from "../../lib/supabase";
-import { Button } from "../../ui/button";
-import Logo from "/prodigylogos/light/logo1.svg";
 import { useToast } from "../../hooks/useToast";
-import DecorativeRightSide from "/svgs/patterns/decorative-right-side.svg";
-import EllipseCenterLeft from "/svgs/ellipse/ellipse-center-left.svg";
+import { Eye, EyeOff } from "lucide-react";
+import { SignupLayout } from "../../components/auth/signup/SignupLayout";
 
 export const Route = createFileRoute("/auth/login")({
   beforeLoad: () => {
@@ -35,6 +33,7 @@ function RouteComponent() {
   const toast = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -42,6 +41,7 @@ function RouteComponent() {
       navigate({ to: "/dashboard" });
     }
   }, [isAuthenticated, isAuthLoading, navigate]);
+
   const [isLoading, setIsLoading] = useState(false);
   const [isVerifyStep, setIsVerifyStep] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
@@ -51,20 +51,41 @@ function RouteComponent() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
 
-  const assets = useMemo(
-    () => ({
-      google: "/images/logos/google.png",
-      divider:
-        "https://www.figma.com/api/mcp/asset/46d22730-9df8-461e-9241-1e295b2063e6",
-      ellipse:
-        // "https://www.figma.com/api/mcp/asset/bcefac66-a675-410b-8057-af4e590bc3b3",
-        EllipseCenterLeft,
-      accent:
-        // "https://www.figma.com/api/mcp/asset/12c2df9b-9fda-4258-8e71-e26de5a4c86d",
-        DecorativeRightSide,
-    }),
-    [],
-  );
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    height: "52px",
+    padding: "0 16px",
+    borderRadius: "10px",
+    border: "1px solid #E5E5E5",
+    fontSize: "0.95rem",
+    color: "#2E2E2E",
+    background: "white",
+    outline: "none",
+    fontFamily: "'Open Sans', sans-serif",
+    boxSizing: "border-box",
+    transition: "border 0.15s, box-shadow 0.15s",
+  };
+
+  const labelStyle: React.CSSProperties = {
+    display: "block",
+    fontSize: "0.78rem",
+    fontWeight: 600,
+    color: "#2E2E2E",
+    marginBottom: "7px",
+    fontFamily: "'Open Sans', sans-serif",
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+  };
+
+  function focusInput(e: React.FocusEvent<HTMLInputElement>) {
+    e.currentTarget.style.border = "1px solid #FF962E";
+    e.currentTarget.style.boxShadow = "0 0 0 3px rgba(255,150,46,0.12)";
+  }
+
+  function blurInput(e: React.FocusEvent<HTMLInputElement>) {
+    e.currentTarget.style.border = "1px solid #E5E5E5";
+    e.currentTarget.style.boxShadow = "none";
+  }
 
   const EMAIL_FETCH_TIMEOUT_MS = 8000;
 
@@ -232,287 +253,445 @@ function RouteComponent() {
 
   if (isVerifyStep) {
     return (
-      <div className="relative min-h-screen overflow-hidden bg-white">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_60%,rgba(255,153,102,0.18),rgba(255,255,255,0.75)_45%,white_65%)]" />
-        <img
-          src={assets.ellipse}
-          alt=""
-          className="pointer-events-none absolute -left-40 top-1/2 h-[414px] w-[414px] -translate-y-1/2 opacity-70"
-        />
-        <img
-          src={assets.accent}
-          alt=""
-          className="pointer-events-none absolute right-0 top-0 h-full max-w-[50%] object-cover"
-        />
+      <SignupLayout>
+        <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
+          <img
+            src="/prodigylogos/light/logo1.svg"
+            alt="Prodigitality"
+            style={{ height: "32px", objectFit: "contain", objectPosition: "left" }}
+          />
 
-        <div className="relative mx-auto flex min-h-screen max-w-6xl items-center justify-start px-6 py-16 lg:px-12">
-          <div className="flex w-full max-w-[720px] flex-col gap-10">
-            <img src={Logo} alt="Prodigitality" className="w-60" />
-
-            <div className="flex flex-col gap-3">
-              <h1 className="text-4xl font-normal text-black">
-                Verify your email
-              </h1>
-              <p className="text-lg font-normal text-[#020202]/80">
-                We sent a verification code to {email}. Enter it below to finish
-                signing in.
-              </p>
-            </div>
-
-            <form
-              onSubmit={async (evt) => {
-                evt.preventDefault();
-                if (!verificationCode) {
-                  toast.error("Please enter the verification code");
-                  return;
-                }
-
-                if (verificationCode !== sentVerificationCode) {
-                  toast.error("Invalid verification code");
-                  return;
-                }
-
-                setVerifyLoading(true);
-                try {
-                  // Sign in the user after successful verification
-                  const { error: signInError } =
-                    await supabase.auth.signInWithPassword({
-                      email,
-                      password,
-                    });
-
-                  if (signInError) throw signInError;
-
-                  const { data: authData } = await supabase.auth.getUser();
-                  if (authData.user) {
-                    await supabase
-                      .from("profiles")
-                      .update({ is_email_verified: true })
-                      .eq("id", authData.user.id);
-                  }
-
-                  toast.success("Email verified successfully!");
-                  navigate({ to: "/onboarding" });
-                } catch (error) {
-                  toast.error(
-                    error instanceof Error
-                      ? error.message
-                      : "Verification failed",
-                  );
-                } finally {
-                  setVerifyLoading(false);
-                }
+          <div>
+            <h1
+              style={{
+                fontFamily: "'Glacial Indifference', 'Open Sans', sans-serif",
+                fontSize: "1.9rem",
+                fontWeight: 700,
+                color: "#2E2E2E",
+                margin: "0 0 10px",
               }}
-              className="flex flex-col gap-6"
             >
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-[#020202]">
-                  Verification Code
-                </label>
-                <input
-                  type="text"
-                  placeholder="000000"
-                  value={verificationCode}
-                  onChange={(e) =>
-                    setVerificationCode(
-                      e.target.value.replace(/\D/g, "").slice(0, 6),
-                    )
-                  }
-                  required
-                  className="w-full rounded-md border border-[#d4d4d4] px-4 py-3 text-center text-2xl tracking-[0.25em] text-[#020202] placeholder:text-[#020202]/50 focus:border-[#ff9900] focus:outline-none focus:ring-2 focus:ring-[#ff9900]/30"
-                  maxLength={6}
-                />
-              </div>
+              Verify your email
+            </h1>
+            <p
+              style={{
+                color: "#6B6B6B",
+                fontSize: "0.95rem",
+                margin: 0,
+                lineHeight: 1.6,
+                fontFamily: "'Open Sans', sans-serif",
+              }}
+            >
+              We sent a 6-digit code to{" "}
+              <strong style={{ color: "#2E2E2E" }}>{email}</strong>. Enter it
+              below to finish signing in.
+            </p>
+          </div>
 
-              <div className="flex flex-col items-center gap-3">
-                <Button
-                  type="submit"
-                  disabled={verifyLoading}
-                  variant="contained"
-                  colorScheme="primary"
-                  className="w-[255px] bg-[#ff9900] px-10 py-3 text-lg font-semibold text-white shadow-[0_1px_5px_rgba(0,0,0,0.12),0_2px_2px_rgba(0,0,0,0.14),0_3px_1px_-2px_rgba(0,0,0,0.2)] transition-transform hover:-translate-y-0.5 hover:bg-[#ff9900] disabled:hover:translate-y-0"
-                >
-                  {verifyLoading ? "Verifying..." : "Verify & Sign In"}
-                </Button>
+          <form
+            onSubmit={async (evt) => {
+              evt.preventDefault();
+              if (!verificationCode) {
+                toast.error("Please enter the verification code");
+                return;
+              }
+              if (verificationCode !== sentVerificationCode) {
+                toast.error("Invalid verification code");
+                return;
+              }
+              setVerifyLoading(true);
+              try {
+                const { error: signInError } =
+                  await supabase.auth.signInWithPassword({ email, password });
+                if (signInError) throw signInError;
+                const { data: authData } = await supabase.auth.getUser();
+                if (authData.user) {
+                  await supabase
+                    .from("profiles")
+                    .update({ is_email_verified: true })
+                    .eq("id", authData.user.id);
+                }
+                toast.success("Email verified successfully!");
+                navigate({ to: "/onboarding" });
+              } catch (error) {
+                toast.error(
+                  error instanceof Error ? error.message : "Verification failed",
+                );
+              } finally {
+                setVerifyLoading(false);
+              }
+            }}
+            style={{ display: "flex", flexDirection: "column", gap: "20px" }}
+          >
+            <div>
+              <label style={labelStyle}>Verification Code</label>
+              <input
+                type="text"
+                placeholder="000000"
+                value={verificationCode}
+                onChange={(e) =>
+                  setVerificationCode(
+                    e.target.value.replace(/\D/g, "").slice(0, 6),
+                  )
+                }
+                required
+                maxLength={6}
+                style={{
+                  ...inputStyle,
+                  textAlign: "center",
+                  fontSize: "1.6rem",
+                  letterSpacing: "0.3em",
+                  fontWeight: 700,
+                }}
+                onFocus={focusInput}
+                onBlur={blurInput}
+              />
+            </div>
 
-                <button
-                  type="button"
-                  disabled={isResending}
-                  onClick={async () => {
-                    setIsResending(true);
-                    try {
-                      const generatedCode = Math.floor(
-                        100000 + Math.random() * 900000,
-                      ).toString();
-                      setSentVerificationCode(generatedCode);
-                      setVerificationCode("");
-                      await sendVerificationEmail(
-                        generatedCode,
-                        email,
-                        firstName,
-                        lastName,
-                      );
-                    } catch (error) {
-                      toast.error(
-                        error instanceof Error
-                          ? error.message
-                          : "Failed to resend code",
-                      );
-                    } finally {
-                      setIsResending(false);
-                    }
-                  }}
-                  className="text-sm font-normal text-[#020202] transition-colors hover:text-[#ff9900] disabled:opacity-60"
-                >
-                  {isResending ? "Resending..." : "Resend Code"}
-                </button>
-              </div>
+            <button
+              type="submit"
+              disabled={verifyLoading}
+              style={{
+                width: "100%",
+                height: "52px",
+                borderRadius: "10px",
+                border: "none",
+                background:
+                  "linear-gradient(135deg, #E11C84 0%, #FF2D75 40%, #FF962E 100%)",
+                color: "white",
+                fontSize: "1rem",
+                fontWeight: 700,
+                cursor: verifyLoading ? "not-allowed" : "pointer",
+                opacity: verifyLoading ? 0.7 : 1,
+                fontFamily: "'Open Sans', sans-serif",
+                transition: "opacity 0.2s",
+              }}
+            >
+              {verifyLoading ? "Verifying..." : "Verify & Sign In"}
+            </button>
 
-              <div className="text-center text-sm text-[#020202]/70">
-                Signed in on the wrong account?{" "}
-                <button
-                  type="button"
-                  className="text-[#ff9900] hover:text-[#ff9900]/80"
-                  onClick={() => {
-                    setIsVerifyStep(false);
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "12px",
+              }}
+            >
+              <button
+                type="button"
+                disabled={isResending}
+                onClick={async () => {
+                  setIsResending(true);
+                  try {
+                    const generatedCode = Math.floor(
+                      100000 + Math.random() * 900000,
+                    ).toString();
+                    setSentVerificationCode(generatedCode);
                     setVerificationCode("");
-                    setSentVerificationCode("");
-                  }}
-                >
-                  Go back
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="relative min-h-screen overflow-hidden bg-white">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_60%,rgba(255,153,102,0.18),rgba(255,255,255,0.75)_45%,white_65%)]" />
-      <img
-        src={assets.ellipse}
-        alt=""
-        className="pointer-events-none absolute -left-40 top-1/2 h-[414px] w-[414px] -translate-y-1/2 opacity-70"
-      />
-      <img
-        src={assets.accent}
-        alt=""
-        className="pointer-events-none absolute right-0 top-0 h-full max-w-[50%] object-cover"
-      />
-
-      <div className="relative mx-auto flex min-h-screen max-w-6xl items-center justify-start px-6 py-16 lg:px-12">
-        <div className="flex w-full max-w-[720px] flex-col gap-10">
-          <div className="flex flex-col gap-8">
-            <img src={Logo} alt="Prodigitality" className="w-60" />
-
-            <div className="flex flex-col gap-3">
-              <h1 className="text-4xl font-normal text-black">Welcome back!</h1>
-              <p className="text-lg font-normal text-[#020202]/80">
-                Don’t have an account yet?{" "}
-                <Link
-                  to="/auth/signup"
-                  search={{ redirect: window.location.pathname }}
-                  className="text-[#ff9900] transition-colors hover:text-[#ff9900]/80"
-                >
-                  Create new account
-                </Link>
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-6">
-            <div className="flex flex-wrap gap-4">
-              <button
-                type="button"
-                className="cursor-pointer flex w-full items-center justify-center gap-3 rounded-md border border-[#d4d4d4] bg-white px-4 py-3 text-base font-semibold text-[#020202] shadow-sm transition-transform hover:-translate-y-0.5"
+                    await sendVerificationEmail(
+                      generatedCode,
+                      email,
+                      firstName,
+                      lastName,
+                    );
+                  } catch (error) {
+                    toast.error(
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to resend code",
+                    );
+                  } finally {
+                    setIsResending(false);
+                  }
+                }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#FF962E",
+                  fontSize: "0.9rem",
+                  cursor: isResending ? "not-allowed" : "pointer",
+                  fontFamily: "'Open Sans', sans-serif",
+                  opacity: isResending ? 0.6 : 1,
+                }}
               >
-                <img
-                  src={assets.google}
-                  alt="Google"
-                  className="h-7 w-7 object-contain mr-2"
-                />
-                <span className="leading-none">Sign in with Google</span>
+                {isResending ? "Resending..." : "Resend Code"}
               </button>
-            </div>
 
-            <div className="flex items-center justify-center gap-3">
-              <img
-                src={assets.divider}
-                alt=""
-                className="h-px w-full max-w-[720px]"
-              />
-              <span className="min-w-12 rounded bg-white px-3 py-1 text-sm font-semibold text-[#293854] shadow-sm">
-                OR
-              </span>
-              <img
-                src={assets.divider}
-                alt=""
-                className="h-px w-full max-w-[720px]"
-              />
-            </div>
-          </div>
-
-          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-semibold text-[#020202]">
-                Email or Name
-              </label>
-              <input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full rounded-md border border-[#d4d4d4] px-4 py-3 text-base text-[#020202] placeholder:text-[#020202]/50 focus:border-[#ff9900] focus:outline-none focus:ring-2 focus:ring-[#ff9900]/30"
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-semibold text-[#020202]">
-                Password
-              </label>
-              <input
-                type="password"
-                placeholder="********"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="w-full rounded-md border border-[#d4d4d4] px-4 py-3 text-base text-[#020202] placeholder:text-[#020202]/50 focus:border-[#ff9900] focus:outline-none focus:ring-2 focus:ring-[#ff9900]/30"
-              />
-            </div>
-
-            <label className="flex items-center gap-3 text-sm text-[#020202]">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-[#b1b1b1] text-[#ff9900] focus:ring-[#ff9900]"
-              />
-              <span>Keep me login</span>
-            </label>
-
-            <div className="flex flex-col items-center gap-3">
-              <Button
-                type="submit"
-                disabled={isLoading}
-                variant="contained"
-                colorScheme="primary"
-                className="w-[255px] bg-[#ff9900] px-10 py-3 text-lg font-semibold text-white shadow-[0_1px_5px_rgba(0,0,0,0.12),0_2px_2px_rgba(0,0,0,0.14),0_3px_1px_-2px_rgba(0,0,0,0.2)] transition-transform hover:-translate-y-0.5 hover:bg-[#ff9900] disabled:hover:translate-y-0"
-              >
-                {isLoading ? "Logging in..." : "Login"}
-              </Button>
               <button
                 type="button"
-                className="cursor-pointer text-sm font-normal text-[#020202] transition-colors hover:text-[#ff9900]"
-                onClick={() => navigate({ to: "/auth/forgot-password" })}
+                onClick={() => {
+                  setIsVerifyStep(false);
+                  setVerificationCode("");
+                  setSentVerificationCode("");
+                }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#BDBDBD",
+                  fontSize: "0.85rem",
+                  cursor: "pointer",
+                  fontFamily: "'Open Sans', sans-serif",
+                }}
               >
-                Forgot Password
+                ← Back to login
               </button>
             </div>
           </form>
         </div>
+      </SignupLayout>
+    );
+  }
+
+  return (
+    <SignupLayout>
+      <div style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
+        {/* Logo */}
+        <img
+          src="/prodigylogos/light/logo1.svg"
+          alt="Prodigitality"
+          style={{ height: "32px", objectFit: "contain", objectPosition: "left" }}
+        />
+
+        {/* Header */}
+        <div>
+          <h1
+            style={{
+              fontFamily: "'Glacial Indifference', 'Open Sans', sans-serif",
+              fontSize: "1.9rem",
+              fontWeight: 700,
+              color: "#2E2E2E",
+              margin: "0 0 8px",
+            }}
+          >
+            Welcome back
+          </h1>
+          <p
+            style={{
+              color: "#6B6B6B",
+              fontSize: "0.95rem",
+              margin: 0,
+              fontFamily: "'Open Sans', sans-serif",
+            }}
+          >
+            Log in to continue building projects faster.
+          </p>
+        </div>
+
+        {/* Google Sign-In */}
+        <button
+          type="button"
+          style={{
+            width: "100%",
+            height: "52px",
+            borderRadius: "10px",
+            border: "1px solid #E5E5E5",
+            background: "white",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "10px",
+            cursor: "pointer",
+            fontSize: "0.95rem",
+            fontWeight: 600,
+            color: "#2E2E2E",
+            fontFamily: "'Open Sans', sans-serif",
+            transition: "box-shadow 0.2s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.10)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.boxShadow = "none";
+          }}
+        >
+          <img
+            src="/images/logos/google.png"
+            alt="Google"
+            style={{ width: "20px", height: "20px", objectFit: "contain" }}
+          />
+          Continue with Google
+        </button>
+
+        {/* OR divider */}
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div style={{ flex: 1, height: "1px", background: "#E5E5E5" }} />
+          <span
+            style={{
+              fontSize: "0.78rem",
+              color: "#BDBDBD",
+              fontWeight: 600,
+              fontFamily: "'Open Sans', sans-serif",
+              letterSpacing: "0.05em",
+            }}
+          >
+            OR
+          </span>
+          <div style={{ flex: 1, height: "1px", background: "#E5E5E5" }} />
+        </div>
+
+        {/* Login form */}
+        <form
+          onSubmit={handleSubmit}
+          style={{ display: "flex", flexDirection: "column", gap: "16px" }}
+        >
+          {/* Email */}
+          <div>
+            <label style={labelStyle}>Email</label>
+            <input
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              style={inputStyle}
+              onFocus={focusInput}
+              onBlur={blurInput}
+            />
+          </div>
+
+          {/* Password */}
+          <div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "7px",
+              }}
+            >
+              <label style={{ ...labelStyle, marginBottom: 0 }}>Password</label>
+              <button
+                type="button"
+                onClick={() => navigate({ to: "/auth/forgot-password" })}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#FF962E",
+                  fontSize: "0.82rem",
+                  cursor: "pointer",
+                  fontFamily: "'Open Sans', sans-serif",
+                  padding: 0,
+                }}
+              >
+                Forgot password?
+              </button>
+            </div>
+            <div style={{ position: "relative" }}>
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                style={{ ...inputStyle, paddingRight: "48px" }}
+                onFocus={focusInput}
+                onBlur={blurInput}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                style={{
+                  position: "absolute",
+                  right: "14px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#BDBDBD",
+                  display: "flex",
+                  alignItems: "center",
+                  padding: 0,
+                }}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+
+          {/* Keep me logged in */}
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              cursor: "pointer",
+            }}
+          >
+            <input
+              type="checkbox"
+              style={{
+                width: "16px",
+                height: "16px",
+                accentColor: "#FF962E",
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+            />
+            <span
+              style={{
+                fontSize: "0.9rem",
+                color: "#6B6B6B",
+                fontFamily: "'Open Sans', sans-serif",
+              }}
+            >
+              Keep me logged in
+            </span>
+          </label>
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={isLoading}
+            aria-busy={isLoading}
+            aria-disabled={isLoading}
+            style={{
+              width: "100%",
+              height: "52px",
+              borderRadius: "10px",
+              border: "none",
+              marginTop: "4px",
+              background:
+                "linear-gradient(135deg, #E11C84 0%, #FF2D75 40%, #FF962E 100%)",
+              color: "white",
+              fontSize: "1rem",
+              fontWeight: 700,
+              cursor: isLoading ? "not-allowed" : "pointer",
+              opacity: isLoading ? 0.7 : 1,
+              fontFamily: "'Open Sans', sans-serif",
+              transition: "opacity 0.2s, transform 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              if (!isLoading) e.currentTarget.style.transform = "translateY(-1px)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+            }}
+          >
+            {isLoading ? "Signing in..." : "Log In"}
+          </button>
+        </form>
+
+        {/* Sign up link */}
+        <p
+          style={{
+            textAlign: "center",
+            fontSize: "0.9rem",
+            color: "#6B6B6B",
+            margin: 0,
+            fontFamily: "'Open Sans', sans-serif",
+          }}
+        >
+          New to Prodigitality?{" "}
+          <Link
+            to="/auth/signup"
+            style={{ color: "#FF962E", fontWeight: 600, textDecoration: "none" }}
+          >
+            Create an account
+          </Link>
+        </p>
       </div>
-    </div>
+    </SignupLayout>
   );
 }

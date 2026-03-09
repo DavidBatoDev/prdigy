@@ -43,7 +43,8 @@ export function CitySelect({
   useEffect(() => {
     if (!open) return;
     function onPointerDown(e: PointerEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const path = e.composedPath();
+      if (containerRef.current && !path.includes(containerRef.current)) {
         setOpen(false);
         setFocused(false);
       }

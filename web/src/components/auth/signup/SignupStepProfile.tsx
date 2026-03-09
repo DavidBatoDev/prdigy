@@ -1,6 +1,6 @@
-import { MuiTelInput } from "mui-tel-input";
 import { DatePickerField } from "./DatePickerField";
 import { CountrySelect } from "./CountrySelect";
+import { PhoneField } from "./PhoneField";
 import { CitySelect } from "./CitySelect";
 import { ZipInput } from "./ZipInput";
 import { PrimaryButton, SecondaryButton } from "./SignupButtons";
@@ -95,37 +95,6 @@ export function SignupStepProfile({
         </div>
       </div>
 
-      {/* Phone */}
-      <MuiTelInput
-        label="Phone (optional)"
-        placeholder="Optional"
-        value={phoneNumber}
-        onChange={(value) => setPhoneNumber(value)}
-        defaultCountry="PH"
-        fullWidth
-        variant="outlined"
-        sx={{
-          "& .MuiOutlinedInput-root": {
-            borderRadius: "10px",
-            height: "52px",
-            "& fieldset": { borderColor: "#E5E5E5" },
-            "&:hover fieldset": { borderColor: "#FF962E" },
-            "&.Mui-focused fieldset": { borderColor: "#FF962E", boxShadow: "0 0 0 3px rgba(255,150,46,0.12)" },
-          },
-          "& .MuiInputLabel-root": {
-            fontFamily: "'Open Sans', sans-serif",
-            fontSize: "14px",
-            color: "#BDBDBD",
-            "&.Mui-focused": { color: "#FF962E" },
-          },
-          "& .MuiOutlinedInput-input": {
-            fontFamily: "'Open Sans', sans-serif",
-            fontSize: "14px",
-            color: "#2E2E2E",
-          },
-        }}
-      />
-
       {/* Date of birth */}
       <DatePickerField
         label="Date of Birth"
@@ -133,15 +102,22 @@ export function SignupStepProfile({
         onChange={setDateOfBirth}
       />
 
-      {/* Country */}
+      {/* Country — source of truth; changing it resets phone + city + zip */}
       <CountrySelect
         value={country}
         onChange={(code) => {
           setCountry(code);
-          // Reset city & zip when country changes
+          setPhoneNumber("");
           setCity("");
           setZipCode("");
         }}
+      />
+
+      {/* Phone — dial code is locked; derived from selected country */}
+      <PhoneField
+        country={country}
+        value={phoneNumber}
+        onChange={setPhoneNumber}
       />
 
       {/* City + Zip */}

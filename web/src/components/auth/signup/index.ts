@@ -9,4 +9,5 @@ export { DatePickerField } from "./DatePickerField";
 export { CountrySelect } from "./CountrySelect";
 export { CitySelect } from "./CitySelect";
 export { ZipInput } from "./ZipInput";
+export { PhoneField } from "./PhoneField";
 export { PrimaryButton, SecondaryButton, GoogleButton } from "./SignupButtons";
