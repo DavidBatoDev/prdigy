@@ -14,7 +14,7 @@ export function Hero() {
       description:
         "Don't let your idea stay on a napkin. Match with an expert Consultant today to architect your roadmap.",
       buttonText: "Post a Project Vision",
-      buttonLink: "/client/project-posting",
+      buttonLink: "/project-posting",
       dataTutorial: "post-project-btn",
       artSrc: "/svgs/art/client-art.svg",
     },
@@ -41,13 +41,14 @@ export function Hero() {
       description:
         "Don't let your idea stay on a napkin. Match with an expert Consultant today to architect your roadmap.",
       buttonText: "Post a Project Vision",
-      buttonLink: "/client/project-posting",
+      buttonLink: "/project-posting",
       dataTutorial: "post-project-btn",
       artSrc: "/svgs/art/9@2x.svg",
     },
   };
 
-  const currentContent = content[persona as keyof typeof content] || content.client;
+  const currentContent =
+    content[persona as keyof typeof content] || content.client;
 
   if (isLoading) {
     return (
@@ -57,13 +58,13 @@ export function Hero() {
           <div className="max-w-[583px] w-full">
             {/* Title Skeleton */}
             <div className="h-12 bg-gray-200 rounded-md w-3/4 mb-4" />
-            
+
             {/* Description Skeleton */}
             <div className="space-y-2 mb-8">
               <div className="h-5 bg-gray-200 rounded-md w-full" />
               <div className="h-5 bg-gray-200 rounded-md w-2/3" />
             </div>
-            
+
             {/* Button Skeleton */}
             <div className="h-10 bg-gray-200 rounded-md w-48" />
           </div>
@@ -73,7 +74,7 @@ export function Hero() {
   }
 
   return (
-    <div 
+    <div
       className="relative rounded-xl overflow-hidden h-[275px] transition-colors duration-500"
       data-theme={persona}
       style={{ backgroundColor: "var(--primary-light)" }}
@@ -97,32 +98,32 @@ export function Hero() {
           opacity="0.6"
         />
       </svg>
-      
+
       <div className="absolute inset-0 opacity-100">
         <div className="absolute top-[-50px] left-[-194px] w-[883px] h-[275px]">
           {/* Decorative circles */}
           <div
             className="absolute w-[174px] h-[145px] rounded-full blur-3xl opacity-90 transition-colors duration-500"
-            style={{ 
-              top: "0px", 
+            style={{
+              top: "0px",
               left: "101px",
-              backgroundColor: "var(--primary)" 
+              backgroundColor: "var(--primary)",
             }}
           />
           <div
             className="absolute w-[174px] h-[145px] rounded-full blur-3xl opacity-40 transition-colors duration-500"
-            style={{ 
-              top: "207px", 
+            style={{
+              top: "207px",
               left: "145px",
-              backgroundColor: "var(--secondary-light)"
+              backgroundColor: "var(--secondary-light)",
             }}
           />
           <div
             className="absolute w-[174px] h-[145px] rounded-full blur-3xl opacity-40 transition-colors duration-500"
-            style={{ 
-              top: "-31px", 
+            style={{
+              top: "-31px",
               right: "0px",
-              backgroundColor: "var(--primary-dark)"
+              backgroundColor: "var(--primary-dark)",
             }}
           />
         </div>
@@ -140,7 +141,7 @@ export function Hero() {
             to={currentContent.buttonLink}
             data-tutorial={currentContent.dataTutorial}
             className="text-white px-6 py-2 rounded flex items-center gap-2 shadow-md transition-all w-fit"
-            style={{ 
+            style={{
               backgroundColor: "var(--secondary)",
             }}
             onMouseEnter={(e) => {

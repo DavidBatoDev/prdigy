@@ -1,6 +1,6 @@
 import { Hero } from "./Hero";
-import { EscrowWallet } from "./EscrowWallet";
-import { ActivityOverview } from "./ActivityOverview";
+// import { EscrowWallet } from "./EscrowWallet";
+// import { ActivityOverview } from "./ActivityOverview";
 import { ProjectsGrid } from "./ProjectsGrid";
 import { RoadmapsGrid } from "./RoadmapsGrid";
 
@@ -11,10 +11,10 @@ export function LeftSide() {
       <Hero />
 
       {/* Escrow & Activity Overview */}
-      <div className="flex gap-6">
+      {/* <div className="flex gap-6">
         <EscrowWallet />
         <ActivityOverview />
-      </div>
+      </div> */}
 
       {/* Projects Grid */}
       <ProjectsGrid />

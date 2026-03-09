@@ -163,7 +163,7 @@ const DashboardHeader = () => {
         return {
           label: "My Consultants",
           items: [
-            { label: "Post a Project", href: "/client/project-posting" },
+            { label: "Post a Project", href: "/project-posting" },
             {
               label: "Browse Professional Consultants",
               href: "/consultant/browse",

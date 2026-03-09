@@ -4,7 +4,7 @@ import {
   useNavigate,
   useChildMatches,
 } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Map, ExternalLink } from "lucide-react";
 import { roadmapService } from "@/services/roadmap.service";
@@ -22,9 +22,6 @@ function RoadmapPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
 
-  // Guard: only fire once per projectId mount, never re-fire when childMatches changes
-  const fetchedRef = useRef(false);
-
   useEffect(() => {
     // If a child route is already active (e.g. navigated directly to /$roadmapId),
     // skip the lookup — the child handles rendering.
@@ -32,10 +29,6 @@ function RoadmapPage() {
       setIsLoading(false);
       return;
     }
-
-    // Already fetched for this projectId — don't re-fetch
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
 
     let cancelled = false;
 
@@ -107,8 +100,8 @@ function RoadmapPage() {
         </p>
         <div className="flex items-center justify-center gap-3">
           <Link
-            to="/project/roadmap"
-            search={{ projectId }}
+            to="/project/$projectId/roadmap/create"
+            params={{ projectId }}
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#ff9933] text-white rounded-lg text-sm font-semibold hover:bg-[#e68829] transition-colors"
           >
             <ExternalLink className="w-4 h-4" />

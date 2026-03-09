@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import {
   Upload,
   Check,
+  X,
+  Briefcase,
   Loader2,
   MapIcon,
   UserCheck,
@@ -12,6 +14,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { roadmapService } from "@/services/roadmap.service";
 import { projectService } from "@/services/project.service";
 import type { Roadmap } from "@/types/roadmap";
+import { useProfile } from "@/stores/authStore";
 import {
   Step1 as SharedStep1,
   Step2 as SharedStep2,
@@ -19,7 +22,7 @@ import {
   type FormData as BaseFormData,
 } from "@/components/project-brief";
 
-export const Route = createFileRoute("/client/project-posting")({
+export const Route = createFileRoute("/project-posting")({
   component: ProjectPostingPage,
   validateSearch: (search: Record<string, unknown>) => {
     return {
@@ -38,21 +41,32 @@ interface FormData extends BaseFormData {
   customStartDate: string;
 }
 
+type ProjectCreationIntent = "client" | "consultant";
+
 function ProjectPostingPage() {
   const navigate = useNavigate();
+  const profile = useProfile();
   const searchParams = Route.useSearch();
   const [currentStep, setCurrentStep] = useState(1);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [isCreatingRoadmap, setIsCreatingRoadmap] = useState(false);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [referencedRoadmap, setReferencedRoadmap] = useState<Roadmap | null>(
     null,
   );
   const [isLoadingRoadmap, setIsLoadingRoadmap] = useState(false);
+  const [creationIntent, setCreationIntent] =
+    useState<ProjectCreationIntent>("client");
+  const [pendingIntent, setPendingIntent] =
+    useState<ProjectCreationIntent>("client");
+  const [showIntentModal, setShowIntentModal] = useState(false);
+  const [hasAutoOpenedIntentModal, setHasAutoOpenedIntentModal] =
+    useState(false);
   // Read fromRoadmap from sessionStorage (set by the roadmap flow) and clear it immediately
   const [fromRoadmap] = useState<boolean>(() => {
-    const value = sessionStorage.getItem("fromRoadmap") === "true";
+    const value =
+      sessionStorage.getItem("fromRoadmap") === "true" ||
+      sessionStorage.getItem("isFromRoadmap") === "true";
     sessionStorage.removeItem("fromRoadmap");
+    sessionStorage.removeItem("isFromRoadmap");
     return value;
   });
   const [formData, setFormData] = useState<FormData>({
@@ -74,6 +88,31 @@ function ProjectPostingPage() {
   const updateFormData = (updates: Partial<FormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }));
   };
+
+  const isVerifiedConsultant = profile?.is_consultant_verified === true;
+  const effectiveIntent: ProjectCreationIntent =
+    isVerifiedConsultant && creationIntent === "consultant"
+      ? "consultant"
+      : "client";
+
+  useEffect(() => {
+    if (!isVerifiedConsultant && creationIntent !== "client") {
+      setCreationIntent("client");
+    }
+  }, [isVerifiedConsultant, creationIntent]);
+
+  useEffect(() => {
+    if (showIntentModal) {
+      setPendingIntent(effectiveIntent);
+    }
+  }, [showIntentModal, effectiveIntent]);
+
+  useEffect(() => {
+    if (isVerifiedConsultant && !hasAutoOpenedIntentModal) {
+      setShowIntentModal(true);
+      setHasAutoOpenedIntentModal(true);
+    }
+  }, [isVerifiedConsultant, hasAutoOpenedIntentModal]);
 
   // Fetch roadmap data if roadmapId is provided
   useEffect(() => {
@@ -157,13 +196,17 @@ function ProjectPostingPage() {
 
   const handleSubmit = async () => {
     console.log("Project submitted:", formData);
+    const projectStatus =
+      effectiveIntent === "consultant" ? "draft" : "bidding";
 
-    // If coming from roadmap, create project with bidding status
+    // If coming from roadmap, create a project immediately and link the roadmap.
+    // Intent controls whether this becomes a client bidding project or consultant incubation draft.
     if (fromRoadmap && referencedRoadmap) {
       setIsCreatingProject(true);
       try {
         // Create project with all form data
         const project = await projectService.create({
+          creation_mode: effectiveIntent,
           title: formData.title || "Untitled Project",
           description: formData.description,
           category: formData.category,
@@ -174,7 +217,7 @@ function ProjectPostingPage() {
           funding_status: formData.fundingStatus,
           start_date: formData.startDate,
           custom_start_date: formData.customStartDate || undefined,
-          status: "bidding",
+          status: projectStatus,
         });
 
         console.log("Project created from roadmap:", project);
@@ -196,59 +239,35 @@ function ProjectPostingPage() {
         setIsCreatingProject(false);
       }
     } else {
-      // Show success modal with options for normal flow
-      setShowSuccessModal(true);
-    }
-  };
-
-  const handleGenerateRoadmap = async () => {
-    setIsCreatingRoadmap(true);
-    try {
-      // Create roadmap with all form data including Step 3 budget/timeline
-      const roadmap = await roadmapService.create({
-        name: formData.title || "Untitled Project",
-        description: formData.description,
-        status: "draft",
-        settings: {
+      setIsCreatingProject(true);
+      try {
+        const project = await projectService.create({
+          creation_mode: effectiveIntent,
+          title: formData.title || "Untitled Project",
+          description: formData.description,
           category: formData.category,
-          problemSolving: formData.problemSolving,
-          projectState: formData.projectState,
+          project_state: formData.projectState,
           skills: [...formData.skills, ...formData.customSkills],
           duration: formData.duration,
-          budgetRange: formData.budgetRange,
-          fundingStatus: formData.fundingStatus,
-          startDate: formData.startDate,
-          customStartDate: formData.customStartDate,
-        },
-      });
+          budget_range: formData.budgetRange,
+          funding_status: formData.fundingStatus,
+          start_date: formData.startDate,
+          custom_start_date: formData.customStartDate || undefined,
+          status: projectStatus,
+        });
 
-      console.log("Roadmap created from project posting:", roadmap);
-
-      // Navigate to the roadmap view
-      navigate({
-        to: "/project/$projectId/roadmap/$roadmapId",
-        params: { projectId: "n", roadmapId: roadmap.id },
-      });
-    } catch (error) {
-      console.error("Failed to create roadmap:", error);
-      // Could add error toast here
-    } finally {
-      setIsCreatingRoadmap(false);
+        console.log("Project created from project posting:", project);
+        navigate({ to: "/dashboard" });
+      } catch (error) {
+        console.error("Failed to create project:", error);
+      } finally {
+        setIsCreatingProject(false);
+      }
     }
-  };
-
-  const handleSubmitToConsultant = () => {
-    // Future implementation - for now just show a message
-    alert(
-      "Consultant matching feature coming soon! Your project details have been saved.",
-    );
-    setShowSuccessModal(false);
-    // TODO: Submit project to consultant matching system
   };
 
   return (
     <div className="min-h-screen bg-[#f6f7f8] pt-16 relative overflow-hidden">
-
       {/* Decorative Background Elements */}
       <div className="absolute inset-0 pointer-events-none">
         {/* Wave SVG at bottom */}
@@ -335,6 +354,19 @@ function ProjectPostingPage() {
       </div>
 
       <div className="max-w-[1440px] mx-auto px-20 py-8 pb-40 relative z-10">
+        {isVerifiedConsultant && (
+          <button
+            type="button"
+            onClick={() => setShowIntentModal(true)}
+            className="fixed top-20 right-6 z-60 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/95 border border-[#ffcf99] text-[#a65600] font-semibold shadow-lg hover:shadow-xl hover:bg-white transition-all"
+          >
+            <Briefcase className="w-4 h-4" />
+            {effectiveIntent === "client"
+              ? "Current Intent: Bidding"
+              : "Current Intent: Incubation Draft"}
+          </button>
+        )}
+
         {/* Progress Stepper */}
         <div className="flex items-center justify-center mb-14 relative">
           <StepIndicator
@@ -343,7 +375,7 @@ function ProjectPostingPage() {
             label="Vision & Scope"
             totalSteps={3}
           />
-          <div className="w-32 h-1 bg-gray-200 rounded-full mx-2 overflow-hidden mt-[-24px]">
+          <div className="w-32 h-1 bg-gray-200 rounded-full mx-2 overflow-hidden -mt-6">
             <motion.div
               className="h-full bg-linear-to-r from-[#ff9933] to-[#e91e63]"
               initial={{ width: "0%" }}
@@ -357,7 +389,7 @@ function ProjectPostingPage() {
             label="Skills & Duration"
             totalSteps={3}
           />
-          <div className="w-32 h-1 bg-gray-200 rounded-full mx-2 overflow-hidden mt-[-24px]">
+          <div className="w-32 h-1 bg-gray-200 rounded-full mx-2 overflow-hidden -mt-6">
             <motion.div
               className="h-full bg-[#e91e63]"
               initial={{ width: "0%" }}
@@ -427,8 +459,9 @@ function ProjectPostingPage() {
                       Timeline
                     </h1>
                     <p className="text-[#61636c] text-lg">
-                      Help us match you with Consultants who fit your financial
-                      and schedule goals.
+                      {effectiveIntent === "consultant"
+                        ? "Set budget and timing for your incubation draft before you invite or transfer to a client."
+                        : "Help us match you with Consultants who fit your financial and schedule goals."}
                     </p>
                   </motion.div>
                 )}
@@ -527,95 +560,193 @@ function ProjectPostingPage() {
         </div>
       </div>
 
-      {/* Success Modal */}
+      {/* Intent Modal */}
       <AnimatePresence>
-        {showSuccessModal && (
+        {isVerifiedConsultant && showIntentModal && (
           <motion.div
-            className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+            className="fixed inset-0 z-9998 flex items-center justify-center p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
             <motion.div
-              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              className="absolute inset-0 bg-[#201913]/55 backdrop-blur-md"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setShowSuccessModal(false)}
+              onClick={() => setShowIntentModal(false)}
             />
             <motion.div
-              className="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-8"
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="relative w-full max-w-3xl rounded-3xl overflow-hidden shadow-2xl border border-white/20 bg-linear-to-br from-[#fff4e8] via-[#fffaf6] to-[#ffeef5]"
+              initial={{ opacity: 0, y: 24, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.96 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
             >
-              <div className="text-center mb-8">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Check className="w-8 h-8 text-green-600" />
-                </div>
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                  Project Submitted Successfully!
-                </h2>
-                <p className="text-gray-600">
-                  What would you like to do next with your project?
-                </p>
+              <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute -top-16 -left-12 h-40 w-40 rounded-full bg-[#ff993340] blur-2xl" />
+                <div className="absolute -bottom-14 -right-10 h-44 w-44 rounded-full bg-[#ff4d8d30] blur-2xl" />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Generate Roadmap Option */}
-                <button
-                  onClick={handleGenerateRoadmap}
-                  disabled={isCreatingRoadmap}
-                  className="group relative p-6 bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-orange-200 rounded-xl hover:border-orange-400 hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <div className="flex flex-col items-center text-center">
-                    <div className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                      {isCreatingRoadmap ? (
-                        <Loader2 className="w-6 h-6 text-white animate-spin" />
-                      ) : (
-                        <MapIcon className="w-6 h-6 text-white" />
+              <div className="relative p-6 md:p-8">
+                <div className="flex items-start justify-between gap-4 mb-6">
+                  <div>
+                    <h2 className="text-2xl md:text-3xl font-bold text-[#2f302f]">
+                      Choose Your Intention
+                    </h2>
+                    <p className="mt-2 text-sm md:text-base text-[#5c5e66] max-w-2xl">
+                      Select your legal and operating role for this project.
+                      This controls creation behavior, visibility, and ownership
+                      mechanics from day one.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowIntentModal(false)}
+                    className="rounded-full p-2 text-gray-500 hover:text-gray-800 hover:bg-white/70 transition-colors"
+                    aria-label="Close intent modal"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPendingIntent("client");
+                    }}
+                    className={`text-left rounded-2xl border-2 p-5 transition-all ${
+                      pendingIntent === "client"
+                        ? "border-[#ff9933] bg-[#fff2e3] shadow-md"
+                        : "border-gray-200 bg-gray-100/90 text-gray-500 opacity-90 grayscale hover:opacity-100"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 mb-3">
+                      <div
+                        className={`h-10 w-10 rounded-xl flex items-center justify-center ${
+                          pendingIntent === "client"
+                            ? "bg-[#ff9933] text-white"
+                            : "bg-gray-300 text-gray-600"
+                        }`}
+                      >
+                        <Briefcase className="w-5 h-5" />
+                      </div>
+                      <h3
+                        className={`text-lg font-bold ${
+                          pendingIntent === "client"
+                            ? "text-[#2f302f]"
+                            : "text-gray-500"
+                        }`}
+                      >
+                        I Am A Client
+                      </h3>
+                      {pendingIntent === "client" && (
+                        <span className="ml-auto text-[10px] uppercase tracking-wider px-2 py-1 rounded-full bg-[#ff9933] text-white font-bold">
+                          Selected
+                        </span>
                       )}
                     </div>
-                    <h3 className="font-bold text-gray-900 mb-2">
-                      Generate Roadmap
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      Create an AI-powered project roadmap with timelines and
-                      milestones
+                    <p
+                      className={`text-sm mb-3 ${
+                        pendingIntent === "client"
+                          ? "text-[#5c5e66]"
+                          : "text-gray-500"
+                      }`}
+                    >
+                      Use this when you want to hire another verified consultant
+                      to lead execution.
                     </p>
-                  </div>
-                </button>
+                    <ul
+                      className={`text-xs space-y-1 ${
+                        pendingIntent === "client"
+                          ? "text-[#61636c]"
+                          : "text-gray-500"
+                      }`}
+                    >
+                      <li>- Starts in bidding/matching flow</li>
+                      <li>- Will be matched with professional consultants</li>
+                      <li>- Best for sponsor and hiring consultants</li>
+                    </ul>
+                  </button>
 
-                {/* Submit to Consultant Option */}
-                <button
-                  onClick={handleSubmitToConsultant}
-                  className="group relative p-6 bg-gradient-to-br from-pink-50 to-pink-100 border-2 border-pink-200 rounded-xl hover:border-pink-400 hover:shadow-lg transition-all"
-                >
-                  <div className="flex flex-col items-center text-center">
-                    <div className="w-12 h-12 bg-pink-500 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                      <UserCheck className="w-6 h-6 text-white" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPendingIntent("consultant");
+                    }}
+                    className={`text-left rounded-2xl border-2 p-5 transition-all ${
+                      pendingIntent === "consultant"
+                        ? "border-[#e34b87] bg-[#fff0f6] shadow-md"
+                        : "border-gray-200 bg-gray-100/90 text-gray-500 opacity-90 grayscale hover:opacity-100"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 mb-3">
+                      <div
+                        className={`h-10 w-10 rounded-xl flex items-center justify-center ${
+                          pendingIntent === "consultant"
+                            ? "bg-[#e34b87] text-white"
+                            : "bg-gray-300 text-gray-600"
+                        }`}
+                      >
+                        <UserCheck className="w-5 h-5" />
+                      </div>
+                      <h3
+                        className={`text-lg font-bold ${
+                          pendingIntent === "consultant"
+                            ? "text-[#2f302f]"
+                            : "text-gray-500"
+                        }`}
+                      >
+                        I Am A Consultant
+                      </h3>
+                      {pendingIntent === "consultant" && (
+                        <span className="ml-auto text-[10px] uppercase tracking-wider px-2 py-1 rounded-full bg-[#e34b87] text-white font-bold">
+                          Selected
+                        </span>
+                      )}
                     </div>
-                    <h3 className="font-bold text-gray-900 mb-2">
-                      Find Consultant
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      Match with expert consultants to bring your project to
-                      life
+                    <p
+                      className={`text-sm mb-3 ${
+                        pendingIntent === "consultant"
+                          ? "text-[#5c5e66]"
+                          : "text-gray-500"
+                      }`}
+                    >
+                      Use this for incubation: you architect and lead first,
+                      then hand over to a client later.
                     </p>
-                    <span className="inline-block mt-2 px-3 py-1 bg-pink-200 text-pink-700 text-xs font-semibold rounded-full">
-                      Coming Soon
-                    </span>
-                  </div>
-                </button>
-              </div>
+                    <ul
+                      className={`text-xs space-y-1 ${
+                        pendingIntent === "consultant"
+                          ? "text-[#61636c]"
+                          : "text-gray-500"
+                      }`}
+                    >
+                      <li>- Forced private draft status</li>
+                      <li>- You are both temporary client and consultant</li>
+                      <li>- Includes transfer/manage bootstrap permissions</li>
+                    </ul>
+                  </button>
+                </div>
 
-              <button
-                onClick={() => setShowSuccessModal(false)}
-                className="mt-6 w-full px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors text-sm"
-              >
-                Close
-              </button>
+                <div className="mt-6 flex items-center justify-between gap-3">
+                  <p className="text-xs text-[#7a7d86]">
+                    You can reopen this modal anytime from the top-right
+                    "Current Intent" button.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreationIntent(pendingIntent);
+                      setShowIntentModal(false);
+                    }}
+                    className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-[#4c4e56] text-sm font-medium hover:bg-gray-50"
+                  >
+                    Continue
+                  </button>
+                </div>
+              </div>
             </motion.div>
           </motion.div>
         )}
@@ -625,7 +756,7 @@ function ProjectPostingPage() {
       <AnimatePresence>
         {isLoadingRoadmap && (
           <motion.div
-            className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+            className="fixed inset-0 z-9999 flex items-center justify-center p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -644,7 +775,7 @@ function ProjectPostingPage() {
               transition={{ duration: 0.3, ease: "easeOut" }}
             >
               <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-orange-100 to-orange-200 rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="w-16 h-16 bg-linear-to-br from-orange-100 to-orange-200 rounded-full flex items-center justify-center mx-auto mb-6">
                   <Loader2 className="w-8 h-8 text-orange-600 animate-spin" />
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-3">
@@ -723,7 +854,6 @@ function Step3({
           </div>
         </div>
       </div>
-
       {/* Funding Status */}
       <div>
         <label className="block text-sm font-semibold text-[#333438] mb-2">
@@ -742,7 +872,6 @@ function Step3({
           <option value="bootstrapped">Bootstrapped</option>
         </select>
       </div>
-
       {/* Start Date */}
       <div>
         <label className="block text-sm font-semibold text-[#333438] mb-4">
@@ -786,7 +915,6 @@ function Step3({
           </div>
         </div>
       </div>
-
       {/* Roadmap Upload or Reference */}
       <div>
         <label className="block text-sm font-semibold text-[#333438] mb-2">
@@ -796,7 +924,7 @@ function Step3({
           // Show roadmap reference when coming from roadmap
           <div className="border-2 border-orange-300 bg-orange-50 rounded-lg p-6">
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
+              <div className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center shrink-0">
                 <MapIcon className="w-6 h-6 text-white" />
               </div>
               <div className="flex-1">

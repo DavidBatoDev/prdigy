@@ -63,6 +63,12 @@ apiClient.interceptors.response.use(
           console.error("Forbidden - Insufficient permissions");
           break;
         case 404:
+          // Expected when a project has no roadmap yet; callers handle this as null.
+          if (
+            String(error.config?.url ?? "").includes("/api/roadmaps/project/")
+          ) {
+            break;
+          }
           console.error("Resource not found");
           break;
         case 429:

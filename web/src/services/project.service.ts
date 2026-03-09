@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 
 export interface CreateProjectData {
+  creation_mode?: "client" | "consultant";
   title: string;
   brief?: string;
   description?: string;

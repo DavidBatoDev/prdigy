@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ProjectPostingRouteImport } from './routes/project-posting'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as LandingRouteImport } from './routes/landing'
@@ -26,7 +27,6 @@ import { Route as ConsultantMarketplaceRouteImport } from './routes/consultant/m
 import { Route as ConsultantBrowseRouteImport } from './routes/consultant/browse'
 import { Route as ConsultantApplyRouteImport } from './routes/consultant/apply'
 import { Route as ConsultantProfileIdRouteImport } from './routes/consultant/$profileId'
-import { Route as ClientProjectPostingRouteImport } from './routes/client/project-posting'
 import { Route as AuthVerifyRouteImport } from './routes/auth/verify'
 import { Route as AuthSignupRouteImport } from './routes/auth/signup'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
@@ -49,8 +49,14 @@ import { Route as ProjectProjectIdChatRouteImport } from './routes/project/$proj
 import { Route as AuthAdminSigninRouteImport } from './routes/auth/admin/signin'
 import { Route as AuthAdminLoginRouteImport } from './routes/auth/admin/login'
 import { Route as ProjectProjectIdWorkItemsRoadmapIdRouteImport } from './routes/project/$projectId/work-items/$roadmapId'
+import { Route as ProjectProjectIdRoadmapCreateRouteImport } from './routes/project/$projectId/roadmap/create'
 import { Route as ProjectProjectIdRoadmapRoadmapIdRouteImport } from './routes/project/$projectId/roadmap/$roadmapId'
 
+const ProjectPostingRoute = ProjectPostingRouteImport.update({
+  id: '/project-posting',
+  path: '/project-posting',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
@@ -134,11 +140,6 @@ const ConsultantApplyRoute = ConsultantApplyRouteImport.update({
 const ConsultantProfileIdRoute = ConsultantProfileIdRouteImport.update({
   id: '/consultant/$profileId',
   path: '/consultant/$profileId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ClientProjectPostingRoute = ClientProjectPostingRouteImport.update({
-  id: '/client/project-posting',
-  path: '/client/project-posting',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthVerifyRoute = AuthVerifyRouteImport.update({
@@ -257,6 +258,12 @@ const ProjectProjectIdWorkItemsRoadmapIdRoute =
     path: '/$roadmapId',
     getParentRoute: () => ProjectProjectIdWorkItemsRoute,
   } as any)
+const ProjectProjectIdRoadmapCreateRoute =
+  ProjectProjectIdRoadmapCreateRouteImport.update({
+    id: '/create',
+    path: '/create',
+    getParentRoute: () => ProjectProjectIdRoadmapRoute,
+  } as any)
 const ProjectProjectIdRoadmapRoadmapIdRoute =
   ProjectProjectIdRoadmapRoadmapIdRouteImport.update({
     id: '/$roadmapId',
@@ -271,6 +278,7 @@ export interface FileRoutesByFullPath {
   '/landing': typeof LandingRoute
   '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
+  '/project-posting': typeof ProjectPostingRoute
   '/admin/applications': typeof AdminApplicationsRoute
   '/admin/approve-admin': typeof AdminApproveAdminRoute
   '/admin/match': typeof AdminMatchRoute
@@ -279,7 +287,6 @@ export interface FileRoutesByFullPath {
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/auth/verify': typeof AuthVerifyRoute
-  '/client/project-posting': typeof ClientProjectPostingRoute
   '/consultant/$profileId': typeof ConsultantProfileIdRoute
   '/consultant/apply': typeof ConsultantApplyRoute
   '/consultant/browse': typeof ConsultantBrowseRoute
@@ -305,6 +312,7 @@ export interface FileRoutesByFullPath {
   '/roadmap/shared/$token': typeof RoadmapSharedTokenRoute
   '/project/roadmap': typeof ProjectRoadmapIndexRoute
   '/project/$projectId/roadmap/$roadmapId': typeof ProjectProjectIdRoadmapRoadmapIdRoute
+  '/project/$projectId/roadmap/create': typeof ProjectProjectIdRoadmapCreateRoute
   '/project/$projectId/work-items/$roadmapId': typeof ProjectProjectIdWorkItemsRoadmapIdRoute
 }
 export interface FileRoutesByTo {
@@ -313,6 +321,7 @@ export interface FileRoutesByTo {
   '/landing': typeof LandingRoute
   '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
+  '/project-posting': typeof ProjectPostingRoute
   '/admin/applications': typeof AdminApplicationsRoute
   '/admin/approve-admin': typeof AdminApproveAdminRoute
   '/admin/match': typeof AdminMatchRoute
@@ -321,7 +330,6 @@ export interface FileRoutesByTo {
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/auth/verify': typeof AuthVerifyRoute
-  '/client/project-posting': typeof ClientProjectPostingRoute
   '/consultant/$profileId': typeof ConsultantProfileIdRoute
   '/consultant/apply': typeof ConsultantApplyRoute
   '/consultant/browse': typeof ConsultantBrowseRoute
@@ -347,6 +355,7 @@ export interface FileRoutesByTo {
   '/roadmap/shared/$token': typeof RoadmapSharedTokenRoute
   '/project/roadmap': typeof ProjectRoadmapIndexRoute
   '/project/$projectId/roadmap/$roadmapId': typeof ProjectProjectIdRoadmapRoadmapIdRoute
+  '/project/$projectId/roadmap/create': typeof ProjectProjectIdRoadmapCreateRoute
   '/project/$projectId/work-items/$roadmapId': typeof ProjectProjectIdWorkItemsRoadmapIdRoute
 }
 export interface FileRoutesById {
@@ -357,6 +366,7 @@ export interface FileRoutesById {
   '/landing': typeof LandingRoute
   '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
+  '/project-posting': typeof ProjectPostingRoute
   '/admin/applications': typeof AdminApplicationsRoute
   '/admin/approve-admin': typeof AdminApproveAdminRoute
   '/admin/match': typeof AdminMatchRoute
@@ -365,7 +375,6 @@ export interface FileRoutesById {
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/auth/verify': typeof AuthVerifyRoute
-  '/client/project-posting': typeof ClientProjectPostingRoute
   '/consultant/$profileId': typeof ConsultantProfileIdRoute
   '/consultant/apply': typeof ConsultantApplyRoute
   '/consultant/browse': typeof ConsultantBrowseRoute
@@ -391,6 +400,7 @@ export interface FileRoutesById {
   '/roadmap/shared/$token': typeof RoadmapSharedTokenRoute
   '/project/roadmap/': typeof ProjectRoadmapIndexRoute
   '/project/$projectId/roadmap/$roadmapId': typeof ProjectProjectIdRoadmapRoadmapIdRoute
+  '/project/$projectId/roadmap/create': typeof ProjectProjectIdRoadmapCreateRoute
   '/project/$projectId/work-items/$roadmapId': typeof ProjectProjectIdWorkItemsRoadmapIdRoute
 }
 export interface FileRouteTypes {
@@ -402,6 +412,7 @@ export interface FileRouteTypes {
     | '/landing'
     | '/notifications'
     | '/onboarding'
+    | '/project-posting'
     | '/admin/applications'
     | '/admin/approve-admin'
     | '/admin/match'
@@ -410,7 +421,6 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/signup'
     | '/auth/verify'
-    | '/client/project-posting'
     | '/consultant/$profileId'
     | '/consultant/apply'
     | '/consultant/browse'
@@ -436,6 +446,7 @@ export interface FileRouteTypes {
     | '/roadmap/shared/$token'
     | '/project/roadmap'
     | '/project/$projectId/roadmap/$roadmapId'
+    | '/project/$projectId/roadmap/create'
     | '/project/$projectId/work-items/$roadmapId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -444,6 +455,7 @@ export interface FileRouteTypes {
     | '/landing'
     | '/notifications'
     | '/onboarding'
+    | '/project-posting'
     | '/admin/applications'
     | '/admin/approve-admin'
     | '/admin/match'
@@ -452,7 +464,6 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/signup'
     | '/auth/verify'
-    | '/client/project-posting'
     | '/consultant/$profileId'
     | '/consultant/apply'
     | '/consultant/browse'
@@ -478,6 +489,7 @@ export interface FileRouteTypes {
     | '/roadmap/shared/$token'
     | '/project/roadmap'
     | '/project/$projectId/roadmap/$roadmapId'
+    | '/project/$projectId/roadmap/create'
     | '/project/$projectId/work-items/$roadmapId'
   id:
     | '__root__'
@@ -487,6 +499,7 @@ export interface FileRouteTypes {
     | '/landing'
     | '/notifications'
     | '/onboarding'
+    | '/project-posting'
     | '/admin/applications'
     | '/admin/approve-admin'
     | '/admin/match'
@@ -495,7 +508,6 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/signup'
     | '/auth/verify'
-    | '/client/project-posting'
     | '/consultant/$profileId'
     | '/consultant/apply'
     | '/consultant/browse'
@@ -521,6 +533,7 @@ export interface FileRouteTypes {
     | '/roadmap/shared/$token'
     | '/project/roadmap/'
     | '/project/$projectId/roadmap/$roadmapId'
+    | '/project/$projectId/roadmap/create'
     | '/project/$projectId/work-items/$roadmapId'
   fileRoutesById: FileRoutesById
 }
@@ -531,11 +544,11 @@ export interface RootRouteChildren {
   LandingRoute: typeof LandingRoute
   NotificationsRoute: typeof NotificationsRoute
   OnboardingRoute: typeof OnboardingRoute
+  ProjectPostingRoute: typeof ProjectPostingRoute
   AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthSignupRoute: typeof AuthSignupRoute
   AuthVerifyRoute: typeof AuthVerifyRoute
-  ClientProjectPostingRoute: typeof ClientProjectPostingRoute
   ConsultantProfileIdRoute: typeof ConsultantProfileIdRoute
   ConsultantApplyRoute: typeof ConsultantApplyRoute
   ConsultantBrowseRoute: typeof ConsultantBrowseRoute
@@ -554,6 +567,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/project-posting': {
+      id: '/project-posting'
+      path: '/project-posting'
+      fullPath: '/project-posting'
+      preLoaderRoute: typeof ProjectPostingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/onboarding': {
       id: '/onboarding'
       path: '/onboarding'
@@ -671,13 +691,6 @@ declare module '@tanstack/react-router' {
       path: '/consultant/$profileId'
       fullPath: '/consultant/$profileId'
       preLoaderRoute: typeof ConsultantProfileIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/client/project-posting': {
-      id: '/client/project-posting'
-      path: '/client/project-posting'
-      fullPath: '/client/project-posting'
-      preLoaderRoute: typeof ClientProjectPostingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/verify': {
@@ -834,6 +847,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectProjectIdWorkItemsRoadmapIdRouteImport
       parentRoute: typeof ProjectProjectIdWorkItemsRoute
     }
+    '/project/$projectId/roadmap/create': {
+      id: '/project/$projectId/roadmap/create'
+      path: '/create'
+      fullPath: '/project/$projectId/roadmap/create'
+      preLoaderRoute: typeof ProjectProjectIdRoadmapCreateRouteImport
+      parentRoute: typeof ProjectProjectIdRoadmapRoute
+    }
     '/project/$projectId/roadmap/$roadmapId': {
       id: '/project/$projectId/roadmap/$roadmapId'
       path: '/$roadmapId'
@@ -864,12 +884,14 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface ProjectProjectIdRoadmapRouteChildren {
   ProjectProjectIdRoadmapRoadmapIdRoute: typeof ProjectProjectIdRoadmapRoadmapIdRoute
+  ProjectProjectIdRoadmapCreateRoute: typeof ProjectProjectIdRoadmapCreateRoute
 }
 
 const ProjectProjectIdRoadmapRouteChildren: ProjectProjectIdRoadmapRouteChildren =
   {
     ProjectProjectIdRoadmapRoadmapIdRoute:
       ProjectProjectIdRoadmapRoadmapIdRoute,
+    ProjectProjectIdRoadmapCreateRoute: ProjectProjectIdRoadmapCreateRoute,
   }
 
 const ProjectProjectIdRoadmapRouteWithChildren =
@@ -926,11 +948,11 @@ const rootRouteChildren: RootRouteChildren = {
   LandingRoute: LandingRoute,
   NotificationsRoute: NotificationsRoute,
   OnboardingRoute: OnboardingRoute,
+  ProjectPostingRoute: ProjectPostingRoute,
   AuthForgotPasswordRoute: AuthForgotPasswordRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthSignupRoute: AuthSignupRoute,
   AuthVerifyRoute: AuthVerifyRoute,
-  ClientProjectPostingRoute: ClientProjectPostingRoute,
   ConsultantProfileIdRoute: ConsultantProfileIdRoute,
   ConsultantApplyRoute: ConsultantApplyRoute,
   ConsultantBrowseRoute: ConsultantBrowseRoute,

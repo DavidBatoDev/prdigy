@@ -13,7 +13,7 @@ const Header = () => {
     "/profile",
     "/consultant",
     "/notifications",
-    "/client/project-posting",
+    "/project-posting",
   ];
 
   if (!validPaths.some((path) => currentPath.startsWith(path))) {
