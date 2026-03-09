@@ -58,7 +58,9 @@ export function RoadmapBuilder({
   }, [authenticatedUser, isAuthLoading, navigate, projectId]);
 
   return (
-    <div className={`${embedded ? "h-full" : "min-h-screen pt-16"} bg-[#f6f7f8]`}>
+    <div
+      className={`${embedded ? "h-full" : "min-h-screen pt-16"} bg-[#f6f7f8]`}
+    >
       {!embedded && <Header />}
 
       <div className="h-full min-h-[50vh] flex items-center justify-center px-6">
