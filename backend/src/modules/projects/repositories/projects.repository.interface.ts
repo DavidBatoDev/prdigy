@@ -10,6 +10,10 @@ import {
 } from '../dto/project.dto';
 
 export interface ProjectsRepository {
+  getCreatorProfileForProjectCreation(userId: string): Promise<{
+    active_persona: string;
+    is_consultant_verified: boolean;
+  } | null>;
   findByUser(userId: string): Promise<Project[]>;
   findDashboardByUser(userId: string): Promise<Project[]>;
   findById(id: string): Promise<

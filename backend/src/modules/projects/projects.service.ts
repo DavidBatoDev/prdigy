@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -69,7 +70,44 @@ export class ProjectsService {
   }
 
   async createProject(userId: string, dto: CreateProjectDto): Promise<Project> {
-    return this.projectsRepo.create(userId, dto);
+    const profile =
+      await this.projectsRepo.getCreatorProfileForProjectCreation(userId);
+
+    if (!profile) {
+      throw new ForbiddenException('Profile not found');
+    }
+
+    const creationMode = dto.creation_mode ?? 'client';
+
+    if (creationMode === 'client') {
+      if (profile.active_persona !== 'client') {
+        throw new ForbiddenException(
+          'Client mode requires the client active persona.',
+        );
+      }
+      return this.projectsRepo.create(userId, {
+        ...dto,
+        creation_mode: 'client',
+      });
+    }
+
+    if (!profile.is_consultant_verified) {
+      throw new ForbiddenException(
+        'Consultant mode requires a verified consultant account.',
+      );
+    }
+
+    if (dto.status && dto.status !== 'draft') {
+      throw new BadRequestException(
+        'Consultant mode only supports draft status at creation time.',
+      );
+    }
+
+    return this.projectsRepo.create(userId, {
+      ...dto,
+      creation_mode: 'consultant',
+      status: 'draft',
+    });
   }
 
   async updateProject(

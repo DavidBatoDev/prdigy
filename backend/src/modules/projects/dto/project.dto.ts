@@ -59,6 +59,10 @@ type ProjectStatus =
   | 'archived';
 
 export class CreateProjectDto {
+  @IsEnum(['client', 'consultant'])
+  @IsOptional()
+  creation_mode?: 'client' | 'consultant';
+
   @IsString() @MaxLength(200) title: string;
   @IsString() @IsOptional() @MaxLength(500) brief?: string;
   @IsString() @IsOptional() @MaxLength(2000) description?: string;

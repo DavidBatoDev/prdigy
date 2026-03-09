@@ -11,10 +11,8 @@ import {
 } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { SupabaseAuthGuard } from '../../common/guards/supabase-auth.guard';
-import { PersonaGuard } from '../../common/guards/persona.guard';
 import { AdminGuard } from '../../common/guards/admin.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Personas } from '../../common/decorators/personas.decorator';
 import type { AuthenticatedUser } from '../../common/interfaces/authenticated-request.interface';
 import {
   AddProjectMemberDto,
@@ -43,8 +41,6 @@ export class ProjectsController {
   }
 
   @Post()
-  @Personas('client')
-  @UseGuards(PersonaGuard)
   createProject(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateProjectDto,

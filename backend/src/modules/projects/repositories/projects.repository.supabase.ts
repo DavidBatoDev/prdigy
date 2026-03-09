@@ -24,6 +24,24 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
     @Inject(SUPABASE_ADMIN) private readonly supabase: SupabaseClient,
   ) {}
 
+  async getCreatorProfileForProjectCreation(userId: string): Promise<{
+    active_persona: string;
+    is_consultant_verified: boolean;
+  } | null> {
+    const { data, error } = await this.supabase
+      .from('profiles')
+      .select('active_persona, is_consultant_verified')
+      .eq('id', userId)
+      .single();
+
+    if (error || !data) return null;
+
+    return {
+      active_persona: String(data.active_persona ?? ''),
+      is_consultant_verified: data.is_consultant_verified === true,
+    };
+  }
+
   private isMissingMemberTypeColumn(error: unknown): boolean {
     if (!error || typeof error !== 'object') return false;
     const maybeError = error as { message?: string; details?: string };
@@ -180,22 +198,33 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
 
   async create(userId: string, dto: CreateProjectDto): Promise<Project> {
     const projectPayload = this.toProjectsTablePayload(dto);
+    const isConsultantMode = dto.creation_mode === 'consultant';
 
     const { data: project, error } = await this.supabase
       .from('projects')
-      .insert({ ...projectPayload, client_id: userId })
+      .insert({
+        ...projectPayload,
+        client_id: userId,
+        consultant_id: isConsultantMode ? userId : undefined,
+      })
       .select()
       .single();
 
     if (error || !project)
       throw new Error(error?.message ?? 'Failed to create project');
 
-    // Auto-add creator as client member
+    // Auto-add creator to the team with mode-specific bootstrap permissions.
     await this.supabase.from('project_members').insert({
       project_id: project.id,
       user_id: userId,
-      role: 'client',
+      role: isConsultantMode ? 'consultant' : 'client',
       member_type: 'stakeholder',
+      permissions_json: isConsultantMode
+        ? {
+            'project.transfer': true,
+            'members.manage': true,
+          }
+        : {},
     });
 
     return project as Project;
