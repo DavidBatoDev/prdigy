@@ -1745,7 +1745,7 @@ function WorkItemsViewPage() {
           <div className="flex flex-col items-center justify-center py-24 gap-3 text-center">
             <Search className="w-8 h-8 text-gray-300" />
             <p className="text-sm font-medium text-gray-600">
-              No work items match your filters
+              No work items match your filters. Try changing Assignees
             </p>
             <button
               onClick={() => {
