@@ -5,6 +5,42 @@ import { projectService, type Project } from "@/services/project.service";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/stores/authStore";
 
+const PROJECT_STATUS_CONFIG: Record<
+  string,
+  { label: string; color: string; badgeClass: string }
+> = {
+  bidding: {
+    label: "Bidding",
+    color: "#7c3aed",
+    badgeClass: "bg-violet-100 text-violet-700 border-violet-200",
+  },
+  draft: {
+    label: "Draft",
+    color: "#f59e0b",
+    badgeClass: "bg-amber-100 text-amber-700 border-amber-200",
+  },
+  active: {
+    label: "Active",
+    color: "#22c55e",
+    badgeClass: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  },
+  completed: {
+    label: "Completed",
+    color: "#03a9f4",
+    badgeClass: "bg-sky-100 text-sky-700 border-sky-200",
+  },
+  paused: {
+    label: "Paused",
+    color: "#64748b",
+    badgeClass: "bg-slate-100 text-slate-700 border-slate-200",
+  },
+  archived: {
+    label: "Archived",
+    color: "#6b7280",
+    badgeClass: "bg-gray-100 text-gray-700 border-gray-200",
+  },
+};
+
 export function ProjectsGrid() {
   const user = useUser();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -95,32 +131,26 @@ export function ProjectsGrid() {
           </div>
         ) : (
           projects.slice(0, 2).map((project, index) => {
-            // Map status to color
-            let statusColor = "#9c27b0"; // Default purple
-            let displayStatus = "In Progress";
-
-            if (project.status === "completed") {
-              statusColor = "#03a9f4";
-              displayStatus = "Completed";
-            } else if (project.status === "active") {
-              statusColor = "#4caf50";
-              displayStatus = "On Track";
-            } else if (project.status === "draft") {
-              statusColor = "#f59e0b";
-              displayStatus = "Draft";
-            }
+            const statusConfig = PROJECT_STATUS_CONFIG[
+              (project.status || "").toLowerCase()
+            ] ?? {
+              label: project.status || "Unknown",
+              color: "#9c27b0",
+              badgeClass: "bg-purple-100 text-purple-700 border-purple-200",
+            };
 
             return (
               <ProjectCard
                 key={project.id}
                 number={index + 1}
                 projectId={project.id}
-                status={displayStatus}
-                statusColor={statusColor}
+                status={statusConfig.label}
+                statusColor={statusConfig.color}
+                statusBadgeClass={statusConfig.badgeClass}
                 title={project.title}
                 client="Unknown Client" // TODO: Fetch client details
                 progress={project.status === "completed" ? 100 : 0} // Default mock data
-                progressColor={statusColor}
+                progressColor={statusConfig.color}
                 nextUp={project.brief ? "Review Brief" : "Create Brief"} // Default mock data
                 dueDate={
                   project.custom_start_date || project.start_date || null
@@ -139,6 +169,7 @@ function ProjectCard({
   projectId,
   status,
   statusColor,
+  statusBadgeClass,
   title,
   client,
   progress,
@@ -150,6 +181,7 @@ function ProjectCard({
   projectId: string;
   status: string;
   statusColor: string;
+  statusBadgeClass: string;
   title: string;
   client: string;
   progress: number;
@@ -172,14 +204,18 @@ function ProjectCard({
               #{number}
             </span>
             <div className="w-px h-[25px] bg-[#92969f]" />
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
               <div
                 className="w-[12px] h-[12px] rounded-full flex items-center justify-center"
                 style={{ backgroundColor: statusColor }}
               >
                 <div className="w-[6px] h-[6px] rounded-full bg-white" />
               </div>
-              <span className="text-[14px] text-[#92969f]">{status}</span>
+              <span
+                className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${statusBadgeClass}`}
+              >
+                {status}
+              </span>
             </div>
           </div>
 
