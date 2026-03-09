@@ -40,7 +40,15 @@ export class ThrottlerStorageRedisService implements ThrottlerStorage {
     const pipeline = this.redis.pipeline();
     pipeline.incr(key);
     pipeline.ttl(key);
-    const [totalHits, currentTtl] = (await pipeline.exec()) as [number, number];
+    const [totalHitsRaw, currentTtlRaw] = await pipeline.exec();
+    const totalHits =
+      typeof totalHitsRaw === 'number'
+        ? totalHitsRaw
+        : Number(totalHitsRaw ?? 0);
+    const currentTtl =
+      typeof currentTtlRaw === 'number'
+        ? currentTtlRaw
+        : Number(currentTtlRaw ?? 0);
 
     // Set expiry window on first hit
     if (totalHits === 1) {

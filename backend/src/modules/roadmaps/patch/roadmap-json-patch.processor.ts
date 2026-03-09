@@ -23,7 +23,7 @@ export class RoadmapJsonPatchProcessor {
         operations as Operation[],
         true,
         false,
-      ).newDocument as FullRoadmapState;
+      ).newDocument;
     } catch (error) {
       throw new BadRequestException(
         `Invalid JSON patch payload: ${(error as Error).message}`,
