@@ -16,6 +16,7 @@ import { Type } from 'class-transformer';
 export class CreateRoadmapDto {
   @IsString() @MaxLength(200) name: string;
   @IsString() @IsOptional() description?: string;
+  @IsString() @IsOptional() category?: string;
   @IsUUID() @IsOptional() project_id?: string;
   @IsEnum(['draft', 'active', 'paused', 'completed', 'archived'])
   @IsOptional()
@@ -23,7 +24,6 @@ export class CreateRoadmapDto {
   @IsDateString() @IsOptional() start_date?: string;
   @IsDateString() @IsOptional() end_date?: string;
   @IsOptional() settings?: Record<string, unknown>;
-  @IsOptional() project_metadata?: Record<string, unknown>;
   @IsString() @IsOptional() preview_url?: string;
   @IsBoolean() @IsOptional() is_public?: boolean;
   @IsBoolean() @IsOptional() is_templatable?: boolean;
@@ -32,6 +32,7 @@ export class CreateRoadmapDto {
 export class UpdateRoadmapDto {
   @IsString() @IsOptional() @MaxLength(200) name?: string;
   @IsString() @IsOptional() description?: string;
+  @IsString() @IsOptional() category?: string;
   @IsUUID() @IsOptional() project_id?: string | null;
   @IsEnum(['draft', 'active', 'paused', 'completed', 'archived'])
   @IsOptional()
@@ -39,7 +40,6 @@ export class UpdateRoadmapDto {
   @IsDateString() @IsOptional() start_date?: string;
   @IsDateString() @IsOptional() end_date?: string;
   @IsOptional() settings?: Record<string, unknown>;
-  @IsOptional() project_metadata?: Record<string, unknown>;
   @IsString() @IsOptional() preview_url?: string;
   @IsBoolean() @IsOptional() is_public?: boolean;
   @IsBoolean() @IsOptional() is_templatable?: boolean;

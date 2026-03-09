@@ -9,6 +9,17 @@ import { CreateRoadmapDto, UpdateRoadmapDto } from '../dto/roadmaps.dto';
 export class RoadmapsRepositorySupabase implements IRoadmapsRepository {
   constructor(@Inject(SUPABASE_ADMIN) private readonly db: SupabaseClient) {}
 
+  private isMissingRoadmapCategoryColumn(error: unknown): boolean {
+    if (!error || typeof error !== 'object') return false;
+    const maybeError = error as { message?: string; details?: string };
+    const text = `${maybeError.message ?? ''} ${maybeError.details ?? ''}`;
+    return (
+      text.includes('column') &&
+      text.includes('category') &&
+      text.includes('roadmaps')
+    );
+  }
+
   private async canAccessProject(
     projectId: string,
     userId: string,
@@ -318,22 +329,51 @@ export class RoadmapsRepositorySupabase implements IRoadmapsRepository {
   }
 
   async create(dto: CreateRoadmapDto, userId: string): Promise<any> {
+    const payload = { ...dto, owner_id: userId };
     const { data, error } = await this.db
       .from('roadmaps')
-      .insert({ ...dto, owner_id: userId })
+      .insert(payload)
       .select()
       .single();
+
+    if (error && this.isMissingRoadmapCategoryColumn(error)) {
+      const { category: _ignored, ...fallbackPayload } = payload;
+      const { data: fallbackData, error: fallbackError } = await this.db
+        .from('roadmaps')
+        .insert(fallbackPayload)
+        .select()
+        .single();
+
+      if (fallbackError) throw new Error(fallbackError.message);
+      return fallbackData;
+    }
+
     if (error) throw new Error(error.message);
     return data;
   }
 
   async update(id: string, dto: UpdateRoadmapDto): Promise<any> {
+    const payload = { ...dto, updated_at: new Date().toISOString() };
     const { data, error } = await this.db
       .from('roadmaps')
-      .update({ ...dto, updated_at: new Date().toISOString() })
+      .update(payload)
       .eq('id', id)
       .select()
       .single();
+
+    if (error && this.isMissingRoadmapCategoryColumn(error)) {
+      const { category: _ignored, ...fallbackPayload } = payload;
+      const { data: fallbackData, error: fallbackError } = await this.db
+        .from('roadmaps')
+        .update(fallbackPayload)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (fallbackError) throw new Error(fallbackError.message);
+      return fallbackData;
+    }
+
     if (error) throw new Error(error.message);
     return data;
   }

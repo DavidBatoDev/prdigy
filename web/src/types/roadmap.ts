@@ -45,6 +45,7 @@ export interface Roadmap {
   project_id: string | null; // Nullable for guest users without projects
   name: string;
   description?: string;
+  category?: string;
   owner_id: string;
   is_public?: boolean;
   is_templatable?: boolean;
@@ -52,7 +53,6 @@ export interface Roadmap {
   start_date?: string;
   end_date?: string;
   settings?: Record<string, any>;
-  project_metadata?: Record<string, any>; // Stores project-posting form data
   preview_url?: string; // Optional image URL for roadmap thumbnail preview
   created_at: string;
   updated_at: string;

@@ -27,10 +27,9 @@ export { AddEpicModal } from "./modals/AddEpicModal";
 export { AddFeatureModal } from "./modals/AddFeatureModal";
 export { ShareRoadmapModal } from "./modals/ShareRoadmapModal";
 export {
-  ProjectBriefModal,
-  type FormData,
-  type ProjectState,
-} from "./modals/ProjectBriefModal";
+  RoadmapMetadataModal,
+  type RoadmapMetadataFormData,
+} from "./modals/RoadmapMetadataModal";
 export { MakeProjectDialog } from "./modals/MakeProjectDialog";
 export { RoadmapModalLayout } from "./modals/RoadmapModalLayout";
 

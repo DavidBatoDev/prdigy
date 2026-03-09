@@ -60,15 +60,7 @@ function ProjectPostingPage() {
   const [showIntentModal, setShowIntentModal] = useState(false);
   const [hasAutoOpenedIntentModal, setHasAutoOpenedIntentModal] =
     useState(false);
-  // Read fromRoadmap from sessionStorage (set by the roadmap flow) and clear it immediately
-  const [fromRoadmap] = useState<boolean>(() => {
-    const value =
-      sessionStorage.getItem("fromRoadmap") === "true" ||
-      sessionStorage.getItem("isFromRoadmap") === "true";
-    sessionStorage.removeItem("fromRoadmap");
-    sessionStorage.removeItem("isFromRoadmap");
-    return value;
-  });
+  const fromRoadmap = Boolean(searchParams.roadmapId);
   const [formData, setFormData] = useState<FormData>({
     title: "",
     category: "",
@@ -117,64 +109,18 @@ function ProjectPostingPage() {
   // Fetch roadmap data if roadmapId is provided
   useEffect(() => {
     const fetchRoadmapData = async () => {
-      if (searchParams.roadmapId && fromRoadmap) {
+      if (searchParams.roadmapId) {
         setIsLoadingRoadmap(true);
         try {
           const roadmap = await roadmapService.getById(searchParams.roadmapId);
           setReferencedRoadmap(roadmap);
 
-          // Pre-populate form data from roadmap project_metadata (preferred) or settings (fallback)
-          const projectMetadata = roadmap.project_metadata as any;
-          const settings = roadmap.settings as any;
-          const source = projectMetadata || settings;
-
-          if (source) {
-            const allSkills = source.skills || [];
-            const knownSkills = [
-              "Graphic Design",
-              "Content Writing",
-              "Web Development",
-              "Data Entry",
-              "Digital Marketing",
-              "Project Management",
-              "Translation",
-              "Video Editing",
-              "SEO",
-              "Social Media Marketing",
-              "Virtual Assistant",
-              "Illustration",
-              "3D Modeling",
-              "Voice Over",
-              "Customer Service",
-              "Accounting",
-            ];
-            const predefinedSkills = allSkills.filter((skill: string) =>
-              knownSkills.includes(skill),
-            );
-            const customSkills = allSkills.filter(
-              (skill: string) => !predefinedSkills.includes(skill),
-            );
-
-            setFormData((prev) => ({
-              ...prev,
-              title: source.title || roadmap.name || "",
-              category: source.category || "",
-              description: source.description || roadmap.description || "",
-              problemSolving: source.problemSolving || "",
-              projectState: source.projectState || "idea",
-              skills: predefinedSkills,
-              customSkills: customSkills,
-              duration: source.duration || "1-3_months",
-              // Pre-populate Step 3 fields if available in project_metadata
-              budgetRange: source.budgetRange || prev.budgetRange,
-              fundingStatus: source.fundingStatus || prev.fundingStatus,
-              startDate: source.startDate || prev.startDate,
-              customStartDate: source.customStartDate || prev.customStartDate,
-            }));
-
-            // Skip to Step 3 since Steps 1 & 2 are pre-filled
-            setCurrentStep(3);
-          }
+          setFormData((prev) => ({
+            ...prev,
+            title: roadmap.name || prev.title,
+            description: roadmap.description || prev.description,
+          }));
+          setCurrentStep(1);
         } catch (error) {
           console.error("Failed to fetch roadmap:", error);
         } finally {
@@ -184,7 +130,7 @@ function ProjectPostingPage() {
     };
 
     fetchRoadmapData();
-  }, [searchParams.roadmapId, fromRoadmap]);
+  }, [searchParams.roadmapId]);
 
   const nextStep = () => {
     if (currentStep < 3) setCurrentStep(currentStep + 1);
@@ -938,7 +884,7 @@ function Step3({
                   </span>
                 </p>
                 <a
-                  href={`/project/roadmap/${referencedRoadmap.id}`}
+                  href={`/project/n/roadmap/${referencedRoadmap.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 text-sm text-orange-600 hover:text-orange-700 font-medium"

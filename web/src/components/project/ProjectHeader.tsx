@@ -58,8 +58,6 @@ export function ProjectHeader() {
 
   const handleMakeProject = () => {
     if (!childRoadmapId) return;
-    sessionStorage.setItem("fromRoadmap", "true");
-    sessionStorage.setItem("isFromRoadmap", "true");
     navigate({
       to: "/project-posting",
       search: { roadmapId: childRoadmapId },

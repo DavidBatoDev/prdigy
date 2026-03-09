@@ -46,8 +46,11 @@ function handleServiceError(error: unknown, operation: string): never {
     const axiosError = error as any;
     if (axiosError.response) {
       const status = axiosError.response.status;
+      const responseError = axiosError.response.data?.error;
       const message =
-        axiosError.response.data?.error ||
+        (typeof responseError === "string"
+          ? responseError
+          : responseError?.message) ||
         axiosError.response.data?.message ||
         error.message;
 
@@ -88,23 +91,23 @@ export interface FullRoadmap extends Roadmap {
 export interface CreateRoadmapDto {
   name: string;
   description?: string;
+  category?: string;
   project_id?: string | null;
   status?: RoadmapStatus;
   start_date?: string;
   end_date?: string;
   settings?: Record<string, any>;
-  project_metadata?: Record<string, any>;
 }
 
 export interface UpdateRoadmapDto {
   name?: string;
   description?: string;
+  category?: string;
   project_id?: string | null;
   status?: RoadmapStatus;
   start_date?: string;
   end_date?: string;
   settings?: Record<string, any>;
-  project_metadata?: Record<string, any>;
   preview_url?: string;
   is_public?: boolean;
   is_templatable?: boolean;

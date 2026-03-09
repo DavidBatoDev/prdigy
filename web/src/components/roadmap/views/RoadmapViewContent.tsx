@@ -8,8 +8,8 @@ import {
   type Message,
   RoadmapCanvas,
   ShareRoadmapModal,
-  ProjectBriefModal,
-  type FormData,
+  RoadmapMetadataModal,
+  type RoadmapMetadataFormData,
 } from "@/components/roadmap";
 import { RoadmapTopBar } from "./RoadmapTopBar";
 import { RoadmapPageSkeleton } from "./RoadmapPageSkeleton";
@@ -117,50 +117,11 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
         const fullRoadmap = useRoadmapStore.getState().roadmap;
         if (!fullRoadmap) return;
 
-        // Pre-populate form data from roadmap project_metadata (preferred) or settings (fallback)
-        const projectMetadata = fullRoadmap.project_metadata as any;
-        const settings = fullRoadmap.settings as any;
-        const source = projectMetadata || settings;
-
-        if (source) {
-          const allSkills = source.skills || [];
-          const knownSkills = [
-            "Graphic Design",
-            "Content Writing",
-            "Web Development",
-            "Data Entry",
-            "Digital Marketing",
-            "Project Management",
-            "Translation",
-            "Video Editing",
-            "SEO",
-            "Social Media Marketing",
-            "Virtual Assistant",
-            "Illustration",
-            "3D Modeling",
-            "Voice Over",
-            "Customer Service",
-            "Accounting",
-          ];
-          const predefinedSkills = allSkills.filter((skill: string) =>
-            knownSkills.includes(skill),
-          );
-          const customSkills = allSkills.filter(
-            (skill: string) => !predefinedSkills.includes(skill),
-          );
-
-          setFormData({
-            title: source.title || fullRoadmap.name || "",
-            category: source.category || "",
-            description: source.description || fullRoadmap.description || "",
-            problemSolving: source.problemSolving || "",
-            projectState: source.projectState || "idea",
-            skills: predefinedSkills,
-            customSkills: customSkills,
-            duration: source.duration || "1-3_months",
-            preview_url: fullRoadmap.preview_url,
-          });
-        }
+        setFormData({
+          title: fullRoadmap.name || "",
+          category: fullRoadmap.category || "",
+          description: fullRoadmap.description || "",
+        });
 
         // Add initial welcome message
         const welcomeMessage: Message = {
@@ -189,19 +150,13 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  // Project Brief Modal state
+  // Edit Roadmap modal state
   const [isBriefOpen, setIsBriefOpen] = useState(false);
-  const [briefStep, setBriefStep] = useState(1);
   const [isUpdatingRoadmap, setIsUpdatingRoadmap] = useState(false);
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState<RoadmapMetadataFormData>({
     title: "",
     category: "",
     description: "",
-    problemSolving: "",
-    projectState: "idea",
-    skills: [],
-    customSkills: [],
-    duration: "1-3_months",
   });
 
   // Share Modal state
@@ -267,7 +222,9 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
     }
   };
 
-  const handleModalUpdateFormData = (updates: Partial<FormData>) => {
+  const handleModalUpdateFormData = (
+    updates: Partial<RoadmapMetadataFormData>,
+  ) => {
     setFormData((prev) => ({ ...prev, ...updates }));
   };
 
@@ -319,35 +276,13 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
 
     setIsUpdatingRoadmap(true);
     try {
-      // Save comprehensive project metadata for future project conversion
-      const projectMetadata = {
-        title: formData.title,
-        category: formData.category,
-        description: formData.description,
-        problemSolving: formData.problemSolving,
-        projectState: formData.projectState,
-        skills: [...formData.skills, ...formData.customSkills],
-        duration: formData.duration,
-        // Note: budgetRange, fundingStatus, startDate, customStartDate
-        // will be added when converting to project via project-posting
-      };
-
       await updateRoadmapMetadata({
         name: formData.title || "Untitled Roadmap",
         description: formData.description,
-        project_metadata: projectMetadata,
-        preview_url: formData.preview_url,
-        settings: {
-          category: formData.category,
-          problemSolving: formData.problemSolving,
-          projectState: formData.projectState,
-          skills: [...formData.skills, ...formData.customSkills],
-          duration: formData.duration,
-        },
+        category: formData.category,
       });
 
       setIsBriefOpen(false);
-      setBriefStep(1);
 
       // Add success message to chat
       const successMessage: Message = {
@@ -472,15 +407,12 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
         </div>
       </div>
 
-      {/* Project Brief Modal (For Editing) */}
-      <ProjectBriefModal
+      {/* Edit Roadmap Modal */}
+      <RoadmapMetadataModal
         isOpen={isBriefOpen}
         onClose={() => setIsBriefOpen(false)}
-        mode="edit"
         formData={formData}
         onUpdateFormData={handleModalUpdateFormData}
-        currentStep={briefStep}
-        onStepChange={setBriefStep}
         onSubmit={handleModalSubmit}
         isSubmitting={isUpdatingRoadmap}
       />

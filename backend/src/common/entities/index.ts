@@ -215,12 +215,12 @@ export interface Roadmap {
   project_id?: string;
   name: string;
   description?: string;
+  category?: string;
   owner_id: string;
   status: RoadmapStatus;
   start_date?: string;
   end_date?: string;
   settings: Record<string, unknown>;
-  project_metadata?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }

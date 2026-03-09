@@ -221,10 +221,10 @@ export function RoadmapTopBar({
           <button
             onClick={onEditBrief}
             className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors"
-            title="Edit Project Brief"
+            title="Edit Roadmap"
           >
             <FileText className="w-4 h-4" />
-            Edit Brief
+            Edit Roadmap
           </button>
         )}
 
