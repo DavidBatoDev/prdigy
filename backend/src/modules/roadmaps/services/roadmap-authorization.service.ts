@@ -1,4 +1,9 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_ADMIN } from '../../../config/supabase.module';
 import { ProjectsService } from '../../projects/projects.service';
@@ -10,17 +15,23 @@ export class RoadmapAuthorizationService {
     private readonly projectsService: ProjectsService,
   ) {}
 
-  private async getProjectIdByRoadmapId(
-    roadmapId: string,
-  ): Promise<string | null> {
+  private async getRoadmapMeta(roadmapId: string): Promise<{
+    project_id: string | null;
+    owner_id: string | null;
+  } | null> {
     const { data, error } = await this.db
       .from('roadmaps')
-      .select('project_id')
+      .select('project_id, owner_id')
       .eq('id', roadmapId)
       .maybeSingle();
 
     if (error) throw new Error(error.message);
-    return (data?.project_id as string | null | undefined) ?? null;
+    if (!data) return null;
+
+    return {
+      project_id: (data.project_id as string | null | undefined) ?? null,
+      owner_id: (data.owner_id as string | null | undefined) ?? null,
+    };
   }
 
   private async getRoadmapIdByMilestoneId(
@@ -80,14 +91,21 @@ export class RoadmapAuthorizationService {
       | 'roadmap.comment'
       | 'roadmap.promote',
   ): Promise<void> {
-    const projectId = await this.getProjectIdByRoadmapId(roadmapId);
+    const roadmap = await this.getRoadmapMeta(roadmapId);
 
-    if (!projectId) {
-      throw new NotFoundException('Roadmap project not found');
+    if (!roadmap) {
+      throw new NotFoundException('Roadmap not found');
+    }
+
+    if (!roadmap.project_id) {
+      if (roadmap.owner_id !== userId) {
+        throw new ForbiddenException('Not the roadmap owner');
+      }
+      return;
     }
 
     await this.projectsService.assertProjectPermission(
-      projectId,
+      roadmap.project_id,
       userId,
       permission,
     );
@@ -169,16 +187,24 @@ export class RoadmapAuthorizationService {
     roadmapId: string,
     userId: string,
   ): Promise<void> {
-    const projectId = await this.getProjectIdByRoadmapId(roadmapId);
+    const roadmap = await this.getRoadmapMeta(roadmapId);
 
-    if (!projectId) {
-      throw new NotFoundException('Roadmap project not found');
+    if (!roadmap) {
+      throw new NotFoundException('Roadmap not found');
     }
 
-    await this.projectsService.assertProjectAnyPermission(projectId, userId, [
-      'roadmap.comment',
-      'roadmap.edit',
-    ]);
+    if (!roadmap.project_id) {
+      if (roadmap.owner_id !== userId) {
+        throw new ForbiddenException('Not the roadmap owner');
+      }
+      return;
+    }
+
+    await this.projectsService.assertProjectAnyPermission(
+      roadmap.project_id,
+      userId,
+      ['roadmap.comment', 'roadmap.edit'],
+    );
   }
 
   async assertProjectRoadmapCommentPermission(

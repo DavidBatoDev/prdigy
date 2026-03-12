@@ -12,6 +12,22 @@ import {
 export class TasksRepositorySupabase implements ITasksRepository {
   constructor(@Inject(SUPABASE_ADMIN) private readonly db: SupabaseClient) {}
 
+  private async getNextPosition(featureId: string): Promise<number> {
+    const { data, error } = await this.db
+      .from('roadmap_tasks')
+      .select('position')
+      .eq('feature_id', featureId)
+      .order('position', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error && error.code !== 'PGRST116') {
+      throw new Error(error.message);
+    }
+
+    return typeof data?.position === 'number' ? data.position + 1 : 0;
+  }
+
   async findByFeature(featureId: string): Promise<any[]> {
     const { data, error } = await this.db
       .from('roadmap_tasks')
@@ -37,6 +53,11 @@ export class TasksRepositorySupabase implements ITasksRepository {
   }
 
   async create(dto: CreateTaskDto, userId: string): Promise<any> {
+    const resolvedPosition =
+      typeof dto.position === 'number'
+        ? dto.position
+        : await this.getNextPosition(dto.feature_id);
+
     // Only persist columns that exist in roadmap_tasks
     const dbPayload = {
       feature_id: dto.feature_id,
@@ -45,7 +66,7 @@ export class TasksRepositorySupabase implements ITasksRepository {
       status: dto.status,
       assignee_id: dto.assignee_id,
       due_date: dto.due_date,
-      position: dto.position,
+      position: resolvedPosition,
     };
     const { data, error } = await this.db
       .from('roadmap_tasks')
