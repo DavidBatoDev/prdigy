@@ -4,6 +4,7 @@ import {
   Check,
   Copy,
   Edit2,
+  Shield,
   Plus,
   Trash2,
   Users,
@@ -13,6 +14,7 @@ import {
   projectService,
   type Project,
   type ProjectMember,
+  type ProjectPermissions,
 } from "@/services/project.service";
 import { useUser } from "@/stores/authStore";
 
@@ -28,7 +30,82 @@ const memberDisplayName = (m: ProjectMember): string =>
   m.user?.email ||
   "Unknown";
 
-
+const permissionSections: Array<{
+  key: keyof ProjectPermissions;
+  title: string;
+  items: Array<{ key: string; label: string; hint: string }>;
+}> = [
+  {
+    key: "roadmap",
+    title: "Roadmap",
+    items: [
+      {
+        key: "edit",
+        label: "Edit",
+        hint: "Create, update, reorder, and delete roadmap items.",
+      },
+      {
+        key: "view_internal",
+        label: "View Internal",
+        hint: "See internal roadmap notes and details.",
+      },
+      {
+        key: "comment",
+        label: "Comment",
+        hint: "Add and manage comments on roadmap entities.",
+      },
+      {
+        key: "promote",
+        label: "Promote",
+        hint: "Promote roadmap items between stages.",
+      },
+    ],
+  },
+  {
+    key: "members",
+    title: "Members",
+    items: [
+      {
+        key: "manage",
+        label: "Manage",
+        hint: "Invite, edit, and remove team members.",
+      },
+      {
+        key: "view",
+        label: "View",
+        hint: "View team member list and details.",
+      },
+    ],
+  },
+  {
+    key: "project",
+    title: "Project",
+    items: [
+      {
+        key: "settings",
+        label: "Settings",
+        hint: "Update project-level settings.",
+      },
+      {
+        key: "transfer",
+        label: "Transfer",
+        hint: "Transfer project ownership or lead context.",
+      },
+    ],
+  },
+  {
+    key: "time",
+    title: "Time",
+    items: [
+      {
+        key: "manage_rates",
+        label: "Manage Rates",
+        hint: "Configure billable rates and pricing.",
+      },
+      { key: "view", label: "View", hint: "View time and rate information." },
+    ],
+  },
+];
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
@@ -49,7 +126,10 @@ function TeamSkeleton() {
           <div className="h-3 w-28 rounded bg-gray-200 mb-3.5" />
           <div className="flex gap-4">
             {[0, 1].map((i) => (
-              <div key={i} className="flex flex-col border border-gray-100 rounded-lg w-40">
+              <div
+                key={i}
+                className="flex flex-col border border-gray-100 rounded-lg w-40"
+              >
                 <div className="w-full pb-[55%] bg-gray-200" />
                 <div className="p-2.5 space-y-1.5 bg-white">
                   <div className="h-3 w-20 rounded bg-gray-200" />
@@ -64,7 +144,10 @@ function TeamSkeleton() {
           <div className="h-3 w-28 rounded bg-gray-200 mb-3.5" />
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
             {[0, 1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="rounded-lg overflow-hidden border border-gray-100">
+              <div
+                key={i}
+                className="rounded-lg overflow-hidden border border-gray-100"
+              >
                 <div className="w-full pb-[55%] bg-gray-200" />
                 <div className="p-2.5 space-y-1.5 bg-white">
                   <div className="h-3 w-20 rounded bg-gray-200" />
@@ -119,7 +202,10 @@ function PersonCard({
   return (
     <div className="group relative flex flex-col border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow bg-white rounded-lg">
       {/* Top — avatar fill (55% aspect) */}
-      <div className="relative shrink-0 overflow-hidden" style={{ paddingBottom: "55%" }}>
+      <div
+        className="relative shrink-0 overflow-hidden"
+        style={{ paddingBottom: "55%" }}
+      >
         <div className="absolute inset-0">
           {avatarUrl ? (
             <img
@@ -157,7 +243,9 @@ function PersonCard({
         </p>
         {email && (
           <div className="flex items-center gap-1 mt-0.5 group/email min-w-0">
-            <p className="text-[9.5px] text-gray-400 truncate flex-1">{email}</p>
+            <p className="text-[9.5px] text-gray-400 truncate flex-1">
+              {email}
+            </p>
             <button
               onClick={handleCopyEmail}
               className="shrink-0 p-1 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 opacity-0 group-hover/email:opacity-100 transition-opacity focus:opacity-100"
@@ -172,7 +260,9 @@ function PersonCard({
           </div>
         )}
         {badge && badgeClass && (
-          <span className={`inline-flex items-center mt-1.5 self-start px-2 py-0.5 rounded-full text-[9px] font-semibold ${badgeClass}`}>
+          <span
+            className={`inline-flex items-center mt-1.5 self-start px-2 py-0.5 rounded-full text-[9px] font-semibold ${badgeClass}`}
+          >
             {badge}
           </span>
         )}
@@ -222,165 +312,331 @@ function PrincipalsCard({ project }: { project: Project }) {
   );
 }
 
+// ─── Editable Role badge + pencil trigger ────────────────────────────────────
 
-// ─── Edit Role Modal ──────────────────────────────────────────────────────────
+function EditableRole({
+  role,
+  canEdit,
+  onOpenManage,
+}: {
+  role: string;
+  canEdit: boolean;
+  onOpenManage: () => void;
+}) {
+  return (
+    <>
+      <div className="flex items-center gap-1.5">
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-500 border border-gray-200 truncate max-w-full">
+          {role}
+        </span>
+        {canEdit && (
+          <>
+            <button
+              type="button"
+              onClick={onOpenManage}
+              className="shrink-0 inline-flex items-center gap-1 px-1.5 py-1 rounded-md border border-[#ff9933]/35 bg-[#ff9933]/10 text-[#b45f06] hover:bg-[#ff9933]/20 transition-colors"
+              title="Manage role and permissions"
+            >
+              <Shield className="w-3 h-3" />
+              <Edit2 className="w-3 h-3" />
+              <span className="text-[9px] font-semibold">Manage</span>
+            </button>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
 
-function EditRoleModal({
-  memberName,
-  currentRole,
-  onSave,
+function PermissionsDrawer({
+  open,
+  member,
+  projectId,
+  onMemberUpdated,
   onClose,
 }: {
-  memberName: string;
-  currentRole: string;
-  onSave: (newRole: string) => Promise<void>;
+  open: boolean;
+  member: ProjectMember | null;
+  projectId: string;
+  onMemberUpdated: (updated: ProjectMember) => void;
   onClose: () => void;
 }) {
-  const [draft, setDraft] = useState(currentRole);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [permissions, setPermissions] = useState<ProjectPermissions | null>(
+    null,
+  );
+  const [roleDraft, setRoleDraft] = useState("");
+  const [entered, setEntered] = useState(false);
+  const roleInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setTimeout(() => inputRef.current?.focus(), 0);
-  }, []);
+    if (!open) return;
+    setEntered(false);
+    const id = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(id);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || !member) return;
+
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      setPermissions(null);
+      setRoleDraft(member.role || "");
+      try {
+        const value = await projectService.getMemberPermissions(
+          projectId,
+          member.id,
+        );
+        if (!cancelled) setPermissions(value);
+      } catch (e) {
+        if (!cancelled) {
+          setError(
+            e instanceof Error ? e.message : "Failed to load permissions.",
+          );
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, member, projectId]);
+
+  useEffect(() => {
+    if (!open) return;
+    const id = setTimeout(() => roleInputRef.current?.focus(), 160);
+    return () => clearTimeout(id);
+  }, [open]);
+
+  const setPermission = (
+    section: keyof ProjectPermissions,
+    key: string,
+    checked: boolean,
+  ) => {
+    setPermissions((prev) => {
+      if (!prev) return prev;
+      const group = prev[section] as Record<string, boolean>;
+      return {
+        ...prev,
+        [section]: {
+          ...group,
+          [key]: checked,
+        },
+      } as ProjectPermissions;
+    });
+  };
 
   const handleSave = async () => {
-    const trimmed = draft.trim();
-    if (!trimmed || trimmed === currentRole) {
-      onClose();
-      return;
-    }
+    if (!member || !permissions) return;
     setSaving(true);
+    setError(null);
     try {
-      await onSave(trimmed);
+      const trimmedRole = roleDraft.trim();
+      if (trimmedRole.length === 0) {
+        throw new Error("Role title is required.");
+      }
+
+      const updatedMember = await projectService.updateMember(
+        projectId,
+        member.id,
+        {
+          role: trimmedRole,
+        },
+      );
+      onMemberUpdated(updatedMember);
+
+      const updatedPermissions = await projectService.updateMemberPermissions(
+        projectId,
+        member.id,
+        permissions,
+      );
+      setPermissions(updatedPermissions);
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save permissions.");
     } finally {
       setSaving(false);
     }
   };
 
+  if (!open || !member) return null;
+
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(0,0,0,0.35)" }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl mx-4 overflow-hidden">
-        {/* Header */}
-        <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-gray-100">
-          <div>
-            <h2 className="text-[15px] font-bold text-gray-900">Edit Role</h2>
-            <p className="text-[12px] text-gray-400 mt-0.5 truncate max-w-[220px]">{memberName}</p>
+    <div className="fixed inset-0 z-50">
+      <button
+        type="button"
+        className={`absolute inset-0 bg-black/30 transition-opacity duration-300 ${entered ? "opacity-100" : "opacity-0"}`}
+        onClick={onClose}
+        aria-label="Close permissions panel"
+      />
+      <aside
+        className={`absolute right-0 top-0 h-full w-full max-w-[430px] bg-white shadow-2xl border-l border-slate-200 flex flex-col transition-all duration-300 ease-out ${
+          entered ? "translate-x-0 opacity-100" : "translate-x-8 opacity-0"
+        }`}
+      >
+        <div className="px-5 py-4 border-b border-[#ff9933]/25 bg-linear-to-r from-[#fff7ed] to-[#fff3e0]">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.12em] font-semibold text-[#b45f06]">
+                Access Control
+              </p>
+              <h2 className="text-[18px] font-semibold text-slate-900 mt-0.5">
+                Member Permissions
+              </h2>
+              <p className="text-[12px] text-slate-500 mt-1 truncate">
+                {memberDisplayName(member)}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-white/70"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50/40">
+          {!loading && (
+            <section className="rounded-xl border border-[#ff9933]/25 bg-white overflow-hidden">
+              <header className="px-4 py-3 border-b border-slate-100 bg-[#fffaf2]">
+                <h3 className="text-[13px] font-semibold text-slate-800">
+                  Role
+                </h3>
+              </header>
+              <div className="px-4 py-3">
+                <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                  Team Role Title
+                </label>
+                <input
+                  ref={roleInputRef}
+                  type="text"
+                  value={roleDraft}
+                  onChange={(e) => setRoleDraft(e.target.value)}
+                  placeholder="e.g. Backend Developer"
+                  disabled={saving}
+                  className="w-full text-[13px] border border-slate-200 rounded-md px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#ff9933]/30 focus:border-[#ff9933]"
+                />
+              </div>
+            </section>
+          )}
+
+          {loading && (
+            <>
+              {[0, 1, 2].map((idx) => (
+                <section
+                  key={idx}
+                  className="rounded-xl border border-slate-200 bg-white overflow-hidden animate-pulse"
+                >
+                  <header className="px-4 py-3 border-b border-slate-100">
+                    <div className="h-3.5 w-24 rounded bg-slate-200" />
+                  </header>
+                  <div className="divide-y divide-slate-100">
+                    {[0, 1, 2].map((row) => (
+                      <div
+                        key={row}
+                        className="flex items-start justify-between gap-3 px-4 py-3"
+                      >
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <div className="h-3 w-28 rounded bg-slate-200" />
+                          <div className="h-2.5 w-44 rounded bg-slate-100" />
+                        </div>
+                        <div className="h-4 w-4 rounded bg-slate-200 mt-0.5" />
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </>
+          )}
+
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          {!loading &&
+            permissions &&
+            permissionSections.map((section) => (
+              <section
+                key={section.key}
+                className="rounded-xl border border-slate-200 bg-white overflow-hidden"
+              >
+                <header className="px-4 py-3 border-b border-slate-100">
+                  <h3 className="text-[13px] font-semibold text-slate-800">
+                    {section.title}
+                  </h3>
+                </header>
+                <div className="divide-y divide-slate-100">
+                  {section.items.map((item) => {
+                    const group = permissions[section.key] as Record<
+                      string,
+                      boolean
+                    >;
+                    const checked = group[item.key] === true;
+                    return (
+                      <label
+                        key={item.key}
+                        className="flex items-start justify-between gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-[12px] font-medium text-slate-800">
+                            {item.label}
+                          </p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            {item.hint}
+                          </p>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) =>
+                            setPermission(
+                              section.key,
+                              item.key,
+                              e.target.checked,
+                            )
+                          }
+                          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#ff9933] focus:ring-[#ff9933]"
+                        />
+                      </label>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+        </div>
+
+        <footer className="px-5 py-4 border-t border-slate-200 bg-white flex items-center justify-end gap-2">
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="px-6 py-5 space-y-2">
-          <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-            Role Title
-          </label>
-          <input
-            ref={inputRef}
-            type="text"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void handleSave();
-              if (e.key === "Escape") onClose();
-            }}
-            placeholder="e.g. Backend Developer"
             disabled={saving}
-            className="w-full text-[14px] border border-gray-200 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#ff9933]/30 focus:border-[#ff9933] placeholder:text-gray-300 transition-colors"
-          />
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/60">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="px-4 py-2 text-[13px] font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+            className="px-3 py-2 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={() => void handleSave()}
-            disabled={saving || !draft.trim()}
-            className="flex items-center gap-2 px-4 py-2 text-[13px] font-semibold text-white bg-[#ff9933] hover:bg-[#ff9933]/90 disabled:opacity-50 transition-colors shadow-sm shadow-[#ff9933]/20"
+            disabled={saving || !permissions}
+            className="px-3 py-2 text-sm font-semibold text-white bg-[#ff9933] hover:bg-[#e98a25] rounded-md disabled:opacity-50"
           >
-            {saving && (
-              <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-            )}
-            Save Role
+            {saving ? "Saving..." : "Save Changes"}
           </button>
-        </div>
-      </div>
+        </footer>
+      </aside>
     </div>
-  );
-}
-
-// ─── Editable Role badge + pencil trigger ────────────────────────────────────
-
-function EditableRole({
-  memberId,
-  projectId,
-  role,
-  memberName,
-  canEdit,
-  onSaved,
-}: {
-  memberId: string;
-  projectId: string;
-  role: string;
-  memberName: string;
-  canEdit: boolean;
-  onSaved: (updated: ProjectMember) => void;
-}) {
-  const [showModal, setShowModal] = useState(false);
-
-  const handleSave = async (newRole: string) => {
-    const updated = await projectService.updateMember(projectId, memberId, {
-      role: newRole,
-    });
-    onSaved(updated);
-    setShowModal(false);
-  };
-
-  return (
-    <>
-      <div className="flex items-center gap-1.5 group/role">
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-500 border border-gray-200 truncate max-w-full">
-          {role}
-        </span>
-        {canEdit && (
-          <button
-            type="button"
-            onClick={() => setShowModal(true)}
-            className="shrink-0 opacity-0 group-hover/role:opacity-100 p-1 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-opacity"
-            title="Edit role"
-          >
-            <Edit2 className="w-3 h-3" />
-          </button>
-        )}
-      </div>
-
-      {showModal && (
-        <EditRoleModal
-          memberName={memberName}
-          currentRole={role}
-          onSave={handleSave}
-          onClose={() => setShowModal(false)}
-        />
-      )}
-    </>
   );
 }
 
@@ -400,8 +656,14 @@ function AddMemberModal({
 
   const submit = async () => {
     const roleVal = role.trim();
-    if (!roleVal) { setError("Role title is required."); return; }
-    if (!email.trim()) { setError("Email is required."); return; }
+    if (!roleVal) {
+      setError("Role title is required.");
+      return;
+    }
+    if (!email.trim()) {
+      setError("Email is required.");
+      return;
+    }
     setError(null);
     setSaving(true);
     try {
@@ -425,7 +687,9 @@ function AddMemberModal({
             <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
               <Users className="w-4 h-4 text-gray-500" />
             </div>
-            <h2 className="text-[15px] font-semibold text-gray-900">Add Team Member</h2>
+            <h2 className="text-[15px] font-semibold text-gray-900">
+              Add Team Member
+            </h2>
           </div>
           <button
             type="button"
@@ -449,8 +713,8 @@ function AddMemberModal({
               className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#ff9933]/30 focus:border-[#ff9933] placeholder:text-gray-300"
             />
             <p className="mt-1.5 text-[11px] text-gray-400">
-              If they already have an account they'll be notified right away.
-              If not, they'll get the invite after signup.
+              If they already have an account they'll be notified right away. If
+              not, they'll get the invite after signup.
             </p>
           </div>
 
@@ -462,7 +726,9 @@ function AddMemberModal({
               type="text"
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") void submit(); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void submit();
+              }}
               placeholder="e.g. Backend Developer"
               className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#ff9933]/30 focus:border-[#ff9933] placeholder:text-gray-300"
             />
@@ -507,21 +773,19 @@ function MembersTable({
   members,
   projectId,
   canManage,
-  onUpdate,
+  onOpenManage,
   onRemove,
 }: {
   members: ProjectMember[];
   projectId: string;
   canManage: boolean;
-  onUpdate: (updated: ProjectMember) => void;
+  onOpenManage: (member: ProjectMember) => void;
   onRemove: (id: string) => void;
 }) {
   const [removing, setRemoving] = useState<string | null>(null);
 
   const handleRemove = async (member: ProjectMember) => {
-    if (
-      !window.confirm(`Remove "${memberDisplayName(member)}" from the team?`)
-    )
+    if (!window.confirm(`Remove "${memberDisplayName(member)}" from the team?`))
       return;
     setRemoving(member.id);
     try {
@@ -570,12 +834,9 @@ function MembersTable({
               removing={removing === m.id}
             >
               <EditableRole
-                memberId={m.id}
-                projectId={projectId}
                 role={m.role}
-                memberName={memberDisplayName(m)}
                 canEdit={canManage}
-                onSaved={onUpdate}
+                onOpenManage={() => onOpenManage(m)}
               />
             </PersonCard>
           ))}
@@ -596,6 +857,8 @@ function TeamPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [permissionMember, setPermissionMember] =
+    useState<ProjectMember | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -610,7 +873,11 @@ function TeamPage() {
           [p.client_id, p.consultant_id].filter(Boolean),
         );
         // Exclude principal rows by user_id AND by role name as a safety net
-        const PRINCIPAL_ROLES = new Set(["client", "consultant", "consultant (lead)"]);
+        const PRINCIPAL_ROLES = new Set([
+          "client",
+          "consultant",
+          "consultant (lead)",
+        ]);
         setMembers(
           ((p.members as ProjectMember[]) ?? []).filter(
             (m) =>
@@ -695,7 +962,7 @@ function TeamPage() {
           members={members}
           projectId={projectId}
           canManage={canManage}
-          onUpdate={handleUpdate}
+          onOpenManage={setPermissionMember}
           onRemove={handleRemove}
         />
       </div>
@@ -706,6 +973,14 @@ function TeamPage() {
           onClose={() => setShowModal(false)}
         />
       )}
+
+      <PermissionsDrawer
+        open={permissionMember !== null}
+        member={permissionMember}
+        projectId={projectId}
+        onMemberUpdated={handleUpdate}
+        onClose={() => setPermissionMember(null)}
+      />
     </div>
   );
 }

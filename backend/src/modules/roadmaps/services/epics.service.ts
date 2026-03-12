@@ -7,6 +7,7 @@ import {
   AddCommentDto,
   UpdateCommentDto,
 } from '../dto/roadmaps.dto';
+import { RoadmapAuthorizationService } from './roadmap-authorization.service';
 
 export const EPICS_REPOSITORY = Symbol('EPICS_REPOSITORY');
 
@@ -14,6 +15,7 @@ export const EPICS_REPOSITORY = Symbol('EPICS_REPOSITORY');
 export class EpicsService {
   constructor(
     @Inject(EPICS_REPOSITORY) private readonly repo: IEpicsRepository,
+    private readonly roadmapAuthz: RoadmapAuthorizationService,
   ) {}
 
   async findByRoadmap(roadmapId: string) {
@@ -27,16 +29,27 @@ export class EpicsService {
   }
 
   async create(dto: CreateEpicDto, userId: string) {
+    await this.roadmapAuthz.assertRoadmapPermission(
+      dto.roadmap_id,
+      userId,
+      'roadmap.edit',
+    );
     return this.repo.create(dto, userId);
   }
 
-  async update(id: string, dto: UpdateEpicDto) {
+  async update(id: string, dto: UpdateEpicDto, userId: string) {
     const existing = await this.repo.findById(id);
     if (!existing) throw new NotFoundException('Epic not found');
+    await this.roadmapAuthz.assertEpicPermission(id, userId, 'roadmap.edit');
     return this.repo.update(id, dto);
   }
 
-  async bulkReorder(roadmapId: string, dto: BulkReorderDto) {
+  async bulkReorder(roadmapId: string, dto: BulkReorderDto, userId: string) {
+    await this.roadmapAuthz.assertRoadmapPermission(
+      roadmapId,
+      userId,
+      'roadmap.edit',
+    );
     return this.repo.bulkReorder(roadmapId, dto);
   }
 
@@ -45,6 +58,7 @@ export class EpicsService {
   }
 
   async addComment(epicId: string, dto: AddCommentDto, userId: string) {
+    await this.roadmapAuthz.assertEpicCommentPermission(epicId, userId);
     return this.repo.addComment(epicId, dto, userId);
   }
 
@@ -60,9 +74,10 @@ export class EpicsService {
     return this.repo.deleteComment(commentId, userId);
   }
 
-  async remove(id: string) {
+  async remove(id: string, userId: string) {
     const existing = await this.repo.findById(id);
     if (!existing) throw new NotFoundException('Epic not found');
+    await this.roadmapAuthz.assertEpicPermission(id, userId, 'roadmap.edit');
     return this.repo.remove(id);
   }
 }

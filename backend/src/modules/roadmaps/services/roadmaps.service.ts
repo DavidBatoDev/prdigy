@@ -12,6 +12,7 @@ import {
   UpdateRoadmapDto,
   UpdateRoadmapTemplateSettingsDto,
 } from '../dto/roadmaps.dto';
+import { RoadmapAuthorizationService } from './roadmap-authorization.service';
 
 export const ROADMAPS_REPOSITORY = Symbol('ROADMAPS_REPOSITORY');
 
@@ -20,6 +21,7 @@ export class RoadmapsService {
   constructor(
     @Inject(ROADMAPS_REPOSITORY) private readonly repo: IRoadmapsRepository,
     @Inject(SUPABASE_ADMIN) private readonly supabase: SupabaseClient,
+    private readonly roadmapAuthz: RoadmapAuthorizationService,
   ) {}
 
   private async ensureConsultant(userId: string): Promise<void> {
@@ -65,6 +67,13 @@ export class RoadmapsService {
   }
 
   async create(dto: CreateRoadmapDto, userId: string) {
+    if (dto.project_id) {
+      await this.roadmapAuthz.assertProjectRoadmapPermission(
+        dto.project_id,
+        userId,
+        'roadmap.edit',
+      );
+    }
     return this.repo.create(dto, userId);
   }
 
@@ -86,6 +95,16 @@ export class RoadmapsService {
 
     const existing = await this.repo.findById(id);
     if (!existing) throw new NotFoundException('Roadmap not found');
+
+    if (existing.project_id) {
+      await this.roadmapAuthz.assertRoadmapPermission(
+        existing.id,
+        userId,
+        'roadmap.edit',
+      );
+      return this.repo.update(id, dto);
+    }
+
     if (existing.owner_id !== userId) {
       throw new ForbiddenException('Not the owner');
     }
@@ -100,6 +119,16 @@ export class RoadmapsService {
   async update(id: string, dto: UpdateRoadmapDto, userId: string) {
     const existing = await this.repo.findById(id);
     if (!existing) throw new NotFoundException('Roadmap not found');
+
+    if (existing.project_id) {
+      await this.roadmapAuthz.assertRoadmapPermission(
+        id,
+        userId,
+        'roadmap.edit',
+      );
+      return this.repo.update(id, dto);
+    }
+
     if (existing.owner_id !== userId)
       throw new ForbiddenException('Not the owner');
     return this.repo.update(id, dto);
@@ -108,6 +137,16 @@ export class RoadmapsService {
   async remove(id: string, userId: string) {
     const existing = await this.repo.findById(id);
     if (!existing) throw new NotFoundException('Roadmap not found');
+
+    if (existing.project_id) {
+      await this.roadmapAuthz.assertRoadmapPermission(
+        id,
+        userId,
+        'roadmap.edit',
+      );
+      return this.repo.remove(id);
+    }
+
     if (existing.owner_id !== userId)
       throw new ForbiddenException('Not the owner');
     return this.repo.remove(id);

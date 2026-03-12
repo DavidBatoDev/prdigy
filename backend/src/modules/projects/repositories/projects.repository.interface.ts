@@ -7,7 +7,9 @@ import {
   RespondProjectInviteDto,
   UpdateProjectDto,
   UpdateProjectMemberDto,
+  UpdateProjectMemberPermissionsDto,
 } from '../dto/project.dto';
+import type { ProjectPermissions } from '../permissions/project-permissions';
 
 export interface ProjectsRepository {
   getCreatorProfileForProjectCreation(userId: string): Promise<{
@@ -50,4 +52,31 @@ export interface ProjectsRepository {
     dto: UpdateProjectMemberDto,
   ): Promise<unknown>;
   removeMember(projectId: string, memberId: string): Promise<void>;
+  getMemberById(
+    projectId: string,
+    memberId: string,
+  ): Promise<{
+    id: string;
+    user_id: string | null;
+    role: string;
+    permissions_json?: Record<string, unknown> | null;
+  } | null>;
+  getMemberByProjectAndUserId(
+    projectId: string,
+    userId: string,
+  ): Promise<{
+    id: string;
+    user_id: string | null;
+    role: string;
+    permissions_json?: Record<string, unknown> | null;
+  } | null>;
+  getMemberPermissions(
+    projectId: string,
+    memberId: string,
+  ): Promise<ProjectPermissions | null>;
+  updateMemberPermissions(
+    projectId: string,
+    memberId: string,
+    dto: UpdateProjectMemberPermissionsDto,
+  ): Promise<unknown>;
 }

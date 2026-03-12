@@ -9,6 +9,7 @@ import {
   AddCommentDto,
   UpdateCommentDto,
 } from '../dto/roadmaps.dto';
+import { RoadmapAuthorizationService } from './roadmap-authorization.service';
 
 export const FEATURES_REPOSITORY = Symbol('FEATURES_REPOSITORY');
 
@@ -16,6 +17,7 @@ export const FEATURES_REPOSITORY = Symbol('FEATURES_REPOSITORY');
 export class FeaturesService {
   constructor(
     @Inject(FEATURES_REPOSITORY) private readonly repo: IFeaturesRepository,
+    private readonly roadmapAuthz: RoadmapAuthorizationService,
   ) {}
 
   async findByEpic(epicId: string) {
@@ -33,16 +35,27 @@ export class FeaturesService {
   }
 
   async create(dto: CreateFeatureDto, userId: string) {
+    await this.roadmapAuthz.assertEpicPermission(
+      dto.epic_id,
+      userId,
+      'roadmap.edit',
+    );
     return this.repo.create(dto, userId);
   }
 
-  async update(id: string, dto: UpdateFeatureDto) {
+  async update(id: string, dto: UpdateFeatureDto, userId: string) {
     const existing = await this.repo.findById(id);
     if (!existing) throw new NotFoundException('Feature not found');
+    await this.roadmapAuthz.assertFeaturePermission(id, userId, 'roadmap.edit');
     return this.repo.update(id, dto);
   }
 
-  async bulkReorder(epicId: string, dto: BulkReorderDto) {
+  async bulkReorder(epicId: string, dto: BulkReorderDto, userId: string) {
+    await this.roadmapAuthz.assertEpicPermission(
+      epicId,
+      userId,
+      'roadmap.edit',
+    );
     return this.repo.bulkReorder(epicId, dto);
   }
 
@@ -51,6 +64,7 @@ export class FeaturesService {
   }
 
   async addComment(featureId: string, dto: AddCommentDto, userId: string) {
+    await this.roadmapAuthz.assertFeatureCommentPermission(featureId, userId);
     return this.repo.addComment(featureId, dto, userId);
   }
 
@@ -66,17 +80,28 @@ export class FeaturesService {
     return this.repo.deleteComment(commentId, userId);
   }
 
-  async linkMilestone(dto: LinkMilestoneDto) {
+  async linkMilestone(dto: LinkMilestoneDto, userId: string) {
+    await this.roadmapAuthz.assertFeaturePermission(
+      dto.feature_id,
+      userId,
+      'roadmap.edit',
+    );
     return this.repo.linkMilestone(dto);
   }
 
-  async unlinkMilestone(dto: UnlinkMilestoneDto) {
+  async unlinkMilestone(dto: UnlinkMilestoneDto, userId: string) {
+    await this.roadmapAuthz.assertFeaturePermission(
+      dto.feature_id,
+      userId,
+      'roadmap.edit',
+    );
     return this.repo.unlinkMilestone(dto);
   }
 
-  async remove(id: string) {
+  async remove(id: string, userId: string) {
     const existing = await this.repo.findById(id);
     if (!existing) throw new NotFoundException('Feature not found');
+    await this.roadmapAuthz.assertFeaturePermission(id, userId, 'roadmap.edit');
     return this.repo.remove(id);
   }
 }

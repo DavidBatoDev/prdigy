@@ -46,13 +46,18 @@ export class EpicsController {
   bulkReorder(
     @Body('roadmap_id') roadmapId: string,
     @Body() dto: BulkReorderDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.epicsService.bulkReorder(roadmapId, dto);
+    return this.epicsService.bulkReorder(roadmapId, dto, user.id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateEpicDto) {
-    return this.epicsService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateEpicDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.epicsService.update(id, dto, user.id);
   }
 
   @Get(':id/comments')
@@ -89,7 +94,7 @@ export class EpicsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id') id: string) {
-    return this.epicsService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.epicsService.remove(id, user.id);
   }
 }

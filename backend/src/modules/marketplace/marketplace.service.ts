@@ -431,7 +431,6 @@ export class MarketplaceService {
             project_id: invite.project_id,
             user_id: userId,
             role: 'freelancer',
-            member_type: 'freelancer',
           },
           { onConflict: 'project_id,user_id' },
         );

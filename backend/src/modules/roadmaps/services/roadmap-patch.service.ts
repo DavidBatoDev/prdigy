@@ -18,6 +18,7 @@ import { ROADMAPS_REPOSITORY } from './roadmaps.service';
 import type { IRoadmapsRepository } from '../repositories/roadmaps.repository.interface';
 import type { IRoadmapPatchRepository } from '../repositories/roadmap-patch.repository.interface';
 import { RoadmapJsonPatchProcessor } from '../patch/roadmap-json-patch.processor';
+import { RoadmapAuthorizationService } from './roadmap-authorization.service';
 
 export const ROADMAP_PATCH_REPOSITORY = Symbol('ROADMAP_PATCH_REPOSITORY');
 
@@ -29,6 +30,7 @@ export class RoadmapPatchService {
     @Inject(ROADMAP_PATCH_REPOSITORY)
     private readonly patchRepo: IRoadmapPatchRepository,
     private readonly patchProcessor: RoadmapJsonPatchProcessor,
+    private readonly roadmapAuthz: RoadmapAuthorizationService,
   ) {}
 
   async createFull(dto: CreateFullRoadmapDto, userId: string) {
@@ -36,9 +38,23 @@ export class RoadmapPatchService {
 
     if (dto.id) {
       const existing = await this.roadmapsRepo.findById(dto.id);
-      if (existing && existing.owner_id !== userId) {
+      if (existing?.project_id) {
+        await this.roadmapAuthz.assertRoadmapPermission(
+          existing.id,
+          userId,
+          'roadmap.edit',
+        );
+      } else if (existing && existing.owner_id !== userId) {
         throw new ForbiddenException('Not the owner');
       }
+    }
+
+    if (dto.project_id) {
+      await this.roadmapAuthz.assertProjectRoadmapPermission(
+        dto.project_id,
+        userId,
+        'roadmap.edit',
+      );
     }
 
     const normalizedState = this.normalizeFullRoadmapState({
@@ -69,7 +85,14 @@ export class RoadmapPatchService {
 
     const existing = await this.roadmapsRepo.findById(roadmapId);
     if (!existing) throw new NotFoundException('Roadmap not found');
-    if (existing.owner_id !== userId)
+
+    if (existing.project_id) {
+      await this.roadmapAuthz.assertRoadmapPermission(
+        roadmapId,
+        userId,
+        'roadmap.edit',
+      );
+    } else if (existing.owner_id !== userId)
       throw new ForbiddenException('Not the owner');
 
     const currentState = await this.roadmapsRepo.findFull(roadmapId, userId);

@@ -15,9 +15,18 @@ import {
   RespondProjectInviteDto,
   UpdateProjectDto,
   UpdateProjectMemberDto,
+  UpdateProjectMemberPermissionsDto,
 } from './dto/project.dto';
 import { Project } from '../../common/entities';
 import { NotificationsService } from '../notifications/notifications.service';
+import {
+  getTemplateByKey,
+  hasPermission,
+  isPermissionsEmpty,
+  type ProjectMemberLike,
+  type ProjectPermissions,
+  resolvePermissionTemplateKey,
+} from './permissions/project-permissions';
 
 @Injectable()
 export class ProjectsService {
@@ -53,6 +62,152 @@ export class ProjectsService {
         : '';
 
     return `${params.inviterName} invited you to join ${params.projectTitle}${roleText}.${noteText}`;
+  }
+
+  private async getProjectOrThrow(projectId: string): Promise<Project> {
+    const project = await this.projectsRepo.findById(projectId);
+    if (!project) throw new NotFoundException('Project not found');
+    return project as Project;
+  }
+
+  private async hydrateDefaultPermissionsIfEmpty(
+    project: Project,
+    member: ProjectMemberLike,
+  ): Promise<ProjectPermissions> {
+    if (!isPermissionsEmpty(member.permissions_json ?? null)) {
+      return member.permissions_json as ProjectPermissions;
+    }
+
+    const templateKey = resolvePermissionTemplateKey(project, member);
+    const defaults = getTemplateByKey(templateKey);
+
+    await this.projectsRepo.updateMemberPermissions(
+      project.id,
+      member.id,
+      defaults,
+    );
+
+    return defaults;
+  }
+
+  private async getCallerPermissions(
+    project: Project,
+    callerId: string,
+  ): Promise<ProjectPermissions | null> {
+    const callerMember = await this.projectsRepo.getMemberByProjectAndUserId(
+      project.id,
+      callerId,
+    );
+
+    if (!callerMember) return null;
+
+    return this.hydrateDefaultPermissionsIfEmpty(project, callerMember);
+  }
+
+  private async assertCanManageMembers(
+    project: Project,
+    callerId: string,
+  ): Promise<void> {
+    const isLead =
+      callerId === project.client_id || callerId === project.consultant_id;
+    const callerPermissions = await this.getCallerPermissions(
+      project,
+      callerId,
+    );
+
+    if (!isLead && !callerPermissions) {
+      throw new ForbiddenException(
+        'Only the project consultant or client can manage the team.',
+      );
+    }
+
+    if (
+      callerPermissions &&
+      !hasPermission(callerPermissions, 'members.manage')
+    ) {
+      throw new ForbiddenException(
+        'You do not have permission to manage members.',
+      );
+    }
+  }
+
+  async assertProjectPermission(
+    projectId: string,
+    userId: string,
+    permission:
+      | 'members.manage'
+      | 'members.view'
+      | 'project.settings'
+      | 'project.transfer'
+      | 'roadmap.edit'
+      | 'roadmap.view_internal'
+      | 'roadmap.comment'
+      | 'roadmap.promote'
+      | 'time.manage_rates'
+      | 'time.view',
+  ): Promise<void> {
+    const project = await this.getProjectOrThrow(projectId);
+
+    // Always resolve/hydrate member permissions first when a member row exists.
+    const permissions = await this.getCallerPermissions(project, userId);
+
+    const isLead =
+      userId === project.client_id || userId === project.consultant_id;
+
+    if (isLead) {
+      return;
+    }
+
+    if (!permissions) {
+      throw new ForbiddenException('You are not a member of this project.');
+    }
+
+    if (!hasPermission(permissions, permission)) {
+      throw new ForbiddenException(`Missing permission: ${permission}`);
+    }
+  }
+
+  async assertProjectAnyPermission(
+    projectId: string,
+    userId: string,
+    permissionsToCheck: Array<
+      | 'members.manage'
+      | 'members.view'
+      | 'project.settings'
+      | 'project.transfer'
+      | 'roadmap.edit'
+      | 'roadmap.view_internal'
+      | 'roadmap.comment'
+      | 'roadmap.promote'
+      | 'time.manage_rates'
+      | 'time.view'
+    >,
+  ): Promise<void> {
+    const project = await this.getProjectOrThrow(projectId);
+
+    // Always resolve/hydrate member permissions first when a member row exists.
+    const permissions = await this.getCallerPermissions(project, userId);
+
+    const isLead =
+      userId === project.client_id || userId === project.consultant_id;
+
+    if (isLead) {
+      return;
+    }
+
+    if (!permissions) {
+      throw new ForbiddenException('You are not a member of this project.');
+    }
+
+    const hasAny = permissionsToCheck.some((permission) =>
+      hasPermission(permissions, permission),
+    );
+
+    if (!hasAny) {
+      throw new ForbiddenException(
+        `Missing required permission: ${permissionsToCheck.join(' OR ')}`,
+      );
+    }
   }
 
   async listUserProjects(userId: string): Promise<Project[]> {
@@ -133,17 +288,8 @@ export class ProjectsService {
     callerId: string,
     dto: AddProjectMemberDto,
   ): Promise<unknown> {
-    const project = await this.projectsRepo.findById(projectId);
-    if (!project) throw new NotFoundException('Project not found');
-    // Only the consultant (or owner) can manage the team
-    const p = project as Project & { consultant?: { id: string } };
-    const isConsultant = p.consultant_id === callerId;
-    const isClient = p.client_id === callerId;
-    if (!isConsultant && !isClient) {
-      throw new ForbiddenException(
-        'Only the project consultant or client can manage the team.',
-      );
-    }
+    const project = await this.getProjectOrThrow(projectId);
+    await this.assertCanManageMembers(project, callerId);
     return this.projectsRepo.addMember(projectId, dto);
   }
 
@@ -152,16 +298,8 @@ export class ProjectsService {
     callerId: string,
     dto: InviteProjectByEmailDto,
   ): Promise<unknown> {
-    const project = await this.projectsRepo.findById(projectId);
-    if (!project) throw new NotFoundException('Project not found');
-
-    const isConsultant = project.consultant_id === callerId;
-    const isClient = project.client_id === callerId;
-    if (!isConsultant && !isClient) {
-      throw new ForbiddenException(
-        'Only the project consultant or client can invite team members.',
-      );
-    }
+    const project = await this.getProjectOrThrow(projectId);
+    await this.assertCanManageMembers(project, callerId);
 
     const invite = (await this.projectsRepo.inviteByEmail(
       projectId,
@@ -255,14 +393,8 @@ export class ProjectsService {
     callerId: string,
     dto: UpdateProjectMemberDto,
   ): Promise<unknown> {
-    const project = await this.projectsRepo.findById(projectId);
-    if (!project) throw new NotFoundException('Project not found');
-    const isConsultant = project.consultant_id === callerId;
-    if (!isConsultant) {
-      throw new ForbiddenException(
-        'Only the project consultant can update team members.',
-      );
-    }
+    const project = await this.getProjectOrThrow(projectId);
+    await this.assertCanManageMembers(project, callerId);
     return this.projectsRepo.updateMember(projectId, memberId, dto);
   }
 
@@ -271,15 +403,78 @@ export class ProjectsService {
     memberId: string,
     callerId: string,
   ): Promise<void> {
-    const project = await this.projectsRepo.findById(projectId);
-    if (!project) throw new NotFoundException('Project not found');
-    const isConsultant = project.consultant_id === callerId;
-    const isClient = project.client_id === callerId;
-    if (!isConsultant && !isClient) {
+    const project = await this.getProjectOrThrow(projectId);
+    await this.assertCanManageMembers(project, callerId);
+    return this.projectsRepo.removeMember(projectId, memberId);
+  }
+
+  async getMemberPermissions(
+    projectId: string,
+    memberId: string,
+    callerId: string,
+  ): Promise<ProjectPermissions> {
+    const project = await this.getProjectOrThrow(projectId);
+
+    const callerPermissions = await this.getCallerPermissions(
+      project,
+      callerId,
+    );
+    const isLead =
+      callerId === project.client_id || callerId === project.consultant_id;
+
+    if (!isLead && !callerPermissions) {
       throw new ForbiddenException(
-        'Only the project consultant or client can remove team members.',
+        'Only project members can view permissions.',
       );
     }
-    return this.projectsRepo.removeMember(projectId, memberId);
+
+    if (
+      callerPermissions &&
+      !hasPermission(callerPermissions, 'members.view') &&
+      !hasPermission(callerPermissions, 'members.manage')
+    ) {
+      throw new ForbiddenException(
+        'You do not have permission to view members.',
+      );
+    }
+
+    const targetMember = await this.projectsRepo.getMemberById(
+      projectId,
+      memberId,
+    );
+    if (!targetMember) {
+      throw new NotFoundException('Member not found');
+    }
+
+    return this.hydrateDefaultPermissionsIfEmpty(project, targetMember);
+  }
+
+  async updateMemberPermissions(
+    projectId: string,
+    memberId: string,
+    callerId: string,
+    dto: UpdateProjectMemberPermissionsDto,
+  ): Promise<unknown> {
+    const project = await this.getProjectOrThrow(projectId);
+    await this.assertCanManageMembers(project, callerId);
+
+    const targetMember = await this.projectsRepo.getMemberById(
+      projectId,
+      memberId,
+    );
+    if (!targetMember) {
+      throw new NotFoundException('Member not found');
+    }
+
+    if (
+      targetMember.user_id === project.client_id ||
+      targetMember.user_id === project.consultant_id
+    ) {
+      throw new ForbiddenException(
+        'Cannot modify permissions of project leads.',
+      );
+    }
+
+    return this.projectsRepo.updateMemberPermissions(projectId, memberId, dto);
   }
 }

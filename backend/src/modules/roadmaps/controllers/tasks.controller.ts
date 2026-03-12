@@ -45,19 +45,24 @@ export class TasksController {
   bulkReorder(
     @Body('feature_id') featureId: string,
     @Body() dto: BulkReorderDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.tasksService.bulkReorder(featureId, dto);
+    return this.tasksService.bulkReorder(featureId, dto, user.id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateTaskDto) {
-    return this.tasksService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateTaskDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.tasksService.update(id, dto, user.id);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id') id: string) {
-    return this.tasksService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.tasksService.remove(id, user.id);
   }
 
   // Deprecated assign/unassign — 410 Gone

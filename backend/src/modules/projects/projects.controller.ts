@@ -23,6 +23,7 @@ import {
   RespondProjectInviteDto,
   UpdateProjectDto,
   UpdateProjectMemberDto,
+  UpdateProjectMemberPermissionsDto,
 } from './dto/project.dto';
 
 @Controller('projects')
@@ -113,6 +114,30 @@ export class ProjectsController {
     @Body() dto: UpdateProjectMemberDto,
   ) {
     return this.projectsService.updateMember(id, memberId, user.id, dto);
+  }
+
+  @Get(':id/members/:memberId/permissions')
+  getMemberPermissions(
+    @Param('id') id: string,
+    @Param('memberId') memberId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.projectsService.getMemberPermissions(id, memberId, user.id);
+  }
+
+  @Patch(':id/members/:memberId/permissions')
+  updateMemberPermissions(
+    @Param('id') id: string,
+    @Param('memberId') memberId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateProjectMemberPermissionsDto,
+  ) {
+    return this.projectsService.updateMemberPermissions(
+      id,
+      memberId,
+      user.id,
+      dto,
+    );
   }
 
   @Delete(':id/members/:memberId')

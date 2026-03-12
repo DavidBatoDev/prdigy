@@ -54,24 +54,38 @@ export class FeaturesController {
   }
 
   @Patch('reorder')
-  bulkReorder(@Body('epic_id') epicId: string, @Body() dto: BulkReorderDto) {
-    return this.featuresService.bulkReorder(epicId, dto);
+  bulkReorder(
+    @Body('epic_id') epicId: string,
+    @Body() dto: BulkReorderDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.featuresService.bulkReorder(epicId, dto, user.id);
   }
 
   @Post('link-milestone')
-  linkMilestone(@Body() dto: LinkMilestoneDto) {
-    return this.featuresService.linkMilestone(dto);
+  linkMilestone(
+    @Body() dto: LinkMilestoneDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.featuresService.linkMilestone(dto, user.id);
   }
 
   @Delete('unlink-milestone')
   @HttpCode(HttpStatus.NO_CONTENT)
-  unlinkMilestone(@Body() dto: UnlinkMilestoneDto) {
-    return this.featuresService.unlinkMilestone(dto);
+  unlinkMilestone(
+    @Body() dto: UnlinkMilestoneDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.featuresService.unlinkMilestone(dto, user.id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateFeatureDto) {
-    return this.featuresService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateFeatureDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.featuresService.update(id, dto, user.id);
   }
 
   @Get(':id/comments')
@@ -108,8 +122,8 @@ export class FeaturesController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id') id: string) {
-    return this.featuresService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.featuresService.remove(id, user.id);
   }
 
   // Deprecated assign/unassign endpoints — return 410 Gone

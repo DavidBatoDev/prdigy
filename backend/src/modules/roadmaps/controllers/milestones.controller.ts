@@ -45,18 +45,26 @@ export class MilestonesController {
   }
 
   @Patch('milestones/:id')
-  update(@Param('id') id: string, @Body() dto: UpdateMilestoneDto) {
-    return this.milestonesService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateMilestoneDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.milestonesService.update(id, dto, user.id);
   }
 
   @Patch('milestones/:id/reorder')
-  reorder(@Param('id') id: string, @Body() dto: ReorderDto) {
-    return this.milestonesService.reorder(id, dto);
+  reorder(
+    @Param('id') id: string,
+    @Body() dto: ReorderDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.milestonesService.reorder(id, dto, user.id);
   }
 
   @Delete('milestones/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id') id: string) {
-    return this.milestonesService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.milestonesService.remove(id, user.id);
   }
 }

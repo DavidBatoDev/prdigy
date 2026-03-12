@@ -5,6 +5,7 @@ import {
   UpdateCommentDto,
   AddAttachmentDto,
 } from '../dto/roadmaps.dto';
+import { RoadmapAuthorizationService } from './roadmap-authorization.service';
 
 export const TASK_EXTRAS_REPOSITORY = Symbol('TASK_EXTRAS_REPOSITORY');
 
@@ -13,6 +14,7 @@ export class TaskExtrasService {
   constructor(
     @Inject(TASK_EXTRAS_REPOSITORY)
     private readonly repo: ITaskExtrasRepository,
+    private readonly roadmapAuthz: RoadmapAuthorizationService,
   ) {}
 
   async findComments(taskId: string) {
@@ -20,6 +22,7 @@ export class TaskExtrasService {
   }
 
   async addComment(taskId: string, dto: AddCommentDto, userId: string) {
+    await this.roadmapAuthz.assertTaskCommentPermission(taskId, userId);
     return this.repo.addComment(taskId, dto, userId);
   }
 
@@ -40,6 +43,11 @@ export class TaskExtrasService {
   }
 
   async addAttachment(taskId: string, dto: AddAttachmentDto, userId: string) {
+    await this.roadmapAuthz.assertTaskPermission(
+      taskId,
+      userId,
+      'roadmap.edit',
+    );
     return this.repo.addAttachment(taskId, dto, userId);
   }
 

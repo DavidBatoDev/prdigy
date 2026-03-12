@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsArray,
   IsEmail,
   IsEnum,
@@ -9,20 +10,49 @@ import {
   MaxLength,
 } from 'class-validator';
 
-export type MemberType = 'stakeholder' | 'freelancer' | 'open_role';
+class RoadmapPermissionsDto {
+  @IsBoolean() edit: boolean;
+  @IsBoolean() view_internal: boolean;
+  @IsBoolean() comment: boolean;
+  @IsBoolean() promote: boolean;
+}
+
+class MembersPermissionsDto {
+  @IsBoolean() manage: boolean;
+  @IsBoolean() view: boolean;
+}
+
+class ProjectPermissionsDto {
+  @IsBoolean() settings: boolean;
+  @IsBoolean() transfer: boolean;
+}
+
+class TimePermissionsDto {
+  @IsBoolean() manage_rates: boolean;
+  @IsBoolean() view: boolean;
+}
+
+export class UpdateProjectMemberPermissionsDto {
+  @IsOptional()
+  roadmap?: RoadmapPermissionsDto;
+
+  @IsOptional()
+  members?: MembersPermissionsDto;
+
+  @IsOptional()
+  project?: ProjectPermissionsDto;
+
+  @IsOptional()
+  time?: TimePermissionsDto;
+}
 
 export class AddProjectMemberDto {
   @IsEmail() @IsOptional() email?: string;
   @IsString() @MaxLength(100) role: string;
-  @IsEnum(['stakeholder', 'freelancer', 'open_role'])
-  member_type: MemberType;
 }
 
 export class UpdateProjectMemberDto {
   @IsString() @IsOptional() @MaxLength(100) role?: string;
-  @IsEnum(['stakeholder', 'freelancer', 'open_role'])
-  @IsOptional()
-  member_type?: MemberType;
 }
 
 export class InviteProjectByEmailDto {

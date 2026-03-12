@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ProjectsModule } from '../projects/projects.module';
 
 // Controllers
 import { RoadmapsController } from './controllers/roadmaps.controller';
@@ -42,8 +43,10 @@ import { TasksRepositorySupabase } from './repositories/tasks.repository.supabas
 import { TaskExtrasRepositorySupabase } from './repositories/task-extras.repository.supabase';
 import { RoadmapPatchRepositorySupabase } from './repositories/roadmap-patch.repository.supabase';
 import { RoadmapJsonPatchProcessor } from './patch/roadmap-json-patch.processor';
+import { RoadmapAuthorizationService } from './services/roadmap-authorization.service';
 
 @Module({
+  imports: [ProjectsModule],
   controllers: [
     RoadmapsController,
     MilestonesController,
@@ -62,6 +65,7 @@ import { RoadmapJsonPatchProcessor } from './patch/roadmap-json-patch.processor'
       useClass: RoadmapPatchRepositorySupabase,
     },
     RoadmapJsonPatchProcessor,
+    RoadmapAuthorizationService,
     MilestonesService,
     { provide: MILESTONES_REPOSITORY, useClass: MilestonesRepositorySupabase },
     EpicsService,
