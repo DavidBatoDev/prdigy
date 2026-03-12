@@ -76,7 +76,7 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
     const { data } = await this.supabase
       .from('project_members')
       .select(
-        'project:projects(*, client:profiles!projects_client_id_fkey(id, display_name, avatar_url))',
+        'project:projects(*, client:profiles!projects_client_id_fkey(id, display_name, avatar_url, email))',
       )
       .eq('user_id', userId);
 
@@ -90,13 +90,13 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
       this.supabase
         .from('projects')
         .select(
-          '*, client:profiles!projects_client_id_fkey(id, display_name, avatar_url), consultant:profiles!projects_consultant_id_fkey(id, display_name, avatar_url)',
+          '*, client:profiles!projects_client_id_fkey(id, display_name, avatar_url, email), consultant:profiles!projects_consultant_id_fkey(id, display_name, avatar_url, email)',
         )
         .or(`client_id.eq.${userId},consultant_id.eq.${userId}`),
       this.supabase
         .from('project_members')
         .select(
-          'project:projects(*, client:profiles!projects_client_id_fkey(id, display_name, avatar_url), consultant:profiles!projects_consultant_id_fkey(id, display_name, avatar_url))',
+          'project:projects(*, client:profiles!projects_client_id_fkey(id, display_name, avatar_url, email), consultant:profiles!projects_consultant_id_fkey(id, display_name, avatar_url, email))',
         )
         .eq('user_id', userId),
     ]);
@@ -137,8 +137,8 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
       .select(
         `
         *,
-        client:profiles!projects_client_id_fkey(id, display_name, avatar_url, headline),
-        consultant:profiles!projects_consultant_id_fkey(id, display_name, avatar_url, headline),
+        client:profiles!projects_client_id_fkey(id, display_name, avatar_url, headline, email),
+        consultant:profiles!projects_consultant_id_fkey(id, display_name, avatar_url, headline, email),
         members:project_members(id, project_id, user_id, role, member_type, joined_at, user:profiles(id, display_name, avatar_url, email, first_name, last_name))
       `,
       )
@@ -162,8 +162,8 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
       .select(
         `
         *,
-        client:profiles!projects_client_id_fkey(id, display_name, avatar_url, headline),
-        consultant:profiles!projects_consultant_id_fkey(id, display_name, avatar_url, headline),
+        client:profiles!projects_client_id_fkey(id, display_name, avatar_url, headline, email),
+        consultant:profiles!projects_consultant_id_fkey(id, display_name, avatar_url, headline, email),
         members:project_members(id, project_id, user_id, role, joined_at, user:profiles(id, display_name, avatar_url, email, first_name, last_name))
       `,
       )

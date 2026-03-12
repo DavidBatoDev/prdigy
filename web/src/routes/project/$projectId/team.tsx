@@ -1,14 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Briefcase,
-  ChevronRight,
+  Check,
+  Copy,
   Edit2,
-  Mail,
   Plus,
-  Save,
   Trash2,
-  User,
   Users,
   X,
 } from "lucide-react";
@@ -31,183 +28,359 @@ const memberDisplayName = (m: ProjectMember): string =>
   m.user?.email ||
   "Unknown";
 
-const memberInitials = (m: ProjectMember): string =>
-  memberDisplayName(m)
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
 
-const tagStyle = (type: ProjectMember["member_type"]) => {
-  switch (type) {
-    case "stakeholder":
-      return "bg-indigo-50 text-indigo-700 border border-indigo-100";
-    case "freelancer":
-      return "bg-emerald-50 text-emerald-700 border border-emerald-100";
-    case "open_role":
-      return "bg-amber-50 text-amber-700 border border-amber-100";
-  }
-};
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 function TeamSkeleton() {
   return (
     <div className="h-full overflow-y-auto">
-      <div className="p-8 max-w-7xl mx-auto w-full animate-pulse space-y-8">
+      <div className="px-6 py-5 w-full animate-pulse space-y-6">
+        {/* header */}
         <div className="flex items-center justify-between">
           <div className="space-y-2">
-            <div className="h-7 w-36 rounded bg-gray-200" />
-            <div className="h-4 w-52 rounded bg-gray-200" />
+            <div className="h-6 w-36 rounded bg-gray-200" />
+            <div className="h-4 w-24 rounded bg-gray-200" />
           </div>
-          <div className="h-9 w-40 rounded-xl bg-gray-200" />
+          <div className="h-8 w-36 rounded-xl bg-gray-200" />
         </div>
-        {[3, 4, 2].map((rows, si) => (
-          <div
-            key={si}
-            className="rounded-2xl border border-gray-100 bg-white overflow-hidden shadow-sm"
-          >
-            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/40">
-              <div className="h-5 w-32 rounded bg-gray-200" />
-            </div>
-            <div className="divide-y divide-gray-50">
-              {Array.from({ length: rows }).map((_, i) => (
-                <div key={i} className="flex items-center gap-4 px-6 py-4">
-                  <div className="w-9 h-9 rounded-full bg-gray-200 shrink-0" />
-                  <div className="flex-1 space-y-1.5">
-                    <div className="h-4 w-44 rounded bg-gray-200" />
-                    <div className="h-3 w-28 rounded bg-gray-200" />
-                  </div>
-                  <div className="h-6 w-20 rounded-full bg-gray-200" />
+        {/* principals */}
+        <div>
+          <div className="h-3 w-28 rounded bg-gray-200 mb-3.5" />
+          <div className="flex gap-4">
+            {[0, 1].map((i) => (
+              <div key={i} className="flex flex-col border border-gray-100 rounded-lg w-40">
+                <div className="w-full pb-[55%] bg-gray-200" />
+                <div className="p-2.5 space-y-1.5 bg-white">
+                  <div className="h-3 w-20 rounded bg-gray-200" />
+                  <div className="h-2 w-14 rounded bg-gray-200" />
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
+        {/* member cards */}
+        <div>
+          <div className="h-3 w-28 rounded bg-gray-200 mb-3.5" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="rounded-lg overflow-hidden border border-gray-100">
+                <div className="w-full pb-[55%] bg-gray-200" />
+                <div className="p-2.5 space-y-1.5 bg-white">
+                  <div className="h-3 w-20 rounded bg-gray-200" />
+                  <div className="h-2 w-14 rounded bg-gray-200" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+// ─── Person Card (shared) ────────────────────────────────────────────────────
+
+function PersonCard({
+  name,
+  email,
+  avatarUrl,
+  badge,
+  badgeClass,
+  onRemove,
+  removing,
+  children,
+}: {
+  name: string;
+  email?: string;
+  avatarUrl?: string;
+  badge?: string;
+  badgeClass?: string;
+  onRemove?: () => void;
+  removing?: boolean;
+  children?: React.ReactNode;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const initials = name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  const handleCopyEmail = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!email) return;
+    navigator.clipboard.writeText(email);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="group relative flex flex-col border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow bg-white rounded-lg">
+      {/* Top — avatar fill (55% aspect) */}
+      <div className="relative shrink-0 overflow-hidden" style={{ paddingBottom: "55%" }}>
+        <div className="absolute inset-0">
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={name}
+              className="w-full h-full object-cover object-top"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-[#ff9933]/10">
+              <span className="text-2xl font-bold text-[#ff9933]/50 select-none tracking-tight">
+                {initials || "?"}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Remove button overlay */}
+        {onRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            disabled={removing}
+            className="absolute top-1.5 right-1.5 p-1 rounded-md bg-white/80 backdrop-blur-sm text-gray-400 hover:text-red-500 hover:bg-white opacity-0 group-hover:opacity-100 transition-all shadow-sm disabled:opacity-30"
+            title="Remove"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
+        )}
+      </div>
+
+      {/* Bottom — info */}
+      <div className="flex-1 flex flex-col px-2.5 py-2.5 border-t border-gray-100 bg-white">
+        <p className="text-[12px] font-semibold text-gray-800 leading-snug truncate">
+          {name}
+        </p>
+        {email && (
+          <div className="flex items-center gap-1 mt-0.5 group/email min-w-0">
+            <p className="text-[9.5px] text-gray-400 truncate flex-1">{email}</p>
+            <button
+              onClick={handleCopyEmail}
+              className="shrink-0 p-1 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 opacity-0 group-hover/email:opacity-100 transition-opacity focus:opacity-100"
+              title="Copy email"
+            >
+              {copied ? (
+                <Check className="w-3 h-3 text-emerald-500" />
+              ) : (
+                <Copy className="w-3 h-3" />
+              )}
+            </button>
+          </div>
+        )}
+        {badge && badgeClass && (
+          <span className={`inline-flex items-center mt-1.5 self-start px-2 py-0.5 rounded-full text-[9px] font-semibold ${badgeClass}`}>
+            {badge}
+          </span>
+        )}
+        {children && <div className="mt-auto pt-1.5">{children}</div>}
       </div>
     </div>
   );
 }
 
-// ─── Avatar ───────────────────────────────────────────────────────────────────
+// ─── Principals Card ──────────────────────────────────────────────────────────
 
-function MemberAvatar({ member }: { member: ProjectMember }) {
-  if (member.user?.avatar_url) {
-    return (
-      <img
-        src={member.user.avatar_url}
-        alt={memberDisplayName(member)}
-        className="w-9 h-9 rounded-full object-cover ring-2 ring-white shadow-sm"
-      />
-    );
-  }
+function PrincipalsCard({ project }: { project: Project }) {
+  const client = project.client;
+  const consultant = project.consultant;
+
+  const clientName =
+    client?.display_name || client?.email || "No client assigned";
+  const consultantName =
+    consultant?.display_name || consultant?.email || "No consultant assigned";
+
   return (
-    <span className="w-9 h-9 rounded-full bg-linear-to-br from-gray-100 to-gray-200 text-gray-600 text-xs font-bold flex items-center justify-center ring-2 ring-white shadow-sm select-none">
-      {memberInitials(member)}
-    </span>
+    <div>
+      {/* Section header */}
+      <div className="flex items-center gap-2 mb-3.5">
+        <span className="w-1 h-4 rounded-full bg-[#ff9933]" />
+        <p className="text-[12px] font-bold text-gray-700 tracking-wide">
+          Project Principals
+        </p>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <PersonCard
+          name={clientName}
+          email={client?.email}
+          avatarUrl={client?.avatar_url}
+          badge="Client"
+          badgeClass="bg-gray-100 text-gray-500 border border-gray-200"
+        />
+        <PersonCard
+          name={consultantName}
+          email={consultant?.email}
+          avatarUrl={consultant?.avatar_url}
+          badge="Consultant"
+          badgeClass="bg-gray-100 text-gray-500 border border-gray-200"
+        />
+      </div>
+    </div>
   );
 }
 
-// ─── Inline editable role ─────────────────────────────────────────────────────
+
+// ─── Edit Role Modal ──────────────────────────────────────────────────────────
+
+function EditRoleModal({
+  memberName,
+  currentRole,
+  onSave,
+  onClose,
+}: {
+  memberName: string;
+  currentRole: string;
+  onSave: (newRole: string) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [draft, setDraft] = useState(currentRole);
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }, []);
+
+  const handleSave = async () => {
+    const trimmed = draft.trim();
+    if (!trimmed || trimmed === currentRole) {
+      onClose();
+      return;
+    }
+    setSaving(true);
+    try {
+      await onSave(trimmed);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: "rgba(0,0,0,0.35)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl mx-4 overflow-hidden">
+        {/* Header */}
+        <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-gray-100">
+          <div>
+            <h2 className="text-[15px] font-bold text-gray-900">Edit Role</h2>
+            <p className="text-[12px] text-gray-400 mt-0.5 truncate max-w-[220px]">{memberName}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 py-5 space-y-2">
+          <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+            Role Title
+          </label>
+          <input
+            ref={inputRef}
+            type="text"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void handleSave();
+              if (e.key === "Escape") onClose();
+            }}
+            placeholder="e.g. Backend Developer"
+            disabled={saving}
+            className="w-full text-[14px] border border-gray-200 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#ff9933]/30 focus:border-[#ff9933] placeholder:text-gray-300 transition-colors"
+          />
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/60">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="px-4 py-2 text-[13px] font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleSave()}
+            disabled={saving || !draft.trim()}
+            className="flex items-center gap-2 px-4 py-2 text-[13px] font-semibold text-white bg-[#ff9933] hover:bg-[#ff9933]/90 disabled:opacity-50 transition-colors shadow-sm shadow-[#ff9933]/20"
+          >
+            {saving && (
+              <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+            )}
+            Save Role
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Editable Role badge + pencil trigger ────────────────────────────────────
 
 function EditableRole({
   memberId,
   projectId,
   role,
+  memberName,
   canEdit,
   onSaved,
 }: {
   memberId: string;
   projectId: string;
   role: string;
+  memberName: string;
   canEdit: boolean;
   onSaved: (updated: ProjectMember) => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(role);
-  const [saving, setSaving] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [showModal, setShowModal] = useState(false);
 
-  const startEdit = () => {
-    setDraft(role);
-    setEditing(true);
-    setTimeout(() => inputRef.current?.focus(), 0);
+  const handleSave = async (newRole: string) => {
+    const updated = await projectService.updateMember(projectId, memberId, {
+      role: newRole,
+    });
+    onSaved(updated);
+    setShowModal(false);
   };
-
-  const cancel = () => {
-    setDraft(role);
-    setEditing(false);
-  };
-
-  const save = async () => {
-    const trimmed = draft.trim();
-    if (!trimmed || trimmed === role) {
-      cancel();
-      return;
-    }
-    setSaving(true);
-    try {
-      const updated = await projectService.updateMember(projectId, memberId, {
-        role: trimmed,
-      });
-      onSaved(updated);
-      setEditing(false);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (editing) {
-    return (
-      <div className="flex items-center gap-1.5">
-        <input
-          ref={inputRef}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") void save();
-            if (e.key === "Escape") cancel();
-          }}
-          disabled={saving}
-          className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-[#ff9933]/40 focus:border-[#ff9933] w-44"
-        />
-        <button
-          type="button"
-          onClick={() => void save()}
-          disabled={saving}
-          className="p-1.5 rounded-md text-emerald-600 hover:bg-emerald-50 disabled:opacity-40"
-          title="Save"
-        >
-          <Save className="w-3.5 h-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={cancel}
-          disabled={saving}
-          className="p-1.5 rounded-md text-gray-400 hover:bg-gray-100"
-          title="Cancel"
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
-      </div>
-    );
-  }
 
   return (
-    <div className="flex items-center gap-2 group/role">
-      <span className="text-sm text-gray-700">{role}</span>
-      {canEdit && (
-        <button
-          type="button"
-          onClick={startEdit}
-          className="opacity-0 group-hover/role:opacity-100 p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-opacity"
-          title="Edit role title"
-        >
-          <Edit2 className="w-3 h-3" />
-        </button>
+    <>
+      <div className="flex items-center gap-1.5 group/role">
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-500 border border-gray-200 truncate max-w-full">
+          {role}
+        </span>
+        {canEdit && (
+          <button
+            type="button"
+            onClick={() => setShowModal(true)}
+            className="shrink-0 opacity-0 group-hover/role:opacity-100 p-1 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-opacity"
+            title="Edit role"
+          >
+            <Edit2 className="w-3 h-3" />
+          </button>
+        )}
+      </div>
+
+      {showModal && (
+        <EditRoleModal
+          memberName={memberName}
+          currentRole={role}
+          onSave={handleSave}
+          onClose={() => setShowModal(false)}
+        />
       )}
-    </div>
+    </>
   );
 }
 
@@ -216,13 +389,10 @@ function EditableRole({
 function AddMemberModal({
   projectId,
   onClose,
-  onAdded,
 }: {
   projectId: string;
   onClose: () => void;
-  onAdded: (m: ProjectMember) => void;
 }) {
-  const [tab, setTab] = useState<"email" | "open_role">("email");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("");
   const [saving, setSaving] = useState(false);
@@ -230,38 +400,18 @@ function AddMemberModal({
 
   const submit = async () => {
     const roleVal = role.trim();
-    if (!roleVal) {
-      setError("Role title is required.");
-      return;
-    }
-    if (tab === "email" && !email.trim()) {
-      setError("Email is required.");
-      return;
-    }
+    if (!roleVal) { setError("Role title is required."); return; }
+    if (!email.trim()) { setError("Email is required."); return; }
     setError(null);
     setSaving(true);
     try {
-      if (tab === "email") {
-        await projectService.inviteByEmail(projectId, {
-          email: email.trim(),
-          role: roleVal,
-        });
-      } else {
-        const added = await projectService.addMember(projectId, {
-          role: roleVal,
-          member_type: "open_role",
-        });
-        onAdded(added);
-      }
+      await projectService.inviteByEmail(projectId, {
+        email: email.trim(),
+        role: roleVal,
+      });
       onClose();
     } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : tab === "email"
-            ? "Failed to send invite."
-            : "Failed to add member.",
-      );
+      setError(e instanceof Error ? e.message : "Failed to send invite.");
     } finally {
       setSaving(false);
     }
@@ -275,9 +425,7 @@ function AddMemberModal({
             <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
               <Users className="w-4 h-4 text-gray-500" />
             </div>
-            <h2 className="text-[15px] font-semibold text-gray-900">
-              Add Team Member
-            </h2>
+            <h2 className="text-[15px] font-semibold text-gray-900">Add Team Member</h2>
           </div>
           <button
             type="button"
@@ -288,81 +436,37 @@ function AddMemberModal({
           </button>
         </div>
 
-        <div className="flex border-b border-gray-100">
-          <button
-            type="button"
-            onClick={() => setTab("email")}
-            className={`flex-1 py-3 text-sm font-medium transition-colors ${
-              tab === "email"
-                ? "text-[#ff9933] border-b-2 border-[#ff9933] bg-[#ff9933]/5"
-                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-            }`}
-          >
-            <div className="flex items-center justify-center gap-1.5">
-              <Mail className="w-3.5 h-3.5" />
-              Invite by Email
-            </div>
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("open_role")}
-            className={`flex-1 py-3 text-sm font-medium transition-colors ${
-              tab === "open_role"
-                ? "text-[#ff9933] border-b-2 border-[#ff9933] bg-[#ff9933]/5"
-                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-            }`}
-          >
-            <div className="flex items-center justify-center gap-1.5">
-              <Briefcase className="w-3.5 h-3.5" />
-              Open Role
-            </div>
-          </button>
-        </div>
-
         <div className="px-6 py-5 space-y-4">
-          {tab === "email" && (
-            <div>
-              <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="freelancer@example.com"
-                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#ff9933]/30 focus:border-[#ff9933] placeholder:text-gray-300"
-              />
-              <p className="mt-1.5 text-[11px] text-gray-400">
-                If they already have an account they’ll be notified right away.
-                If not, they’ll get the invite after signup.
-              </p>
-            </div>
-          )}
+          <div>
+            <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+              Email Address
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="member@example.com"
+              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#ff9933]/30 focus:border-[#ff9933] placeholder:text-gray-300"
+            />
+            <p className="mt-1.5 text-[11px] text-gray-400">
+              If they already have an account they'll be notified right away.
+              If not, they'll get the invite after signup.
+            </p>
+          </div>
 
           <div>
             <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-              {tab === "email" ? "Role / Title" : "Role Title"}
+              Role / Title
             </label>
             <input
               type="text"
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void submit();
-              }}
-              placeholder={
-                tab === "email" ? "e.g. Backend Developer" : "e.g. QA Tester"
-              }
+              onKeyDown={(e) => { if (e.key === "Enter") void submit(); }}
+              placeholder="e.g. Backend Developer"
               className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#ff9933]/30 focus:border-[#ff9933] placeholder:text-gray-300"
             />
           </div>
-
-          {tab === "open_role" && (
-            <p className="text-[12px] text-gray-400 leading-relaxed bg-amber-50 rounded-lg px-3 py-2.5 border border-amber-100">
-              Creates an unfilled seat on your team. You can assign a specific
-              person to this role later.
-            </p>
-          )}
 
           {error && (
             <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2.5 border border-red-100">
@@ -391,7 +495,7 @@ function AddMemberModal({
             ) : (
               <Plus className="w-3.5 h-3.5" />
             )}
-            {tab === "email" ? "Add Member" : "Create Open Role"}
+            Add Member
           </button>
         </div>
       </div>
@@ -399,181 +503,81 @@ function AddMemberModal({
   );
 }
 
-// ─── Member Row ───────────────────────────────────────────────────────────────
-
-function MemberRow({
-  member,
-  projectId,
-  canManage,
-  onUpdate,
-  onRemove,
-}: {
-  member: ProjectMember;
-  projectId: string;
-  canManage: boolean;
-  onUpdate: (updated: ProjectMember) => void;
-  onRemove: (id: string) => void;
-}) {
-  const [removing, setRemoving] = useState(false);
-
-  const handleRemove = async () => {
-    if (!window.confirm(`Remove "${memberDisplayName(member)}" from the team?`))
-      return;
-    setRemoving(true);
-    try {
-      await projectService.removeMember(projectId, member.id);
-      onRemove(member.id);
-    } finally {
-      setRemoving(false);
-    }
-  };
-
-  if (member.member_type === "open_role") {
-    return (
-      <div className="flex items-center gap-4 px-6 py-4 group hover:bg-gray-50/60 transition-colors">
-        <div className="w-9 h-9 rounded-full border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center shrink-0">
-          <User className="w-4 h-4 text-gray-400" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-[14px] font-medium text-gray-700">{member.role}</p>
-          <p className="text-[12px] text-gray-400 mt-0.5">Unfilled seat</p>
-        </div>
-        <div className="flex items-center gap-3 shrink-0">
-          <span
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${tagStyle("open_role")}`}
-          >
-            Open
-          </span>
-          <button
-            type="button"
-            className="inline-flex items-center gap-1 text-[12px] font-medium text-[#ff9933] hover:text-[#ff9933]/80 opacity-0 group-hover:opacity-100 transition-opacity"
-          >
-            Review Applicants
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
-          {canManage && (
-            <button
-              type="button"
-              onClick={() => void handleRemove()}
-              disabled={removing}
-              className="p-1.5 rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all disabled:opacity-30"
-              title="Remove role"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex items-center gap-4 px-6 py-4 group hover:bg-gray-50/60 transition-colors">
-      <MemberAvatar member={member} />
-      <div className="flex-1 min-w-0">
-        <p className="text-[14px] font-semibold text-gray-900 leading-tight">
-          {memberDisplayName(member)}
-        </p>
-        {member.user?.email && (
-          <p className="text-[12px] text-gray-400 mt-0.5 truncate">
-            {member.user.email}
-          </p>
-        )}
-      </div>
-      <div className="shrink-0">
-        <EditableRole
-          memberId={member.id}
-          projectId={projectId}
-          role={member.role}
-          canEdit={canManage && member.member_type === "freelancer"}
-          onSaved={onUpdate}
-        />
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        <span
-          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${tagStyle(member.member_type)}`}
-        >
-          {member.member_type === "stakeholder" ? "Stakeholder" : "Freelancer"}
-        </span>
-        {canManage && member.member_type === "freelancer" && (
-          <button
-            type="button"
-            onClick={() => void handleRemove()}
-            disabled={removing}
-            className="p-1.5 rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all disabled:opacity-30"
-            title="Remove member"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Section Card ─────────────────────────────────────────────────────────────
-
-function SectionCard({
-  title,
-  subtitle,
-  icon,
-  badge,
+function MembersTable({
   members,
   projectId,
   canManage,
   onUpdate,
   onRemove,
-  emptyText,
 }: {
-  title: string;
-  subtitle?: string;
-  icon: React.ReactNode;
-  badge?: number;
   members: ProjectMember[];
   projectId: string;
   canManage: boolean;
   onUpdate: (updated: ProjectMember) => void;
   onRemove: (id: string) => void;
-  emptyText: string;
 }) {
+  const [removing, setRemoving] = useState<string | null>(null);
+
+  const handleRemove = async (member: ProjectMember) => {
+    if (
+      !window.confirm(`Remove "${memberDisplayName(member)}" from the team?`)
+    )
+      return;
+    setRemoving(member.id);
+    try {
+      await projectService.removeMember(projectId, member.id);
+      onRemove(member.id);
+    } finally {
+      setRemoving(null);
+    }
+  };
+
   return (
-    <div className="rounded-lg border border-gray-100 bg-white shadow-sm overflow-hidden">
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gray-50/40">
-        <div className="w-7 h-7 rounded-lg bg-white border border-gray-200 flex items-center justify-center shadow-sm shrink-0">
-          {icon}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className="text-[12px] font-bold text-gray-600 uppercase tracking-wider">
-              {title}
-            </h3>
-            {badge !== undefined && (
-              <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-gray-200 text-[10px] font-bold text-gray-500">
-                {badge}
-              </span>
-            )}
-          </div>
-          {subtitle && (
-            <p className="text-[11px] text-gray-400 mt-0.5">{subtitle}</p>
-          )}
+    <div>
+      {/* Section header */}
+      <div className="flex items-center justify-between mb-3.5">
+        <div className="flex items-center gap-2">
+          <span className="w-1 h-4 rounded-full bg-gray-300" />
+          <p className="text-[12px] font-bold text-gray-700 tracking-wide">
+            Project Members
+          </p>
+          <span className="ml-1 px-1.5 py-0.5 rounded-full bg-gray-100 text-[10px] font-semibold text-gray-500">
+            {members.length}
+          </span>
         </div>
       </div>
 
       {members.length === 0 ? (
-        <div className="px-6 py-8 text-center">
-          <p className="text-[13px] text-gray-400">{emptyText}</p>
+        <div className="py-12 text-center">
+          <div className="w-10 h-10 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center mx-auto mb-3">
+            <Users className="w-4 h-4 text-gray-300" />
+          </div>
+          <p className="text-[12px] text-gray-400">
+            {canManage
+              ? "No members yet — add your first team member above."
+              : "No members assigned to this project yet."}
+          </p>
         </div>
       ) : (
-        <div className="divide-y divide-gray-50">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
           {members.map((m) => (
-            <MemberRow
+            <PersonCard
               key={m.id}
-              member={m}
-              projectId={projectId}
-              canManage={canManage}
-              onUpdate={onUpdate}
-              onRemove={onRemove}
-            />
+              name={memberDisplayName(m)}
+              email={m.user?.email}
+              avatarUrl={m.user?.avatar_url}
+              onRemove={canManage ? () => void handleRemove(m) : undefined}
+              removing={removing === m.id}
+            >
+              <EditableRole
+                memberId={m.id}
+                projectId={projectId}
+                role={m.role}
+                memberName={memberDisplayName(m)}
+                canEdit={canManage}
+                onSaved={onUpdate}
+              />
+            </PersonCard>
           ))}
         </div>
       )}
@@ -602,11 +606,17 @@ function TeamPage() {
         const p = await projectService.get(projectId);
         if (cancelled) return;
         setProject(p);
+        const principalIds = new Set(
+          [p.client_id, p.consultant_id].filter(Boolean),
+        );
+        // Exclude principal rows by user_id AND by role name as a safety net
+        const PRINCIPAL_ROLES = new Set(["client", "consultant", "consultant (lead)"]);
         setMembers(
-          ((p.members as ProjectMember[]) ?? []).sort((a, b) => {
-            const order = { stakeholder: 0, freelancer: 1, open_role: 2 };
-            return order[a.member_type] - order[b.member_type];
-          }),
+          ((p.members as ProjectMember[]) ?? []).filter(
+            (m) =>
+              (!m.user_id || !principalIds.has(m.user_id)) &&
+              !PRINCIPAL_ROLES.has((m.role ?? "").toLowerCase()),
+          ),
         );
       } catch {
         if (!cancelled) setError("Failed to load team data.");
@@ -628,16 +638,12 @@ function TeamPage() {
     setMembers((prev) => prev.filter((m) => m.id !== id));
   }, []);
 
-  const handleAdded = useCallback((m: ProjectMember) => {
-    setMembers((prev) => [...prev, m]);
-  }, []);
-
   if (isLoading) return <TeamSkeleton />;
 
   if (error) {
     return (
       <div className="h-full overflow-y-auto">
-        <div className="p-8 max-w-5xl mx-auto">
+        <div className="px-8 py-6">
           <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
           </div>
@@ -646,102 +652,51 @@ function TeamPage() {
     );
   }
 
-  const typedProject = project as
-    | (Project & { consultant_id?: string; client_id?: string })
-    | null;
-
   const canManage =
     !!user?.id &&
-    (user.id === typedProject?.consultant_id ||
-      user.id === typedProject?.client_id);
-
-  const stakeholders = members.filter((m) => m.member_type === "stakeholder");
-  const freelancers = members.filter((m) => m.member_type === "freelancer");
-  const openRoles = members.filter((m) => m.member_type === "open_role");
+    (user.id === project?.client_id || user.id === project?.consultant_id);
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="p-8 max-w-7xl mx-auto w-full space-y-6">
+      <div className="px-6 py-5 w-full space-y-6">
         {/* Page header */}
-        <div className="flex items-start justify-between gap-4 pb-2">
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-[22px] font-bold text-gray-900 leading-tight">
+            <h1 className="text-[20px] font-bold text-gray-900 leading-tight">
               Project Team
             </h1>
-            <p className="text-[13px] text-gray-500 mt-1">
-              {members.length} member{members.length !== 1 ? "s" : ""}
-              {openRoles.length > 0 && (
-                <>
-                  {" "}
-                  ·{" "}
-                  <span className="text-amber-600 font-medium">
-                    {openRoles.length} open role
-                    {openRoles.length !== 1 ? "s" : ""}
-                  </span>
-                </>
-              )}
-            </p>
           </div>
           {canManage && (
             <button
               type="button"
               onClick={() => setShowModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-[#ff9933] hover:bg-[#ff9933]/90 rounded-xl shadow-sm shadow-[#ff9933]/25 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-[12.5px] font-semibold text-white bg-[#ff9933] hover:bg-[#ff9933]/90 rounded-lg shadow-sm shadow-[#ff9933]/25 transition-colors"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
               Add Team Member
             </button>
           )}
         </div>
 
-        {/* Stakeholders */}
-        <SectionCard
-          title="Stakeholders"
-          subtitle="Client & Consultant — project principals"
-          icon={<Users className="w-3.5 h-3.5 text-gray-500" />}
-          badge={stakeholders.length}
-          members={stakeholders}
-          projectId={projectId}
-          canManage={false}
-          onUpdate={handleUpdate}
-          onRemove={handleRemove}
-          emptyText="No stakeholders on this project yet."
-        />
+        {/* Principals */}
+        {project && <PrincipalsCard project={project} />}
 
-        {/* Execution Team */}
-        <SectionCard
-          title="Execution Team"
-          subtitle="Freelancers actively working on this project"
-          icon={<Briefcase className="w-3.5 h-3.5 text-gray-500" />}
-          badge={freelancers.length}
-          members={freelancers}
+        {/* Styled separator */}
+        <div className="relative flex items-center py-2">
+          <div className="flex-1 border-t border-dashed border-gray-200" />
+          <span className="shrink-0 mx-4 px-3 py-1 bg-gray-50 border border-gray-200 rounded-full text-[10px] font-bold text-gray-500 uppercase tracking-widest select-none shadow-sm">
+            Team Members
+          </span>
+          <div className="flex-1 border-t border-dashed border-gray-200" />
+        </div>
+
+        {/* Members grid — flat, no card wrapper */}
+        <MembersTable
+          members={members}
           projectId={projectId}
           canManage={canManage}
           onUpdate={handleUpdate}
           onRemove={handleRemove}
-          emptyText={
-            canManage
-              ? "No freelancers yet — add your first team member above."
-              : "No freelancers assigned to this project yet."
-          }
-        />
-
-        {/* Open Roles */}
-        <SectionCard
-          title="Open Roles"
-          subtitle="Unfilled positions available for assignment"
-          icon={<User className="w-3.5 h-3.5 text-gray-500" />}
-          badge={openRoles.length}
-          members={openRoles}
-          projectId={projectId}
-          canManage={canManage}
-          onUpdate={handleUpdate}
-          onRemove={handleRemove}
-          emptyText={
-            canManage
-              ? "No open roles — create a slot to list a needed position."
-              : "No open roles listed."
-          }
         />
       </div>
 
@@ -749,7 +704,6 @@ function TeamPage() {
         <AddMemberModal
           projectId={projectId}
           onClose={() => setShowModal(false)}
-          onAdded={handleAdded}
         />
       )}
     </div>
