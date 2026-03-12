@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { Link } from "@tanstack/react-router";
 import {
@@ -170,6 +170,13 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
     if (!roadmap) return "{}";
     return JSON.stringify(buildRoadmapJsonDocument(roadmap), null, 2);
   }, [roadmap]);
+
+  const currentUserRole = roadmap?.currentUserRole;
+  const canEditRoadmap =
+    currentUserRole === "owner" || currentUserRole === "editor";
+  const canCommentRoadmap = canEditRoadmap || currentUserRole === "commenter";
+  const showReadOnlyPermissionNote =
+    Boolean(currentUserRole) && !canEditRoadmap && !canCommentRoadmap;
 
   const handleSendMessage = async (message: string) => {
     const userMessage: Message = {
@@ -434,6 +441,18 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
         onClose={() => setIsJsonPanelOpen(false)}
         onSave={handleSaveRoadmapJson}
       />
+
+      {showReadOnlyPermissionNote && (
+        <div className="fixed right-5 bottom-5 z-40 max-w-sm rounded-lg border border-amber-200 bg-amber-50/95 px-4 py-3 shadow-lg backdrop-blur-sm">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+            <p className="text-sm font-medium text-amber-900">
+              You have view-only access to this roadmap. Editing and commenting
+              are disabled.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

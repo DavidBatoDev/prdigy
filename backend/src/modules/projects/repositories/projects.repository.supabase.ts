@@ -214,6 +214,14 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
   async update(id: string, dto: UpdateProjectDto): Promise<Project> {
     const projectPayload = this.toProjectsTablePayload(dto);
 
+    if (Object.keys(projectPayload).length === 0) {
+      const existing = await this.findById(id);
+      if (!existing) {
+        throw new NotFoundException('Project not found');
+      }
+      return existing as Project;
+    }
+
     const { data, error } = await this.supabase
       .from('projects')
       .update(projectPayload)
@@ -223,6 +231,143 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
     if (error || !data)
       throw new Error(error?.message ?? 'Failed to update project');
     return data as Project;
+  }
+
+  async deleteProject(id: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('projects')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw new BadRequestException(
+        error.message || 'Failed to delete project.',
+      );
+    }
+  }
+
+  async transferOwner(
+    projectId: string,
+    previousOwnerId: string,
+    newOwnerId: string,
+  ): Promise<Project> {
+    const { data: targetProfile, error: targetProfileError } =
+      await this.supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', newOwnerId)
+        .maybeSingle();
+
+    if (targetProfileError || !targetProfile) {
+      throw new NotFoundException('Target owner profile not found');
+    }
+
+    const { data: currentProject, error: currentProjectError } =
+      await this.supabase
+        .from('projects')
+        .select('id, consultant_id')
+        .eq('id', projectId)
+        .single();
+
+    if (currentProjectError || !currentProject) {
+      throw new NotFoundException('Project not found');
+    }
+
+    const { data: updatedProject, error: updateProjectError } =
+      await this.supabase
+        .from('projects')
+        .update({ client_id: newOwnerId })
+        .eq('id', projectId)
+        .select()
+        .single();
+
+    if (updateProjectError || !updatedProject) {
+      throw new BadRequestException(
+        updateProjectError?.message || 'Failed to transfer project owner.',
+      );
+    }
+
+    const { error: newOwnerMemberError } = await this.supabase
+      .from('project_members')
+      .upsert(
+        {
+          project_id: projectId,
+          user_id: newOwnerId,
+          role: ProjectMemberRole.CLIENT,
+          position: 'Client',
+          permissions_json: getTemplateByKey('client'),
+        },
+        { onConflict: 'project_id,user_id' },
+      );
+
+    if (newOwnerMemberError) {
+      throw new BadRequestException(
+        newOwnerMemberError.message ||
+          'Failed to update new owner project membership.',
+      );
+    }
+
+    if (previousOwnerId !== newOwnerId) {
+      const consultantId =
+        (currentProject.consultant_id as string | null) ?? null;
+
+      if (consultantId === previousOwnerId) {
+        const { error: previousConsultantError } = await this.supabase
+          .from('project_members')
+          .upsert(
+            {
+              project_id: projectId,
+              user_id: previousOwnerId,
+              role: ProjectMemberRole.CONSULTANT,
+              position: 'Main Consultant',
+              permissions_json: getTemplateByKey('consultant'),
+            },
+            { onConflict: 'project_id,user_id' },
+          );
+
+        if (previousConsultantError) {
+          throw new BadRequestException(
+            previousConsultantError.message ||
+              'Failed to sync previous owner consultant membership.',
+          );
+        }
+      } else {
+        const { data: previousMembership } = await this.supabase
+          .from('project_members')
+          .select('position')
+          .eq('project_id', projectId)
+          .eq('user_id', previousOwnerId)
+          .maybeSingle();
+
+        const previousPosition =
+          typeof previousMembership?.position === 'string' &&
+          previousMembership.position.trim().length > 0
+            ? previousMembership.position.trim()
+            : 'Member';
+
+        const { error: previousOwnerMemberError } = await this.supabase
+          .from('project_members')
+          .upsert(
+            {
+              project_id: projectId,
+              user_id: previousOwnerId,
+              role: ProjectMemberRole.MEMBER,
+              position: previousPosition,
+              permissions_json: getTemplateByKey('member'),
+            },
+            { onConflict: 'project_id,user_id' },
+          );
+
+        if (previousOwnerMemberError) {
+          throw new BadRequestException(
+            previousOwnerMemberError.message ||
+              'Failed to sync previous owner membership.',
+          );
+        }
+      }
+    }
+
+    return updatedProject as Project;
   }
 
   async assignConsultant(

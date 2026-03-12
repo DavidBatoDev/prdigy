@@ -1,0 +1,710 @@
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import {
+  AlertTriangle,
+  Check,
+  Edit2,
+  Loader2,
+  RefreshCcw,
+  Save,
+  Settings,
+  Trash2,
+  X,
+} from "lucide-react";
+import { ProjectSettingsLayout } from "@/components/project/ProjectSettingsLayout";
+import { RichTextEditor } from "@/components/common/RichTextEditor";
+import { cleanHTML } from "@/components/common/RichTextEditor/utils/formatting";
+import { useToast } from "@/hooks/useToast";
+import { supabase } from "@/lib/supabase";
+import {
+  projectService,
+  type Project,
+  type ProjectMember,
+} from "@/services/project.service";
+import { useUser } from "@/stores/authStore";
+
+export const Route = createFileRoute("/project/$projectId/settings/general")({
+  component: SettingsGeneralPage,
+});
+
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+const toRichHtml = (raw: string | null | undefined): string => {
+  if (!raw) return "";
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+
+  if (/<[a-z][\s\S]*>/i.test(trimmed)) {
+    return cleanHTML(trimmed);
+  }
+
+  return `<p>${escapeHtml(trimmed).replace(/\n/g, "<br>")}</p>`;
+};
+
+function SettingsPageSkeleton({ projectId }: { projectId: string }) {
+  return (
+    <ProjectSettingsLayout projectId={projectId}>
+      <div className="animate-pulse space-y-8">
+        <section className="space-y-3">
+          <div className="h-10 w-72 rounded-md bg-gray-200" />
+          <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+            <div className="flex items-center justify-end border-b border-gray-200 bg-[#f8f8f8] px-5 py-4">
+              <div className="h-10 w-32 rounded-md bg-gray-200" />
+            </div>
+            <div className="space-y-5 px-5 py-5">
+              <div className="space-y-2">
+                <div className="h-3 w-28 rounded bg-gray-200" />
+                <div className="h-11 w-full rounded-lg bg-gray-100" />
+              </div>
+              <div className="space-y-2">
+                <div className="h-3 w-36 rounded bg-gray-200" />
+                <div className="h-32 w-full rounded-lg bg-gray-100" />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <div className="h-10 w-64 rounded-md bg-gray-200" />
+          <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+            <div className="flex items-center justify-between border-b border-gray-200 bg-[#f8f8f8] px-5 py-4">
+              <div className="h-4 w-64 rounded bg-gray-200" />
+              <div className="h-9 w-32 rounded-md bg-gray-200" />
+            </div>
+            <div className="divide-y divide-gray-100">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div
+                  key={`member-skeleton-${index}`}
+                  className="flex items-center justify-between gap-3 px-5 py-4"
+                >
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="h-4 w-48 rounded bg-gray-200" />
+                    <div className="h-3 w-64 rounded bg-gray-100" />
+                  </div>
+                  <div className="h-7 w-24 rounded-full bg-gray-100" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <div className="h-10 w-64 rounded-md bg-gray-200" />
+          <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+            <div className="flex items-center justify-between border-b border-gray-200 bg-[#f8f8f8] px-5 py-4">
+              <div className="h-4 w-64 rounded bg-gray-200" />
+              <div className="h-9 w-36 rounded-md bg-gray-200" />
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <div className="h-10 w-60 rounded-md bg-gray-200" />
+          <div className="rounded-xl border border-red-100 bg-white overflow-hidden">
+            <div className="flex items-center justify-between border-b border-red-100 bg-red-50 px-5 py-4">
+              <div className="h-4 w-72 rounded bg-red-100" />
+              <div className="h-9 w-32 rounded-md bg-red-100" />
+            </div>
+            <div className="px-5 py-4">
+              <div className="h-4 w-64 rounded bg-red-50" />
+            </div>
+          </div>
+        </section>
+      </div>
+    </ProjectSettingsLayout>
+  );
+}
+
+function SettingsGeneralPage() {
+  const { projectId } = Route.useParams();
+  const navigate = useNavigate();
+  const toast = useToast();
+  const user = useUser();
+
+  const [project, setProject] = useState<Project | null>(null);
+  const [members, setMembers] = useState<ProjectMember[]>([]);
+  const [titleDraft, setTitleDraft] = useState("");
+  const [summaryValue, setSummaryValue] = useState("");
+  const [summaryDraft, setSummaryDraft] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [isEditingSummary, setIsEditingSummary] = useState(false);
+  const [isSavingTitle, setIsSavingTitle] = useState(false);
+  const [isSavingSummary, setIsSavingSummary] = useState(false);
+  const [isTransferOpen, setIsTransferOpen] = useState(false);
+  const [selectedOwnerId, setSelectedOwnerId] = useState("");
+  const [isTransferSaving, setIsTransferSaving] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [deleteText, setDeleteText] = useState("");
+  const [isDeleteSaving, setIsDeleteSaving] = useState(false);
+
+  const isOwner = Boolean(user?.id && project?.client_id === user.id);
+
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const [projectData, memberData, briefResult] = await Promise.all([
+        projectService.get(projectId),
+        projectService.getMembers(projectId),
+        supabase
+          .from("project_briefs")
+          .select("mission_vision")
+          .eq("project_id", projectId)
+          .maybeSingle(),
+      ]);
+
+      const summaryHtml = toRichHtml(briefResult.data?.mission_vision ?? "");
+
+      setProject(projectData);
+      setMembers(memberData);
+      setTitleDraft(projectData.title || "");
+      setSummaryValue(summaryHtml);
+      setSummaryDraft(summaryHtml);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to load settings.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadData();
+  }, [projectId]);
+
+  const transferrableMembers = useMemo(
+    () =>
+      members.filter(
+        (member) =>
+          Boolean(member.user_id) && member.user_id !== project?.client_id,
+      ),
+    [members, project?.client_id],
+  );
+
+  const saveTitle = async () => {
+    if (!project) return;
+    const normalizedTitle = titleDraft.trim();
+    if (!normalizedTitle) {
+      toast.error("Project title cannot be empty.");
+      return;
+    }
+
+    setIsSavingTitle(true);
+    try {
+      const updated = await projectService.update(project.id, {
+        title: normalizedTitle,
+      });
+      setProject(updated);
+      setTitleDraft(updated.title || "");
+      setIsEditingTitle(false);
+      toast.success("Project title updated.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save project title.",
+      );
+    } finally {
+      setIsSavingTitle(false);
+    }
+  };
+
+  const saveSummary = async () => {
+    if (!project) return;
+    setIsSavingSummary(true);
+    try {
+      const cleaned = cleanHTML(summaryDraft);
+
+      const { error } = await supabase.from("project_briefs").upsert(
+        {
+          project_id: project.id,
+          mission_vision: cleaned,
+          updated_by: user?.id ?? null,
+          version: 1,
+        },
+        { onConflict: "project_id,version" },
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      const nextSummary = toRichHtml(cleaned);
+      setSummaryValue(nextSummary);
+      setSummaryDraft(nextSummary);
+      setIsEditingSummary(false);
+      toast.success("Project summary updated.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to save project summary.",
+      );
+    } finally {
+      setIsSavingSummary(false);
+    }
+  };
+
+  const submitTransfer = async () => {
+    if (!project || !selectedOwnerId) return;
+    setIsTransferSaving(true);
+    try {
+      const updated = await projectService.transferOwner(
+        project.id,
+        selectedOwnerId,
+      );
+      setProject(updated);
+      setSelectedOwnerId("");
+      setIsTransferOpen(false);
+      toast.success("Project ownership transferred.");
+      await loadData();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to transfer project.",
+      );
+    } finally {
+      setIsTransferSaving(false);
+    }
+  };
+
+  const submitDelete = async () => {
+    if (!project) return;
+    setIsDeleteSaving(true);
+    try {
+      await projectService.deleteProject(project.id);
+      toast.success("Project deleted.");
+      navigate({ to: "/dashboard" });
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete project.",
+      );
+    } finally {
+      setIsDeleteSaving(false);
+    }
+  };
+
+  const deleteConfirmMatches = deleteText.trim() === (project?.title || "");
+
+  if (isLoading && !project) {
+    return <SettingsPageSkeleton projectId={projectId} />;
+  }
+
+  return (
+    <ProjectSettingsLayout projectId={projectId}>
+      <div className="space-y-10">
+        <section className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Settings className="w-5 h-5 text-[#ff9933]" />
+            <h2 className="text-[30px] leading-none font-semibold text-gray-900">
+              General settings
+            </h2>
+          </div>
+
+          <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+            <div className="px-5 py-5 space-y-7">
+              <section className="pb-6 border-b border-gray-200">
+                <div className="flex items-center justify-between gap-2 mb-2.5">
+                  <h3 className="text-[18px] font-semibold text-gray-900">Project Title</h3>
+                  {!isEditingTitle && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingTitle(true)}
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-[#ff9933] hover:text-[#ea8b25]"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                      Edit
+                    </button>
+                  )}
+                </div>
+
+                {isEditingTitle ? (
+                  <div className="space-y-3">
+                    <input
+                      type="text"
+                      value={titleDraft}
+                      onChange={(e) => setTitleDraft(e.target.value)}
+                      placeholder="Write the project title..."
+                      disabled={isSavingTitle}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ff9933]/30 focus:border-[#ff9933]"
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void saveTitle()}
+                        disabled={isSavingTitle}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-[#ff9933] rounded-md hover:bg-[#ea8b25] disabled:opacity-50"
+                      >
+                        {isSavingTitle ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Save className="w-4 h-4" />
+                        )}
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTitleDraft(project?.title || "");
+                          setIsEditingTitle(false);
+                        }}
+                        disabled={isSavingTitle}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 disabled:opacity-50"
+                      >
+                        <X className="w-4 h-4" />
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[14px] text-gray-700 leading-6">
+                    {(project?.title || "").trim() || "No title added yet."}
+                  </p>
+                )}
+              </section>
+
+              <section>
+                <div className="flex items-center justify-between gap-2 mb-2.5">
+                  <h3 className="text-[18px] font-semibold text-gray-900">Project Summary</h3>
+                  {!isEditingSummary && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingSummary(true)}
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-[#ff9933] hover:text-[#ea8b25]"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                      Edit
+                    </button>
+                  )}
+                </div>
+
+                {isEditingSummary ? (
+                  <div className="space-y-3">
+                    <RichTextEditor
+                      value={summaryDraft}
+                      onChange={setSummaryDraft}
+                      placeholder="Write the project summary..."
+                      minHeight="120px"
+                      maxHeight="320px"
+                      tools={[
+                        "textFormat",
+                        "bold",
+                        "italic",
+                        "more",
+                        "separator",
+                        "bulletList",
+                        "numberedList",
+                        "separator",
+                        "link",
+                      ]}
+                      disabled={isSavingSummary}
+                      autoFocus
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void saveSummary()}
+                        disabled={isSavingSummary}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-[#ff9933] rounded-md hover:bg-[#ea8b25] disabled:opacity-50"
+                      >
+                        {isSavingSummary ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Save className="w-4 h-4" />
+                        )}
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSummaryDraft(summaryValue);
+                          setIsEditingSummary(false);
+                        }}
+                        disabled={isSavingSummary}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 disabled:opacity-50"
+                      >
+                        <X className="w-4 h-4" />
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className="text-[13px] text-gray-600 leading-6 max-w-none wrap-break-word [&_p]:my-0 [&_p+_p]:mt-3 [&_a]:text-blue-600 [&_a]:underline [&_strong]:font-semibold [&_b]:font-semibold [&_h1]:text-xl [&_h1]:font-semibold [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:text-base [&_h3]:font-semibold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-1"
+                    dangerouslySetInnerHTML={{
+                      __html:
+                        summaryValue ||
+                        "<p class='text-gray-500'>No summary added yet.</p>",
+                    }}
+                  />
+                )}
+              </section>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-[30px] leading-none font-semibold text-gray-900">
+            Project access
+          </h2>
+          <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+            <header className="px-5 py-4 border-b border-gray-200 bg-[#f8f8f8] flex items-center justify-between">
+              <p className="text-sm text-gray-600">
+                Team members with access to this project.
+              </p>
+              <Link
+                to="/project/$projectId/settings/team"
+                params={{ projectId }}
+                className="px-3 py-1.5 text-sm font-medium border border-gray-300 rounded-md hover:bg-gray-100"
+              >
+                Manage members
+              </Link>
+            </header>
+
+            <div className="divide-y divide-gray-100">
+              {isLoading ? (
+                <div className="px-5 py-6 text-sm text-gray-500">
+                  Loading members...
+                </div>
+              ) : members.length === 0 ? (
+                <div className="px-5 py-6 text-sm text-gray-500">
+                  No members found.
+                </div>
+              ) : (
+                members.map((member) => {
+                  const displayName =
+                    member.user?.display_name ||
+                    [member.user?.first_name, member.user?.last_name]
+                      .filter(Boolean)
+                      .join(" ") ||
+                    member.user?.email ||
+                    "Unknown";
+
+                  const isCurrentOwner = member.user_id === project?.client_id;
+
+                  return (
+                    <div
+                      key={member.id}
+                      className="px-5 py-3.5 flex items-center justify-between gap-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {displayName}
+                          {isCurrentOwner ? (
+                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-700 border border-gray-200">
+                              Owner
+                            </span>
+                          ) : null}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {member.user?.email || "No email"}
+                        </p>
+                      </div>
+                      <span className="shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 border border-gray-200">
+                        {member.position?.trim() || "Member"}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </section>
+
+        {isOwner && (
+          <>
+            <section className="space-y-3">
+              <h2 className="text-[30px] leading-none font-semibold text-gray-900">
+                Transfer project
+              </h2>
+              <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                <header className="px-5 py-4 border-b border-gray-200 bg-[#f8f8f8] flex items-center justify-between">
+                  <p className="text-sm text-gray-600">
+                    Transfer ownership to another project member.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setIsTransferOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border border-gray-300 rounded-md hover:bg-gray-100"
+                  >
+                    <RefreshCcw className="w-3.5 h-3.5" />
+                    Transfer project
+                  </button>
+                </header>
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <h2 className="text-[30px] leading-none font-semibold text-gray-900">
+                Delete project
+              </h2>
+              <div className="rounded-xl border border-red-200 bg-white overflow-hidden">
+                <header className="px-5 py-4 border-b border-red-100 bg-red-50 flex items-center justify-between">
+                  <p className="text-sm text-red-700">
+                    Permanently remove this project and associated data.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setIsDeleteOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border border-red-300 text-red-700 rounded-md hover:bg-red-100"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete project
+                  </button>
+                </header>
+                <div className="px-5 py-4 text-sm text-red-700 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 mt-0.5" />
+                  Deleting this project cannot be undone.
+                </div>
+              </div>
+            </section>
+          </>
+        )}
+      </div>
+
+      {isTransferOpen && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white border border-gray-200 shadow-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-[16px] font-semibold text-gray-900">
+                Transfer project ownership
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsTransferOpen(false);
+                  setSelectedOwnerId("");
+                }}
+                className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="px-6 py-4 space-y-3 max-h-[360px] overflow-y-auto">
+              {transferrableMembers.length === 0 ? (
+                <p className="text-sm text-gray-500">
+                  No eligible members available for transfer.
+                </p>
+              ) : (
+                transferrableMembers.map((member) => {
+                  const memberName =
+                    member.user?.display_name ||
+                    [member.user?.first_name, member.user?.last_name]
+                      .filter(Boolean)
+                      .join(" ") ||
+                    member.user?.email ||
+                    "Unknown";
+
+                  const selected = selectedOwnerId === member.user_id;
+
+                  return (
+                    <button
+                      key={member.id}
+                      type="button"
+                      onClick={() => setSelectedOwnerId(member.user_id || "")}
+                      className={`w-full text-left px-3 py-2.5 rounded-lg border transition-colors ${
+                        selected
+                          ? "border-[#ff9933] bg-[#ff9933]/10"
+                          : "border-gray-200 hover:bg-gray-50"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {memberName}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">
+                            {member.user?.email || "No email"}
+                          </p>
+                        </div>
+                        {selected ? (
+                          <Check className="w-4 h-4 text-[#b45f06]" />
+                        ) : null}
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-2 bg-gray-50">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsTransferOpen(false);
+                  setSelectedOwnerId("");
+                }}
+                className="px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-md"
+                disabled={isTransferSaving}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void submitTransfer()}
+                disabled={!selectedOwnerId || isTransferSaving}
+                className="px-3 py-2 text-sm font-semibold text-white bg-[#ff9933] hover:bg-[#ea8b25] rounded-md disabled:opacity-50"
+              >
+                {isTransferSaving ? "Transferring..." : "Transfer project"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isDeleteOpen && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white border border-red-200 shadow-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-red-100 bg-red-50">
+              <h3 className="text-[16px] font-semibold text-red-700">
+                Delete project
+              </h3>
+              <p className="mt-1 text-sm text-red-700">
+                Type <span className="font-semibold">{project?.title}</span> to
+                confirm deletion.
+              </p>
+            </div>
+
+            <div className="px-6 py-4">
+              <input
+                type="text"
+                value={deleteText}
+                onChange={(e) => setDeleteText(e.target.value)}
+                className="w-full rounded-lg border border-red-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
+                placeholder="Enter project name to confirm"
+              />
+            </div>
+
+            <div className="px-6 py-4 border-t border-red-100 bg-red-50/40 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDeleteOpen(false);
+                  setDeleteText("");
+                }}
+                className="px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-md"
+                disabled={isDeleteSaving}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void submitDelete()}
+                disabled={!deleteConfirmMatches || isDeleteSaving}
+                className="px-3 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50"
+              >
+                {isDeleteSaving ? "Deleting..." : "Delete project"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </ProjectSettingsLayout>
+  );
+}

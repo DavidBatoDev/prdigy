@@ -30,7 +30,6 @@ class MembersPermissionsDto {
 
 class ProjectPermissionsDto {
   @IsBoolean() settings: boolean;
-  @IsBoolean() transfer: boolean;
 }
 
 class TimePermissionsDto {
@@ -141,4 +140,9 @@ export class UpdateProjectDto {
 
 export class AssignConsultantDto {
   @IsString() consultant_id: string;
+}
+
+export class TransferProjectOwnerDto {
+  @IsUUID()
+  new_owner_id: string;
 }

@@ -86,11 +86,6 @@ const permissionSections: Array<{
         label: "Settings",
         hint: "Update project-level settings.",
       },
-      {
-        key: "transfer",
-        label: "Transfer",
-        hint: "Transfer project ownership or lead context.",
-      },
     ],
   },
   {
@@ -283,6 +278,14 @@ function PrincipalsCard({ project }: { project: Project }) {
   const consultantName =
     consultant?.display_name || consultant?.email || "No consultant assigned";
 
+  const samePrincipal =
+    !!client &&
+    !!consultant &&
+    ((Boolean(client.id) && Boolean(consultant.id) && client.id === consultant.id) ||
+      (Boolean(client.email) &&
+        Boolean(consultant.email) &&
+        client.email!.toLowerCase() === consultant.email!.toLowerCase()));
+
   return (
     <div>
       {/* Section header */}
@@ -293,20 +296,32 @@ function PrincipalsCard({ project }: { project: Project }) {
         </p>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-        <PersonCard
-          name={clientName}
-          email={client?.email}
-          avatarUrl={client?.avatar_url}
-          badge="Client"
-          badgeClass="bg-gray-100 text-gray-500 border border-gray-200"
-        />
-        <PersonCard
-          name={consultantName}
-          email={consultant?.email}
-          avatarUrl={consultant?.avatar_url}
-          badge="Consultant"
-          badgeClass="bg-gray-100 text-gray-500 border border-gray-200"
-        />
+        {samePrincipal ? (
+          <PersonCard
+            name={clientName}
+            email={client?.email || consultant?.email}
+            avatarUrl={client?.avatar_url || consultant?.avatar_url}
+            badge="Client + Consultant"
+            badgeClass="bg-gray-100 text-gray-500 border border-gray-200"
+          />
+        ) : (
+          <>
+            <PersonCard
+              name={clientName}
+              email={client?.email}
+              avatarUrl={client?.avatar_url}
+              badge="Client"
+              badgeClass="bg-gray-100 text-gray-500 border border-gray-200"
+            />
+            <PersonCard
+              name={consultantName}
+              email={consultant?.email}
+              avatarUrl={consultant?.avatar_url}
+              badge="Consultant"
+              badgeClass="bg-gray-100 text-gray-500 border border-gray-200"
+            />
+          </>
+        )}
       </div>
     </div>
   );

@@ -80,7 +80,6 @@ export interface ProjectPermissions {
   };
   project: {
     settings: boolean;
-    transfer: boolean;
   };
   time: {
     manage_rates: boolean;
@@ -535,6 +534,59 @@ class ProjectService {
     const result = await response.json();
     const payload = result.data ?? result;
     return (payload.permissions_json ?? payload) as ProjectPermissions;
+  }
+
+  async transferOwner(projectId: string, newOwnerId: string): Promise<Project> {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("Authentication required");
+
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/api/projects/${projectId}/transfer-owner`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ new_owner_id: newOwnerId }),
+      },
+    );
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(
+        err.message || err.error?.message || "Failed to transfer project owner",
+      );
+    }
+
+    const result = await response.json();
+    return result.data ?? result;
+  }
+
+  async deleteProject(projectId: string): Promise<void> {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("Authentication required");
+
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/api/projects/${projectId}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      },
+    );
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(
+        err.message || err.error?.message || "Failed to delete project",
+      );
+    }
   }
 }
 

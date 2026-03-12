@@ -11,7 +11,6 @@ export type ProjectPermissions = {
   };
   project: {
     settings: boolean;
-    transfer: boolean;
   };
   time: {
     manage_rates: boolean;
@@ -28,19 +27,19 @@ export const PERMISSION_TEMPLATES = {
       promote: false,
     },
     members: { manage: true, view: true },
-    project: { settings: true, transfer: true },
+    project: { settings: true },
     time: { manage_rates: false, view: false },
   },
   consultant: {
     roadmap: { edit: true, view_internal: true, comment: true, promote: true },
     members: { manage: true, view: true },
-    project: { settings: true, transfer: false },
+    project: { settings: true },
     time: { manage_rates: true, view: true },
   },
   consultant_incubation: {
     roadmap: { edit: true, view_internal: true, comment: true, promote: true },
     members: { manage: true, view: true },
-    project: { settings: true, transfer: true },
+    project: { settings: true },
     time: { manage_rates: true, view: true },
   },
   member: {
@@ -51,7 +50,7 @@ export const PERMISSION_TEMPLATES = {
       promote: false,
     },
     members: { manage: false, view: false },
-    project: { settings: false, transfer: false },
+    project: { settings: false },
     time: { manage_rates: false, view: false },
   },
 } satisfies Record<string, ProjectPermissions>;
@@ -128,7 +127,6 @@ export function hasPermission(
     | 'members.manage'
     | 'members.view'
     | 'project.settings'
-    | 'project.transfer'
     | 'roadmap.edit'
     | 'roadmap.view_internal'
     | 'roadmap.comment'

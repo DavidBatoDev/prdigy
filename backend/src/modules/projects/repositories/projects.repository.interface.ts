@@ -28,6 +28,12 @@ export interface ProjectsRepository {
   >;
   create(userId: string, dto: CreateProjectDto): Promise<Project>;
   update(id: string, dto: UpdateProjectDto): Promise<Project>;
+  deleteProject(id: string): Promise<void>;
+  transferOwner(
+    projectId: string,
+    previousOwnerId: string,
+    newOwnerId: string,
+  ): Promise<Project>;
   assignConsultant(projectId: string, consultantId: string): Promise<Project>;
   isOwner(projectId: string, userId: string): Promise<boolean>;
   addMember(projectId: string, dto: AddProjectMemberDto): Promise<unknown>;

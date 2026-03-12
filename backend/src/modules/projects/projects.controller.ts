@@ -21,6 +21,7 @@ import {
   InviteProjectByEmailDto,
   ProjectInviteQueryDto,
   RespondProjectInviteDto,
+  TransferProjectOwnerDto,
   UpdateProjectDto,
   UpdateProjectMemberDto,
   UpdateProjectMemberPermissionsDto,
@@ -61,6 +62,23 @@ export class ProjectsController {
     @Body() dto: UpdateProjectDto,
   ) {
     return this.projectsService.updateProject(id, user.id, dto);
+  }
+
+  @Delete(':id')
+  deleteProject(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.projectsService.deleteProject(id, user.id);
+  }
+
+  @Post(':id/transfer-owner')
+  transferOwner(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: TransferProjectOwnerDto,
+  ) {
+    return this.projectsService.transferProjectOwner(id, user.id, dto);
   }
 
   @Post(':id/assign-consultant')

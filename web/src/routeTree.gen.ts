@@ -40,15 +40,18 @@ import { Route as RoadmapSharedTokenRouteImport } from './routes/roadmap/shared/
 import { Route as ProjectProjectIdWorkItemsRouteImport } from './routes/project/$projectId/work-items'
 import { Route as ProjectProjectIdTimeRouteImport } from './routes/project/$projectId/time'
 import { Route as ProjectProjectIdTeamRouteImport } from './routes/project/$projectId/team'
-import { Route as ProjectProjectIdSettingsRouteImport } from './routes/project/$projectId/settings'
 import { Route as ProjectProjectIdRoadmapRouteImport } from './routes/project/$projectId/roadmap'
 import { Route as ProjectProjectIdResourcesRouteImport } from './routes/project/$projectId/resources'
 import { Route as ProjectProjectIdPaymentsRouteImport } from './routes/project/$projectId/payments'
 import { Route as ProjectProjectIdOverviewRouteImport } from './routes/project/$projectId/overview'
+import { Route as ProjectProjectIdLogsRouteImport } from './routes/project/$projectId/logs'
 import { Route as ProjectProjectIdChatRouteImport } from './routes/project/$projectId/chat'
 import { Route as AuthAdminSigninRouteImport } from './routes/auth/admin/signin'
 import { Route as AuthAdminLoginRouteImport } from './routes/auth/admin/login'
+import { Route as ProjectProjectIdSettingsIndexRouteImport } from './routes/project/$projectId/settings/index'
 import { Route as ProjectProjectIdWorkItemsRoadmapIdRouteImport } from './routes/project/$projectId/work-items/$roadmapId'
+import { Route as ProjectProjectIdSettingsTeamRouteImport } from './routes/project/$projectId/settings/team'
+import { Route as ProjectProjectIdSettingsGeneralRouteImport } from './routes/project/$projectId/settings/general'
 import { Route as ProjectProjectIdRoadmapCreateRouteImport } from './routes/project/$projectId/roadmap/create'
 import { Route as ProjectProjectIdRoadmapRoadmapIdRouteImport } from './routes/project/$projectId/roadmap/$roadmapId'
 
@@ -208,12 +211,6 @@ const ProjectProjectIdTeamRoute = ProjectProjectIdTeamRouteImport.update({
   path: '/team',
   getParentRoute: () => ProjectProjectIdRoute,
 } as any)
-const ProjectProjectIdSettingsRoute =
-  ProjectProjectIdSettingsRouteImport.update({
-    id: '/settings',
-    path: '/settings',
-    getParentRoute: () => ProjectProjectIdRoute,
-  } as any)
 const ProjectProjectIdRoadmapRoute = ProjectProjectIdRoadmapRouteImport.update({
   id: '/roadmap',
   path: '/roadmap',
@@ -237,6 +234,11 @@ const ProjectProjectIdOverviewRoute =
     path: '/overview',
     getParentRoute: () => ProjectProjectIdRoute,
   } as any)
+const ProjectProjectIdLogsRoute = ProjectProjectIdLogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
+  getParentRoute: () => ProjectProjectIdRoute,
+} as any)
 const ProjectProjectIdChatRoute = ProjectProjectIdChatRouteImport.update({
   id: '/chat',
   path: '/chat',
@@ -252,11 +254,29 @@ const AuthAdminLoginRoute = AuthAdminLoginRouteImport.update({
   path: '/auth/admin/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProjectProjectIdSettingsIndexRoute =
+  ProjectProjectIdSettingsIndexRouteImport.update({
+    id: '/settings/',
+    path: '/settings/',
+    getParentRoute: () => ProjectProjectIdRoute,
+  } as any)
 const ProjectProjectIdWorkItemsRoadmapIdRoute =
   ProjectProjectIdWorkItemsRoadmapIdRouteImport.update({
     id: '/$roadmapId',
     path: '/$roadmapId',
     getParentRoute: () => ProjectProjectIdWorkItemsRoute,
+  } as any)
+const ProjectProjectIdSettingsTeamRoute =
+  ProjectProjectIdSettingsTeamRouteImport.update({
+    id: '/settings/team',
+    path: '/settings/team',
+    getParentRoute: () => ProjectProjectIdRoute,
+  } as any)
+const ProjectProjectIdSettingsGeneralRoute =
+  ProjectProjectIdSettingsGeneralRouteImport.update({
+    id: '/settings/general',
+    path: '/settings/general',
+    getParentRoute: () => ProjectProjectIdRoute,
   } as any)
 const ProjectProjectIdRoadmapCreateRoute =
   ProjectProjectIdRoadmapCreateRouteImport.update({
@@ -301,11 +321,11 @@ export interface FileRoutesByFullPath {
   '/auth/admin/login': typeof AuthAdminLoginRoute
   '/auth/admin/signin': typeof AuthAdminSigninRoute
   '/project/$projectId/chat': typeof ProjectProjectIdChatRoute
+  '/project/$projectId/logs': typeof ProjectProjectIdLogsRoute
   '/project/$projectId/overview': typeof ProjectProjectIdOverviewRoute
   '/project/$projectId/payments': typeof ProjectProjectIdPaymentsRoute
   '/project/$projectId/resources': typeof ProjectProjectIdResourcesRoute
   '/project/$projectId/roadmap': typeof ProjectProjectIdRoadmapRouteWithChildren
-  '/project/$projectId/settings': typeof ProjectProjectIdSettingsRoute
   '/project/$projectId/team': typeof ProjectProjectIdTeamRoute
   '/project/$projectId/time': typeof ProjectProjectIdTimeRoute
   '/project/$projectId/work-items': typeof ProjectProjectIdWorkItemsRouteWithChildren
@@ -313,7 +333,10 @@ export interface FileRoutesByFullPath {
   '/project/roadmap': typeof ProjectRoadmapIndexRoute
   '/project/$projectId/roadmap/$roadmapId': typeof ProjectProjectIdRoadmapRoadmapIdRoute
   '/project/$projectId/roadmap/create': typeof ProjectProjectIdRoadmapCreateRoute
+  '/project/$projectId/settings/general': typeof ProjectProjectIdSettingsGeneralRoute
+  '/project/$projectId/settings/team': typeof ProjectProjectIdSettingsTeamRoute
   '/project/$projectId/work-items/$roadmapId': typeof ProjectProjectIdWorkItemsRoadmapIdRoute
+  '/project/$projectId/settings': typeof ProjectProjectIdSettingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -344,11 +367,11 @@ export interface FileRoutesByTo {
   '/auth/admin/login': typeof AuthAdminLoginRoute
   '/auth/admin/signin': typeof AuthAdminSigninRoute
   '/project/$projectId/chat': typeof ProjectProjectIdChatRoute
+  '/project/$projectId/logs': typeof ProjectProjectIdLogsRoute
   '/project/$projectId/overview': typeof ProjectProjectIdOverviewRoute
   '/project/$projectId/payments': typeof ProjectProjectIdPaymentsRoute
   '/project/$projectId/resources': typeof ProjectProjectIdResourcesRoute
   '/project/$projectId/roadmap': typeof ProjectProjectIdRoadmapRouteWithChildren
-  '/project/$projectId/settings': typeof ProjectProjectIdSettingsRoute
   '/project/$projectId/team': typeof ProjectProjectIdTeamRoute
   '/project/$projectId/time': typeof ProjectProjectIdTimeRoute
   '/project/$projectId/work-items': typeof ProjectProjectIdWorkItemsRouteWithChildren
@@ -356,7 +379,10 @@ export interface FileRoutesByTo {
   '/project/roadmap': typeof ProjectRoadmapIndexRoute
   '/project/$projectId/roadmap/$roadmapId': typeof ProjectProjectIdRoadmapRoadmapIdRoute
   '/project/$projectId/roadmap/create': typeof ProjectProjectIdRoadmapCreateRoute
+  '/project/$projectId/settings/general': typeof ProjectProjectIdSettingsGeneralRoute
+  '/project/$projectId/settings/team': typeof ProjectProjectIdSettingsTeamRoute
   '/project/$projectId/work-items/$roadmapId': typeof ProjectProjectIdWorkItemsRoadmapIdRoute
+  '/project/$projectId/settings': typeof ProjectProjectIdSettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -389,11 +415,11 @@ export interface FileRoutesById {
   '/auth/admin/login': typeof AuthAdminLoginRoute
   '/auth/admin/signin': typeof AuthAdminSigninRoute
   '/project/$projectId/chat': typeof ProjectProjectIdChatRoute
+  '/project/$projectId/logs': typeof ProjectProjectIdLogsRoute
   '/project/$projectId/overview': typeof ProjectProjectIdOverviewRoute
   '/project/$projectId/payments': typeof ProjectProjectIdPaymentsRoute
   '/project/$projectId/resources': typeof ProjectProjectIdResourcesRoute
   '/project/$projectId/roadmap': typeof ProjectProjectIdRoadmapRouteWithChildren
-  '/project/$projectId/settings': typeof ProjectProjectIdSettingsRoute
   '/project/$projectId/team': typeof ProjectProjectIdTeamRoute
   '/project/$projectId/time': typeof ProjectProjectIdTimeRoute
   '/project/$projectId/work-items': typeof ProjectProjectIdWorkItemsRouteWithChildren
@@ -401,7 +427,10 @@ export interface FileRoutesById {
   '/project/roadmap/': typeof ProjectRoadmapIndexRoute
   '/project/$projectId/roadmap/$roadmapId': typeof ProjectProjectIdRoadmapRoadmapIdRoute
   '/project/$projectId/roadmap/create': typeof ProjectProjectIdRoadmapCreateRoute
+  '/project/$projectId/settings/general': typeof ProjectProjectIdSettingsGeneralRoute
+  '/project/$projectId/settings/team': typeof ProjectProjectIdSettingsTeamRoute
   '/project/$projectId/work-items/$roadmapId': typeof ProjectProjectIdWorkItemsRoadmapIdRoute
+  '/project/$projectId/settings/': typeof ProjectProjectIdSettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -435,11 +464,11 @@ export interface FileRouteTypes {
     | '/auth/admin/login'
     | '/auth/admin/signin'
     | '/project/$projectId/chat'
+    | '/project/$projectId/logs'
     | '/project/$projectId/overview'
     | '/project/$projectId/payments'
     | '/project/$projectId/resources'
     | '/project/$projectId/roadmap'
-    | '/project/$projectId/settings'
     | '/project/$projectId/team'
     | '/project/$projectId/time'
     | '/project/$projectId/work-items'
@@ -447,7 +476,10 @@ export interface FileRouteTypes {
     | '/project/roadmap'
     | '/project/$projectId/roadmap/$roadmapId'
     | '/project/$projectId/roadmap/create'
+    | '/project/$projectId/settings/general'
+    | '/project/$projectId/settings/team'
     | '/project/$projectId/work-items/$roadmapId'
+    | '/project/$projectId/settings'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -478,11 +510,11 @@ export interface FileRouteTypes {
     | '/auth/admin/login'
     | '/auth/admin/signin'
     | '/project/$projectId/chat'
+    | '/project/$projectId/logs'
     | '/project/$projectId/overview'
     | '/project/$projectId/payments'
     | '/project/$projectId/resources'
     | '/project/$projectId/roadmap'
-    | '/project/$projectId/settings'
     | '/project/$projectId/team'
     | '/project/$projectId/time'
     | '/project/$projectId/work-items'
@@ -490,7 +522,10 @@ export interface FileRouteTypes {
     | '/project/roadmap'
     | '/project/$projectId/roadmap/$roadmapId'
     | '/project/$projectId/roadmap/create'
+    | '/project/$projectId/settings/general'
+    | '/project/$projectId/settings/team'
     | '/project/$projectId/work-items/$roadmapId'
+    | '/project/$projectId/settings'
   id:
     | '__root__'
     | '/'
@@ -522,11 +557,11 @@ export interface FileRouteTypes {
     | '/auth/admin/login'
     | '/auth/admin/signin'
     | '/project/$projectId/chat'
+    | '/project/$projectId/logs'
     | '/project/$projectId/overview'
     | '/project/$projectId/payments'
     | '/project/$projectId/resources'
     | '/project/$projectId/roadmap'
-    | '/project/$projectId/settings'
     | '/project/$projectId/team'
     | '/project/$projectId/time'
     | '/project/$projectId/work-items'
@@ -534,7 +569,10 @@ export interface FileRouteTypes {
     | '/project/roadmap/'
     | '/project/$projectId/roadmap/$roadmapId'
     | '/project/$projectId/roadmap/create'
+    | '/project/$projectId/settings/general'
+    | '/project/$projectId/settings/team'
     | '/project/$projectId/work-items/$roadmapId'
+    | '/project/$projectId/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -784,13 +822,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectProjectIdTeamRouteImport
       parentRoute: typeof ProjectProjectIdRoute
     }
-    '/project/$projectId/settings': {
-      id: '/project/$projectId/settings'
-      path: '/settings'
-      fullPath: '/project/$projectId/settings'
-      preLoaderRoute: typeof ProjectProjectIdSettingsRouteImport
-      parentRoute: typeof ProjectProjectIdRoute
-    }
     '/project/$projectId/roadmap': {
       id: '/project/$projectId/roadmap'
       path: '/roadmap'
@@ -819,6 +850,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectProjectIdOverviewRouteImport
       parentRoute: typeof ProjectProjectIdRoute
     }
+    '/project/$projectId/logs': {
+      id: '/project/$projectId/logs'
+      path: '/logs'
+      fullPath: '/project/$projectId/logs'
+      preLoaderRoute: typeof ProjectProjectIdLogsRouteImport
+      parentRoute: typeof ProjectProjectIdRoute
+    }
     '/project/$projectId/chat': {
       id: '/project/$projectId/chat'
       path: '/chat'
@@ -840,12 +878,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthAdminLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/project/$projectId/settings/': {
+      id: '/project/$projectId/settings/'
+      path: '/settings'
+      fullPath: '/project/$projectId/settings'
+      preLoaderRoute: typeof ProjectProjectIdSettingsIndexRouteImport
+      parentRoute: typeof ProjectProjectIdRoute
+    }
     '/project/$projectId/work-items/$roadmapId': {
       id: '/project/$projectId/work-items/$roadmapId'
       path: '/$roadmapId'
       fullPath: '/project/$projectId/work-items/$roadmapId'
       preLoaderRoute: typeof ProjectProjectIdWorkItemsRoadmapIdRouteImport
       parentRoute: typeof ProjectProjectIdWorkItemsRoute
+    }
+    '/project/$projectId/settings/team': {
+      id: '/project/$projectId/settings/team'
+      path: '/settings/team'
+      fullPath: '/project/$projectId/settings/team'
+      preLoaderRoute: typeof ProjectProjectIdSettingsTeamRouteImport
+      parentRoute: typeof ProjectProjectIdRoute
+    }
+    '/project/$projectId/settings/general': {
+      id: '/project/$projectId/settings/general'
+      path: '/settings/general'
+      fullPath: '/project/$projectId/settings/general'
+      preLoaderRoute: typeof ProjectProjectIdSettingsGeneralRouteImport
+      parentRoute: typeof ProjectProjectIdRoute
     }
     '/project/$projectId/roadmap/create': {
       id: '/project/$projectId/roadmap/create'
@@ -916,26 +975,32 @@ const ProjectProjectIdWorkItemsRouteWithChildren =
 
 interface ProjectProjectIdRouteChildren {
   ProjectProjectIdChatRoute: typeof ProjectProjectIdChatRoute
+  ProjectProjectIdLogsRoute: typeof ProjectProjectIdLogsRoute
   ProjectProjectIdOverviewRoute: typeof ProjectProjectIdOverviewRoute
   ProjectProjectIdPaymentsRoute: typeof ProjectProjectIdPaymentsRoute
   ProjectProjectIdResourcesRoute: typeof ProjectProjectIdResourcesRoute
   ProjectProjectIdRoadmapRoute: typeof ProjectProjectIdRoadmapRouteWithChildren
-  ProjectProjectIdSettingsRoute: typeof ProjectProjectIdSettingsRoute
   ProjectProjectIdTeamRoute: typeof ProjectProjectIdTeamRoute
   ProjectProjectIdTimeRoute: typeof ProjectProjectIdTimeRoute
   ProjectProjectIdWorkItemsRoute: typeof ProjectProjectIdWorkItemsRouteWithChildren
+  ProjectProjectIdSettingsGeneralRoute: typeof ProjectProjectIdSettingsGeneralRoute
+  ProjectProjectIdSettingsTeamRoute: typeof ProjectProjectIdSettingsTeamRoute
+  ProjectProjectIdSettingsIndexRoute: typeof ProjectProjectIdSettingsIndexRoute
 }
 
 const ProjectProjectIdRouteChildren: ProjectProjectIdRouteChildren = {
   ProjectProjectIdChatRoute: ProjectProjectIdChatRoute,
+  ProjectProjectIdLogsRoute: ProjectProjectIdLogsRoute,
   ProjectProjectIdOverviewRoute: ProjectProjectIdOverviewRoute,
   ProjectProjectIdPaymentsRoute: ProjectProjectIdPaymentsRoute,
   ProjectProjectIdResourcesRoute: ProjectProjectIdResourcesRoute,
   ProjectProjectIdRoadmapRoute: ProjectProjectIdRoadmapRouteWithChildren,
-  ProjectProjectIdSettingsRoute: ProjectProjectIdSettingsRoute,
   ProjectProjectIdTeamRoute: ProjectProjectIdTeamRoute,
   ProjectProjectIdTimeRoute: ProjectProjectIdTimeRoute,
   ProjectProjectIdWorkItemsRoute: ProjectProjectIdWorkItemsRouteWithChildren,
+  ProjectProjectIdSettingsGeneralRoute: ProjectProjectIdSettingsGeneralRoute,
+  ProjectProjectIdSettingsTeamRoute: ProjectProjectIdSettingsTeamRoute,
+  ProjectProjectIdSettingsIndexRoute: ProjectProjectIdSettingsIndexRoute,
 }
 
 const ProjectProjectIdRouteWithChildren =

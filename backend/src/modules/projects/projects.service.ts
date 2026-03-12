@@ -13,6 +13,7 @@ import {
   InviteProjectByEmailDto,
   ProjectInviteQueryDto,
   RespondProjectInviteDto,
+  TransferProjectOwnerDto,
   UpdateProjectDto,
   UpdateProjectMemberDto,
   UpdateProjectMemberPermissionsDto,
@@ -138,7 +139,6 @@ export class ProjectsService {
       | 'members.manage'
       | 'members.view'
       | 'project.settings'
-      | 'project.transfer'
       | 'roadmap.edit'
       | 'roadmap.view_internal'
       | 'roadmap.comment'
@@ -174,7 +174,6 @@ export class ProjectsService {
       | 'members.manage'
       | 'members.view'
       | 'project.settings'
-      | 'project.transfer'
       | 'roadmap.edit'
       | 'roadmap.view_internal'
       | 'roadmap.comment'
@@ -274,6 +273,72 @@ export class ProjectsService {
     if (!isOwner)
       throw new ForbiddenException('Only the project owner can update it');
     return this.projectsRepo.update(id, dto);
+  }
+
+  async deleteProject(id: string, userId: string): Promise<void> {
+    const project = await this.getProjectOrThrow(id);
+
+    if (project.client_id !== userId) {
+      throw new ForbiddenException(
+        'Only the current project owner can delete this project.',
+      );
+    }
+
+    await this.projectsRepo.deleteProject(id);
+  }
+
+  async transferProjectOwner(
+    projectId: string,
+    callerId: string,
+    dto: TransferProjectOwnerDto,
+  ): Promise<Project> {
+    const project = await this.getProjectOrThrow(projectId);
+
+    if (project.client_id !== callerId) {
+      throw new ForbiddenException(
+        'Only the current project owner can transfer ownership.',
+      );
+    }
+
+    const newOwnerId = dto.new_owner_id;
+
+    if (newOwnerId === project.client_id) {
+      throw new BadRequestException(
+        'Selected user is already the project owner.',
+      );
+    }
+
+    const targetMembership =
+      await this.projectsRepo.getMemberByProjectAndUserId(
+        projectId,
+        newOwnerId,
+      );
+
+    if (!targetMembership) {
+      throw new BadRequestException(
+        'New owner must already be a member of this project.',
+      );
+    }
+
+    const updatedProject = await this.projectsRepo.transferOwner(
+      projectId,
+      project.client_id,
+      newOwnerId,
+    );
+
+    await this.emitNotification({
+      user_id: newOwnerId,
+      project_id: projectId,
+      type_name: 'project_updated',
+      actor_id: callerId,
+      content: {
+        message: `You are now the project owner for ${project.title}.`,
+        previous_owner_id: project.client_id,
+      },
+      link_url: `/project/${projectId}/team`,
+    });
+
+    return updatedProject;
   }
 
   async assignConsultant(

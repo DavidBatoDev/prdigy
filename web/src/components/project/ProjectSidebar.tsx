@@ -4,9 +4,8 @@ import {
   Map,
   ListChecks,
   Clock,
-  CreditCard,
+  ClipboardList,
   Users,
-  MessageSquare,
   BookOpen,
   Settings,
 } from "lucide-react";
@@ -89,12 +88,6 @@ export function ProjectSidebar({
           requiresProject: true,
         },
         {
-          label: "Chat",
-          icon: MessageSquare,
-          to: `/project/${projectId}/chat`,
-          requiresProject: true,
-        },
-        {
           label: "Resources",
           icon: BookOpen,
           to: `/project/${projectId}/resources`,
@@ -106,15 +99,15 @@ export function ProjectSidebar({
       title: "Manage",
       items: [
         {
-          label: "Payments",
-          icon: CreditCard,
-          to: `/project/${projectId}/payments`,
+          label: "Logs",
+          icon: ClipboardList,
+          to: `/project/${projectId}/logs`,
           requiresProject: true,
         },
         {
           label: "Settings",
           icon: Settings,
-          to: `/project/${projectId}/settings`,
+          to: `/project/${projectId}/settings/general`,
           requiresProject: true,
         },
       ],
@@ -153,6 +146,7 @@ export function ProjectSidebar({
                   const Icon = item.icon;
                   const isActive =
                     currentPath.startsWith(item.to) ||
+                    (item.label === "Settings" && currentPath.includes("/settings")) ||
                     (item.label === "Roadmap" &&
                       currentPath.includes("/roadmap")) ||
                     (item.label === "Work Items" &&
