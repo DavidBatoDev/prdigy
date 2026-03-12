@@ -59,6 +59,7 @@ export interface ProjectsRepository {
     id: string;
     user_id: string | null;
     role: string;
+    position?: string | null;
     permissions_json?: Record<string, unknown> | null;
   } | null>;
   getMemberByProjectAndUserId(
@@ -68,6 +69,7 @@ export interface ProjectsRepository {
     id: string;
     user_id: string | null;
     role: string;
+    position?: string | null;
     permissions_json?: Record<string, unknown> | null;
   } | null>;
   getMemberPermissions(

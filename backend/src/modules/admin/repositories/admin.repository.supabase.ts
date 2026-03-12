@@ -332,7 +332,7 @@ export class SupabaseAdminRepository implements AdminRepository {
     if (existingMember) {
       const { error: updateMemberError } = await this.supabase
         .from('project_members')
-        .update({ role: 'consultant' })
+        .update({ role: 'consultant', position: 'Main Consultant' })
         .eq('id', existingMember.id);
 
       if (updateMemberError) throw new Error(updateMemberError.message);
@@ -343,6 +343,7 @@ export class SupabaseAdminRepository implements AdminRepository {
           project_id: projectId,
           user_id: consultantId,
           role: 'consultant',
+          position: 'Main Consultant',
         });
 
       if (insertMemberError) throw new Error(insertMemberError.message);

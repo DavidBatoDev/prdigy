@@ -430,14 +430,15 @@ export class MarketplaceService {
           {
             project_id: invite.project_id,
             user_id: userId,
-            role: 'freelancer',
+            role: 'member',
+            position: 'Member',
           },
           { onConflict: 'project_id,user_id' },
         );
 
       if (memberError) {
         throw new BadRequestException(
-          memberError.message || 'Failed to add freelancer to project members.',
+          memberError.message || 'Failed to add member to project members.',
         );
       }
     }

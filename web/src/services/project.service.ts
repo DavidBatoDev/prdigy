@@ -54,8 +54,8 @@ export interface ProjectMember {
   id: string;
   project_id: string;
   user_id: string | null;
-  role: string;
-  member_type: "stakeholder" | "freelancer" | "open_role";
+  role: "consultant" | "client" | "member";
+  position?: string | null;
   joined_at?: string;
   user?: {
     id: string;
@@ -94,7 +94,7 @@ export interface ProjectInvite {
   invited_by: string;
   invitee_id: string | null;
   invitee_email: string | null;
-  invited_role: string | null;
+  invited_position: string | null;
   status: "pending" | "accepted" | "declined";
   message: string | null;
   created_at: string;
@@ -283,8 +283,7 @@ class ProjectService {
     projectId: string,
     data: {
       email?: string;
-      role: string;
-      member_type: "stakeholder" | "freelancer" | "open_role";
+      position: string;
     },
   ): Promise<ProjectMember> {
     const {
@@ -317,8 +316,8 @@ class ProjectService {
     projectId: string,
     memberId: string,
     data: {
-      role?: string;
-      member_type?: "stakeholder" | "freelancer" | "open_role";
+      role?: "consultant" | "client" | "member";
+      position?: string;
     },
   ): Promise<ProjectMember> {
     const {
@@ -351,7 +350,7 @@ class ProjectService {
     projectId: string,
     data: {
       email: string;
-      role: string;
+      position: string;
       message?: string;
     },
   ): Promise<ProjectInvite> {

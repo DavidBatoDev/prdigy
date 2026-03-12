@@ -12,6 +12,7 @@ import {
   AddProjectMemberDto,
   CreateProjectDto,
   InviteProjectByEmailDto,
+  ProjectMemberRole,
   ProjectInviteQueryDto,
   RespondProjectInviteDto,
   UpdateProjectDto,
@@ -76,7 +77,7 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
     consultantId?: string | null;
     member: {
       user_id: string | null;
-      role: string;
+      role: ProjectMemberRole;
     };
   }) {
     const templateKey = resolvePermissionTemplateKey(
@@ -162,7 +163,7 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
         *,
         client:profiles!projects_client_id_fkey(id, display_name, avatar_url, headline, email),
         consultant:profiles!projects_consultant_id_fkey(id, display_name, avatar_url, headline, email),
-        members:project_members(id, project_id, user_id, role, joined_at, user:profiles(id, display_name, avatar_url, email, first_name, last_name))
+        members:project_members(id, project_id, user_id, role, position, joined_at, user:profiles(id, display_name, avatar_url, email, first_name, last_name))
       `,
       )
       .eq('id', id)
@@ -198,7 +199,10 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
     await this.supabase.from('project_members').insert({
       project_id: project.id,
       user_id: userId,
-      role: isConsultantMode ? 'consultant' : 'client',
+      role: isConsultantMode
+        ? ProjectMemberRole.CONSULTANT
+        : ProjectMemberRole.CLIENT,
+      position: isConsultantMode ? 'Main Consultant' : 'Client',
       permissions_json: isConsultantMode
         ? getTemplateByKey('consultant_incubation')
         : getTemplateByKey('client'),
@@ -239,7 +243,8 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
       {
         project_id: projectId,
         user_id: consultantId,
-        role: 'consultant',
+        role: ProjectMemberRole.CONSULTANT,
+        position: 'Main Consultant',
         permissions_json: getTemplateByKey('consultant'),
       },
       { onConflict: 'project_id,user_id' },
@@ -295,19 +300,20 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
       .insert({
         project_id: projectId,
         user_id: userId,
-        role: dto.role,
+        role: ProjectMemberRole.MEMBER,
+        position: dto.position,
         permissions_json: this.getDefaultPermissionsForMember({
           projectId,
           clientId: projectRow.client_id as string,
           consultantId: (projectRow.consultant_id as string | null) || null,
           member: {
             user_id: userId,
-            role: dto.role,
+            role: ProjectMemberRole.MEMBER,
           },
         }),
       })
       .select(
-        'id, project_id, user_id, role, joined_at, user:profiles(id, display_name, avatar_url, email, first_name, last_name)',
+        'id, project_id, user_id, role, position, joined_at, user:profiles(id, display_name, avatar_url, email, first_name, last_name)',
       )
       .single();
 
@@ -345,7 +351,7 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
     dto: InviteProjectByEmailDto,
   ): Promise<unknown> {
     const normalizedEmail = dto.email.trim().toLowerCase();
-    const invitedRole = dto.role.trim();
+    const invitedPosition = dto.position.trim();
     const inviteMessage = dto.message?.trim();
 
     if (!normalizedEmail) {
@@ -366,7 +372,7 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
           invited_by: invitedBy,
           invitee_id: (profile?.id as string | undefined) || null,
           invitee_email: normalizedEmail,
-          invited_role: invitedRole,
+          invited_position: invitedPosition,
           message:
             inviteMessage && inviteMessage.length > 0 ? inviteMessage : null,
           status: 'pending',
@@ -376,7 +382,7 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
         { onConflict: 'project_id,invitee_email' },
       )
       .select(
-        'id, project_id, invited_by, invitee_id, invitee_email, invited_role, status, message, created_at, updated_at',
+        'id, project_id, invited_by, invitee_id, invitee_email, invited_position, status, message, created_at, updated_at',
       )
       .single();
 
@@ -394,7 +400,7 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
     let dbQuery = this.supabase
       .from('project_invites')
       .select(
-        'id, project_id, invited_by, invitee_id, invitee_email, invited_role, status, message, created_at, updated_at, responded_at',
+        'id, project_id, invited_by, invitee_id, invitee_email, invited_position, status, message, created_at, updated_at, responded_at',
       )
       .eq('invitee_id', userId)
       .order('created_at', { ascending: false });
@@ -470,7 +476,7 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
   ): Promise<unknown> {
     const { data: invite, error: inviteError } = await this.supabase
       .from('project_invites')
-      .select('id, project_id, invited_by, invitee_id, invited_role, status')
+      .select('id, project_id, invited_by, invitee_id, invited_position, status')
       .eq('id', inviteId)
       .single();
 
@@ -520,14 +526,15 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
           {
             project_id: invite.project_id,
             user_id: userId,
-            role: invite.invited_role || 'Freelancer',
+            role: ProjectMemberRole.MEMBER,
+            position: invite.invited_position || 'Member',
             permissions_json: this.getDefaultPermissionsForMember({
               projectId: invite.project_id as string,
               clientId: projectRow.client_id as string,
               consultantId: (projectRow.consultant_id as string | null) || null,
               member: {
                 user_id: userId,
-                role: (invite.invited_role as string) || 'Freelancer',
+                role: ProjectMemberRole.MEMBER,
               },
             }),
           },
@@ -536,7 +543,7 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
 
       if (memberError) {
         throw new BadRequestException(
-          memberError.message || 'Failed to add freelancer to project members.',
+          memberError.message || 'Failed to add member to project members.',
         );
       }
     }
@@ -551,6 +558,7 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
   ): Promise<unknown> {
     const patch: Record<string, unknown> = {};
     if (dto.role !== undefined) patch.role = dto.role;
+    if (dto.position !== undefined) patch.position = dto.position;
 
     const { data, error } = await this.supabase
       .from('project_members')
@@ -558,7 +566,7 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
       .eq('id', memberId)
       .eq('project_id', projectId)
       .select(
-        'id, project_id, user_id, role, joined_at, user:profiles(id, display_name, avatar_url, email, first_name, last_name)',
+        'id, project_id, user_id, role, position, joined_at, user:profiles(id, display_name, avatar_url, email, first_name, last_name)',
       )
       .single();
 
@@ -579,11 +587,7 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
     const role = String((existing as Record<string, unknown>).role ?? '')
       .trim()
       .toLowerCase();
-    if (
-      role === 'client' ||
-      role === 'consultant' ||
-      role === 'consultant (lead)'
-    ) {
+    if (role === ProjectMemberRole.CLIENT || role === ProjectMemberRole.CONSULTANT) {
       throw new BadRequestException('Project leads cannot be removed.');
     }
 
@@ -603,11 +607,12 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
     id: string;
     user_id: string | null;
     role: string;
+    position?: string | null;
     permissions_json?: Record<string, unknown> | null;
   } | null> {
     const { data, error } = await this.supabase
       .from('project_members')
-      .select('id, user_id, role, permissions_json')
+      .select('id, user_id, role, position, permissions_json')
       .eq('project_id', projectId)
       .eq('id', memberId)
       .limit(1)
@@ -618,6 +623,7 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
       id: string;
       user_id: string | null;
       role: string;
+      position?: string | null;
       permissions_json?: Record<string, unknown> | null;
     };
   }
@@ -629,11 +635,12 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
     id: string;
     user_id: string | null;
     role: string;
+    position?: string | null;
     permissions_json?: Record<string, unknown> | null;
   } | null> {
     const { data, error } = await this.supabase
       .from('project_members')
-      .select('id, user_id, role, permissions_json')
+      .select('id, user_id, role, position, permissions_json')
       .eq('project_id', projectId)
       .eq('user_id', userId)
       .limit(1)
@@ -644,6 +651,7 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
       id: string;
       user_id: string | null;
       role: string;
+      position?: string | null;
       permissions_json?: Record<string, unknown> | null;
     };
   }
@@ -685,7 +693,7 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
       .update({ permissions_json: merged })
       .eq('id', memberId)
       .eq('project_id', projectId)
-      .select('id, project_id, user_id, role, permissions_json, joined_at')
+      .select('id, project_id, user_id, role, position, permissions_json, joined_at')
       .single();
 
     if (error) throw new BadRequestException(error.message);

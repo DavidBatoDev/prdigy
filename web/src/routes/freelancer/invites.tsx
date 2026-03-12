@@ -87,9 +87,9 @@ function FreelancerInvitesPage() {
                     <p className="text-sm text-gray-600 mt-1">
                       Invited by {invite.inviter?.display_name || "Team lead"}
                     </p>
-                    {invite.invited_role ? (
+                    {invite.invited_position ? (
                       <p className="text-xs text-gray-500 mt-1">
-                        Role: {invite.invited_role}
+                        Position: {invite.invited_position}
                       </p>
                     ) : null}
                     <p className="text-xs text-gray-500 mt-1">

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { EpicPriority, FeatureStatus, RoadmapTask } from "@/types/roadmap";
 import { useRoadmapStore, type CanvasViewMode } from "@/stores/roadmapStore";
 import type { UseRoadmapCanvasControllerArgs } from "./RoadmapCanvas.types";
+import { useToast } from "@/hooks/useToast";
 
 /** @deprecated Use CanvasViewMode from roadmapStore instead */
 export type ViewMode = CanvasViewMode;
@@ -36,6 +37,37 @@ export function useRoadmapCanvasController({
   onOpenTaskDetailHandled: onOpenTaskDetailHandledProp,
   onActiveEpicChange,
 }: UseRoadmapCanvasControllerArgs) {
+  const toast = useToast();
+
+  const getErrorMessage = (error: unknown, fallback: string): string => {
+    if (!(error instanceof Error) || error.message.trim().length === 0) {
+      return fallback;
+    }
+
+    const message = error.message.toLowerCase();
+
+    if (
+      message.includes("missing permission") ||
+      message.includes("forbidden") ||
+      message.includes("do not have permission")
+    ) {
+      return "You do not have permission to edit this roadmap item.";
+    }
+
+    if (
+      message.includes("not a member of this project") ||
+      message.includes("not part of this project")
+    ) {
+      return "You do not have access to this project.";
+    }
+
+    if (message.includes("not found") || message.includes("no longer exists")) {
+      return "This roadmap item could not be found. It may have been removed.";
+    }
+
+    return fallback;
+  };
+
   const storeRoadmap = useRoadmapStore((state) => state.roadmap);
   const storeMilestones = useRoadmapStore((state) => state.milestones);
   const storeEpics = useRoadmapStore((state) => state.epics);
@@ -121,13 +153,13 @@ export function useRoadmapCanvasController({
   const onUpdateMilestone = onUpdateMilestoneProp ?? storeUpdateMilestone;
   const onDeleteMilestone = onDeleteMilestoneProp ?? storeDeleteMilestone;
   const onAddEpic = onAddEpicProp ?? storeAddEpic;
-  const onUpdateEpic = onUpdateEpicProp ?? storeUpdateEpic;
+  const onUpdateEpicBase = onUpdateEpicProp ?? storeUpdateEpic;
   const onDeleteEpic = onDeleteEpicProp ?? storeDeleteEpic;
   const onAddFeature = onAddFeatureProp ?? storeAddFeature;
-  const onUpdateFeature = onUpdateFeatureProp ?? storeUpdateFeature;
+  const onUpdateFeatureBase = onUpdateFeatureProp ?? storeUpdateFeature;
   const onDeleteFeature = onDeleteFeatureProp ?? storeDeleteFeature;
   const onAddTask = onAddTaskProp ?? storeAddTask;
-  const onUpdateTask = onUpdateTaskProp ?? storeUpdateTask;
+  const onUpdateTaskBase = onUpdateTaskProp ?? storeUpdateTask;
   const onDeleteTask = onDeleteTaskProp ?? storeDeleteTask;
   const focusNodeId = focusNodeIdProp ?? storeFocusNodeId;
   const focusNodeOffsetX = focusNodeOffsetXProp ?? storeFocusNodeOffsetX;
@@ -148,6 +180,38 @@ export function useRoadmapCanvasController({
   const onOpenTaskDetailHandled =
     onOpenTaskDetailHandledProp ?? storeClearOpenTaskDetail;
   const onActiveEpicChangeResolved = onActiveEpicChange ?? storeSetActiveEpicId;
+
+  const onUpdateEpic = async (...args: Parameters<typeof onUpdateEpicBase>) => {
+    try {
+      await onUpdateEpicBase(...args);
+      toast.success("Epic updated");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to update epic"));
+      throw error;
+    }
+  };
+
+  const onUpdateFeature = async (
+    ...args: Parameters<typeof onUpdateFeatureBase>
+  ) => {
+    try {
+      await onUpdateFeatureBase(...args);
+      toast.success("Feature updated");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to update feature"));
+      throw error;
+    }
+  };
+
+  const onUpdateTask = async (...args: Parameters<typeof onUpdateTaskBase>) => {
+    try {
+      await onUpdateTaskBase(...args);
+      toast.success("Task updated");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to update task"));
+      throw error;
+    }
+  };
 
   const [selectedFeature, setSelectedFeature] = useState<string | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);

@@ -10,6 +10,12 @@ import {
   MaxLength,
 } from 'class-validator';
 
+export enum ProjectMemberRole {
+  CONSULTANT = 'consultant',
+  CLIENT = 'client',
+  MEMBER = 'member',
+}
+
 class RoadmapPermissionsDto {
   @IsBoolean() edit: boolean;
   @IsBoolean() view_internal: boolean;
@@ -48,11 +54,18 @@ export class UpdateProjectMemberPermissionsDto {
 
 export class AddProjectMemberDto {
   @IsEmail() @IsOptional() email?: string;
-  @IsString() @MaxLength(100) role: string;
+  @IsString() @MaxLength(100) position: string;
 }
 
 export class UpdateProjectMemberDto {
-  @IsString() @IsOptional() @MaxLength(100) role?: string;
+  @IsEnum(ProjectMemberRole)
+  @IsOptional()
+  role?: ProjectMemberRole;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  position?: string;
 }
 
 export class InviteProjectByEmailDto {
@@ -61,7 +74,7 @@ export class InviteProjectByEmailDto {
 
   @IsString()
   @MaxLength(100)
-  role: string;
+  position: string;
 
   @IsOptional()
   @IsString()

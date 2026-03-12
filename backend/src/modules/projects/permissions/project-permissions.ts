@@ -111,10 +111,7 @@ export function resolvePermissionTemplateKey(
     .trim()
     .toLowerCase();
 
-  if (
-    normalizedRole === 'consultant' ||
-    normalizedRole === 'consultant (lead)'
-  ) {
+  if (normalizedRole === 'consultant') {
     return 'consultant';
   }
 

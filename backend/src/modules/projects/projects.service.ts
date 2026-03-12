@@ -49,19 +49,19 @@ export class ProjectsService {
   private buildInviteReceivedMessage(params: {
     inviterName: string;
     projectTitle: string;
-    invitedRole?: string | null;
+    invitedPosition?: string | null;
     note?: string | null;
   }): string {
-    const roleText =
-      params.invitedRole && params.invitedRole.trim().length > 0
-        ? ` as ${params.invitedRole.trim()}`
+    const positionText =
+      params.invitedPosition && params.invitedPosition.trim().length > 0
+        ? ` as ${params.invitedPosition.trim()}`
         : '';
     const noteText =
       params.note && params.note.trim().length > 0
         ? ` Note: ${params.note.trim()}`
         : '';
 
-    return `${params.inviterName} invited you to join ${params.projectTitle}${roleText}.${noteText}`;
+    return `${params.inviterName} invited you to join ${params.projectTitle}${positionText}.${noteText}`;
   }
 
   private async getProjectOrThrow(projectId: string): Promise<Project> {
@@ -318,15 +318,15 @@ export class ProjectsService {
       typeof invite.message === 'string' && invite.message.trim().length > 0
         ? invite.message.trim()
         : null;
-    const invitedRole =
-      typeof invite.invited_role === 'string' &&
-      invite.invited_role.trim().length > 0
-        ? invite.invited_role.trim()
+    const invitedPosition =
+      typeof invite.invited_position === 'string' &&
+      invite.invited_position.trim().length > 0
+        ? invite.invited_position.trim()
         : null;
     const inviteMessage = this.buildInviteReceivedMessage({
       inviterName,
       projectTitle,
-      invitedRole,
+      invitedPosition,
       note: inviteNote,
     });
 
@@ -339,7 +339,7 @@ export class ProjectsService {
         content: {
           invite_id: invite.id,
           message: inviteMessage,
-          invited_role: invitedRole,
+          invited_position: invitedPosition,
           inviter_name: inviterName,
           project_title: projectTitle,
           note: inviteNote,

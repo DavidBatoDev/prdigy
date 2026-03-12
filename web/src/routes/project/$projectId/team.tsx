@@ -315,11 +315,11 @@ function PrincipalsCard({ project }: { project: Project }) {
 // ─── Editable Role badge + pencil trigger ────────────────────────────────────
 
 function EditableRole({
-  role,
+  label,
   canEdit,
   onOpenManage,
 }: {
-  role: string;
+  label: string;
   canEdit: boolean;
   onOpenManage: () => void;
 }) {
@@ -327,7 +327,7 @@ function EditableRole({
     <>
       <div className="flex items-center gap-1.5">
         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-500 border border-gray-200 truncate max-w-full">
-          {role}
+          {label}
         </span>
         {canEdit && (
           <>
@@ -367,9 +367,9 @@ function PermissionsDrawer({
   const [permissions, setPermissions] = useState<ProjectPermissions | null>(
     null,
   );
-  const [roleDraft, setRoleDraft] = useState("");
+  const [positionDraft, setPositionDraft] = useState("");
   const [entered, setEntered] = useState(false);
-  const roleInputRef = useRef<HTMLInputElement>(null);
+  const positionInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -386,7 +386,7 @@ function PermissionsDrawer({
       setLoading(true);
       setError(null);
       setPermissions(null);
-      setRoleDraft(member.role || "");
+      setPositionDraft(member.position || "");
       try {
         const value = await projectService.getMemberPermissions(
           projectId,
@@ -412,7 +412,7 @@ function PermissionsDrawer({
 
   useEffect(() => {
     if (!open) return;
-    const id = setTimeout(() => roleInputRef.current?.focus(), 160);
+    const id = setTimeout(() => positionInputRef.current?.focus(), 160);
     return () => clearTimeout(id);
   }, [open]);
 
@@ -439,16 +439,16 @@ function PermissionsDrawer({
     setSaving(true);
     setError(null);
     try {
-      const trimmedRole = roleDraft.trim();
-      if (trimmedRole.length === 0) {
-        throw new Error("Role title is required.");
+      const trimmedPosition = positionDraft.trim();
+      if (trimmedPosition.length === 0) {
+        throw new Error("Position title is required.");
       }
 
       const updatedMember = await projectService.updateMember(
         projectId,
         member.id,
         {
-          role: trimmedRole,
+          position: trimmedPosition,
         },
       );
       onMemberUpdated(updatedMember);
@@ -515,13 +515,13 @@ function PermissionsDrawer({
               </header>
               <div className="px-4 py-3">
                 <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                  Team Role Title
+                  Team Position Title
                 </label>
                 <input
-                  ref={roleInputRef}
+                  ref={positionInputRef}
                   type="text"
-                  value={roleDraft}
-                  onChange={(e) => setRoleDraft(e.target.value)}
+                  value={positionDraft}
+                  onChange={(e) => setPositionDraft(e.target.value)}
                   placeholder="e.g. Backend Developer"
                   disabled={saving}
                   className="w-full text-[13px] border border-slate-200 rounded-md px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#ff9933]/30 focus:border-[#ff9933]"
@@ -650,14 +650,14 @@ function AddMemberModal({
   onClose: () => void;
 }) {
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("");
+  const [position, setPosition] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const submit = async () => {
-    const roleVal = role.trim();
-    if (!roleVal) {
-      setError("Role title is required.");
+    const positionVal = position.trim();
+    if (!positionVal) {
+      setError("Position title is required.");
       return;
     }
     if (!email.trim()) {
@@ -669,7 +669,7 @@ function AddMemberModal({
     try {
       await projectService.inviteByEmail(projectId, {
         email: email.trim(),
-        role: roleVal,
+        position: positionVal,
       });
       onClose();
     } catch (e) {
@@ -720,12 +720,12 @@ function AddMemberModal({
 
           <div>
             <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-              Role / Title
+              Position / Title
             </label>
             <input
               type="text"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
+              value={position}
+              onChange={(e) => setPosition(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") void submit();
               }}
@@ -834,7 +834,7 @@ function MembersTable({
               removing={removing === m.id}
             >
               <EditableRole
-                role={m.role}
+                label={m.position?.trim() || "Member"}
                 canEdit={canManage}
                 onOpenManage={() => onOpenManage(m)}
               />
@@ -876,7 +876,6 @@ function TeamPage() {
         const PRINCIPAL_ROLES = new Set([
           "client",
           "consultant",
-          "consultant (lead)",
         ]);
         setMembers(
           ((p.members as ProjectMember[]) ?? []).filter(

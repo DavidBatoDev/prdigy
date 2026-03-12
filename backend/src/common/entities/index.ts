@@ -169,7 +169,8 @@ export interface ProjectMember {
   id: string;
   project_id: string;
   user_id: string;
-  role: string;
+  role: 'consultant' | 'client' | 'member';
+  position?: string;
   permissions_json: Record<string, unknown>;
   joined_at: string;
 }

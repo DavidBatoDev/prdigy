@@ -138,7 +138,7 @@ export class UploadsService {
     // Primary check: user is the registered client or consultant on the project
     let canEdit = p.client_id === userId || p.consultant_id === userId;
 
-    // Fallback: also allow project members whose role contains "client" or "consultant"
+    // Fallback: also allow project members with lead roles
     if (!canEdit) {
       const { data: member } = await this.supabase
         .from('project_members')
@@ -149,7 +149,7 @@ export class UploadsService {
 
       if (member) {
         const role = ((member as { role: string }).role ?? '').toLowerCase();
-        canEdit = role.includes('client') || role.includes('consultant');
+        canEdit = role === 'client' || role === 'consultant';
       }
     }
 
