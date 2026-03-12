@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import { SidePanel } from "../panels/SidePanel";
-import { AddEpicModal } from "../modals/AddEpicModal";
-import { AddFeatureModal } from "../modals/AddFeatureModal";
+import { EpicModal } from "../modals/EpicModal";
+import { FeatureModal } from "../modals/FeatureModal";
 import type {
   RoadmapEpic,
   RoadmapTask,
@@ -147,14 +147,14 @@ export function RoadmapCanvasOverlays({
         isLoading={isTaskLoading}
       />
 
-      <AddEpicModal
+      <EpicModal
         isOpen={isAddEpicModalOpen}
         onClose={() => setIsAddEpicModalOpen(false)}
         onSubmit={handleCreateEpic}
         isLoading={isEpicLoading}
       />
 
-      <AddEpicModal
+      <EpicModal
         isOpen={isEditEpicModalOpen}
         onClose={() => {
           setIsEditEpicModalOpen(false);
@@ -223,7 +223,7 @@ export function RoadmapCanvasOverlays({
         isLoading={isEpicLoading}
       />
 
-      <AddFeatureModal
+      <FeatureModal
         isOpen={isAddFeatureModalOpen}
         epicTitle={
           targetEpicForFeature
@@ -238,7 +238,7 @@ export function RoadmapCanvasOverlays({
         isLoading={isFeatureLoading}
       />
 
-      <AddFeatureModal
+      <FeatureModal
         isOpen={isEditFeatureModalOpen}
         epicTitle={
           editingFeatureEpicId

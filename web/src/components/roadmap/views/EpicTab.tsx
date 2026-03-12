@@ -18,7 +18,7 @@ import type {
   Comment,
 } from "@/types/roadmap";
 import { RichTextEditor } from "@/components/common/RichTextEditor";
-import { AddFeatureModal } from "../modals/AddFeatureModal";
+import { FeatureModal } from "../modals/FeatureModal";
 import { CommentsSection } from "../shared/CommentsSection";
 import { commentsService } from "@/services/roadmap.service";
 import { useUser } from "@/stores/authStore";
@@ -848,7 +848,7 @@ export const EpicTab = ({
       </div>
 
       {/* Feature Edit Modal */}
-      <AddFeatureModal
+      <FeatureModal
         isOpen={isFeatureModalOpen}
         epicTitle={epic.title}
         initialData={editingFeature || undefined}

@@ -23,8 +23,8 @@ export { JSONRoadmapSidePanel } from "./panels/JSONRoadmapSidePanel";
 export { ChatPanel } from "./panels/ChatPanel";
 
 // Modal components
-export { AddEpicModal } from "./modals/AddEpicModal";
-export { AddFeatureModal } from "./modals/AddFeatureModal";
+export { EpicModal } from "./modals/EpicModal";
+export { FeatureModal } from "./modals/FeatureModal";
 export { ShareRoadmapModal } from "./modals/ShareRoadmapModal";
 export {
   RoadmapMetadataModal,

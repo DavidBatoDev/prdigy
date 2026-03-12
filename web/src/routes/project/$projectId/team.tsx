@@ -873,10 +873,7 @@ function TeamPage() {
           [p.client_id, p.consultant_id].filter(Boolean),
         );
         // Exclude principal rows by user_id AND by role name as a safety net
-        const PRINCIPAL_ROLES = new Set([
-          "client",
-          "consultant",
-        ]);
+        const PRINCIPAL_ROLES = new Set(["client", "consultant"]);
         setMembers(
           ((p.members as ProjectMember[]) ?? []).filter(
             (m) =>

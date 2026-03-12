@@ -476,7 +476,9 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
   ): Promise<unknown> {
     const { data: invite, error: inviteError } = await this.supabase
       .from('project_invites')
-      .select('id, project_id, invited_by, invitee_id, invited_position, status')
+      .select(
+        'id, project_id, invited_by, invitee_id, invited_position, status',
+      )
       .eq('id', inviteId)
       .single();
 
@@ -587,7 +589,10 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
     const role = String((existing as Record<string, unknown>).role ?? '')
       .trim()
       .toLowerCase();
-    if (role === ProjectMemberRole.CLIENT || role === ProjectMemberRole.CONSULTANT) {
+    if (
+      role === ProjectMemberRole.CLIENT ||
+      role === ProjectMemberRole.CONSULTANT
+    ) {
       throw new BadRequestException('Project leads cannot be removed.');
     }
 
@@ -693,7 +698,9 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
       .update({ permissions_json: merged })
       .eq('id', memberId)
       .eq('project_id', projectId)
-      .select('id, project_id, user_id, role, position, permissions_json, joined_at')
+      .select(
+        'id, project_id, user_id, role, position, permissions_json, joined_at',
+      )
       .single();
 
     if (error) throw new BadRequestException(error.message);

@@ -24,8 +24,8 @@ import {
 } from "@/services/roadmap.service";
 import { projectService, type ProjectMember } from "@/services/project.service";
 import { useUser } from "@/stores/authStore";
-import { AddEpicModal } from "@/components/roadmap/modals/AddEpicModal";
-import { AddFeatureModal } from "@/components/roadmap/modals/AddFeatureModal";
+import { EpicModal } from "@/components/roadmap/modals/EpicModal";
+import { FeatureModal } from "@/components/roadmap/modals/FeatureModal";
 import { SidePanel } from "@/components/roadmap/panels/SidePanel";
 import type {
   RoadmapEpic,
@@ -1845,7 +1845,7 @@ function WorkItemsViewPage() {
       )}
 
       {/* ── Epic edit modal ── */}
-      <AddEpicModal
+      <EpicModal
         isOpen={!!editingEpic}
         titleText="Edit Epic"
         submitLabel="Save Changes"
@@ -1869,7 +1869,7 @@ function WorkItemsViewPage() {
       />
 
       {/* ── Feature edit modal ── */}
-      <AddFeatureModal
+      <FeatureModal
         isOpen={!!editingFeature}
         titleText="Edit Feature"
         submitLabel="Save Changes"
