@@ -281,7 +281,9 @@ function PrincipalsCard({ project }: { project: Project }) {
   const samePrincipal =
     !!client &&
     !!consultant &&
-    ((Boolean(client.id) && Boolean(consultant.id) && client.id === consultant.id) ||
+    ((Boolean(client.id) &&
+      Boolean(consultant.id) &&
+      client.id === consultant.id) ||
       (Boolean(client.email) &&
         Boolean(consultant.email) &&
         client.email!.toLowerCase() === consultant.email!.toLowerCase()));

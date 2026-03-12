@@ -208,7 +208,9 @@ function SettingsGeneralPage() {
       toast.success("Project title updated.");
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to save project title.",
+        error instanceof Error
+          ? error.message
+          : "Failed to save project title.",
       );
     } finally {
       setIsSavingTitle(false);
@@ -310,7 +312,9 @@ function SettingsGeneralPage() {
             <div className="px-5 py-5 space-y-7">
               <section className="pb-6 border-b border-gray-200">
                 <div className="flex items-center justify-between gap-2 mb-2.5">
-                  <h3 className="text-[18px] font-semibold text-gray-900">Project Title</h3>
+                  <h3 className="text-[18px] font-semibold text-gray-900">
+                    Project Title
+                  </h3>
                   {!isEditingTitle && (
                     <button
                       type="button"
@@ -370,7 +374,9 @@ function SettingsGeneralPage() {
 
               <section>
                 <div className="flex items-center justify-between gap-2 mb-2.5">
-                  <h3 className="text-[18px] font-semibold text-gray-900">Project Summary</h3>
+                  <h3 className="text-[18px] font-semibold text-gray-900">
+                    Project Summary
+                  </h3>
                   {!isEditingSummary && (
                     <button
                       type="button"

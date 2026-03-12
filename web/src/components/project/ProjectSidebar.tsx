@@ -146,7 +146,8 @@ export function ProjectSidebar({
                   const Icon = item.icon;
                   const isActive =
                     currentPath.startsWith(item.to) ||
-                    (item.label === "Settings" && currentPath.includes("/settings")) ||
+                    (item.label === "Settings" &&
+                      currentPath.includes("/settings")) ||
                     (item.label === "Roadmap" &&
                       currentPath.includes("/roadmap")) ||
                     (item.label === "Work Items" &&

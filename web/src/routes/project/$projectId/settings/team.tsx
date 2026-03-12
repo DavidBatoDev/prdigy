@@ -22,7 +22,9 @@ function TeamSettingsPage() {
         setMembers(data);
       } catch (error) {
         toast.error(
-          error instanceof Error ? error.message : "Failed to load team members.",
+          error instanceof Error
+            ? error.message
+            : "Failed to load team members.",
         );
       } finally {
         setIsLoading(false);
@@ -37,7 +39,9 @@ function TeamSettingsPage() {
       <section className="rounded-xl border border-gray-200 bg-white overflow-hidden">
         <header className="px-5 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
           <div>
-            <h2 className="text-[15px] font-semibold text-gray-900">Team Settings</h2>
+            <h2 className="text-[15px] font-semibold text-gray-900">
+              Team Settings
+            </h2>
             <p className="text-xs text-gray-500 mt-1">
               Members and positions for this project.
             </p>
@@ -53,9 +57,13 @@ function TeamSettingsPage() {
 
         <div className="divide-y divide-gray-100">
           {isLoading ? (
-            <div className="px-5 py-6 text-sm text-gray-500">Loading members...</div>
+            <div className="px-5 py-6 text-sm text-gray-500">
+              Loading members...
+            </div>
           ) : members.length === 0 ? (
-            <div className="px-5 py-6 text-sm text-gray-500">No members found.</div>
+            <div className="px-5 py-6 text-sm text-gray-500">
+              No members found.
+            </div>
           ) : (
             members.map((member) => {
               const displayName =
@@ -67,7 +75,10 @@ function TeamSettingsPage() {
                 "Unknown";
 
               return (
-                <div key={member.id} className="px-5 py-3.5 flex items-center justify-between gap-3">
+                <div
+                  key={member.id}
+                  className="px-5 py-3.5 flex items-center justify-between gap-3"
+                >
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">
                       {displayName}
