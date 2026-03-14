@@ -105,8 +105,8 @@ export function OverviewContent({
   };
 
   return (
-    <div className="space-y-8">
-      <header className="pb-3 mt-5 space-y-3">
+    <div className="w-full">
+      <header className="pb-3 mt-1 space-y-3 mb-8">
         <h1 className="text-[28px] font-semibold text-gray-900 uppercase tracking-wide leading-tight">
           {projectTitle}
         </h1>
@@ -122,7 +122,8 @@ export function OverviewContent({
         </div>
       </header>
 
-      {/* Project Summary */}
+      <div className="space-y-8 pl-4 md:pl-8">
+        {/* Project Summary */}
       <section className="pb-7 border-b border-gray-200 flex items-start gap-3">
         <CheckCircle2 className="w-5 h-5 text-primary shrink-0 mt-1.5" />
         <div className="flex-1 min-w-0">
@@ -173,15 +174,17 @@ export function OverviewContent({
               </div>
             )}
           </div>
-          <EditableRichSection
-            value={summaryHtml}
-            placeholder="Write the project summary..."
-            emptyText="No summary added yet."
-            isSaving={savingSection === "summary"}
-            isEditing={editingSummary}
-            draft={draftSummary}
-            setDraft={setDraftSummary}
-          />
+          <div className="text-[13px] text-gray-600 leading-6 space-y-3">
+            <EditableRichSection
+              value={summaryHtml}
+              placeholder="Write the project summary..."
+              emptyText="No summary added yet."
+              isSaving={savingSection === "summary"}
+              isEditing={editingSummary}
+              draft={draftSummary}
+              setDraft={setDraftSummary}
+            />
+          </div>
         </div>
       </section>
 
@@ -261,7 +264,7 @@ export function OverviewContent({
             <div
               className={
                 editingConstraints
-                  ? "ml-2 pl-4 border-l-2 text-gray-700/20 py-1 text-[12px] leading-5 text-gray-700"
+                  ? "ml-2 pl-4 border-l-2 border-gray-200 py-1 text-[12px] leading-5 text-gray-700"
                   : "bg-gray-100/70 px-3 py-2.5 rounded-md text-[12px] leading-5 text-gray-700"
               }
             >
@@ -333,15 +336,17 @@ export function OverviewContent({
               </div>
             )}
           </div>
-          <EditableRichSection
-            value={requirementsHtml}
-            placeholder="Describe core requirements..."
-            emptyText="No requirements listed yet."
-            isSaving={savingSection === "requirements"}
-            isEditing={editingRequirements}
-            draft={draftRequirements}
-            setDraft={setDraftRequirements}
-          />
+          <div className="text-[13px] text-gray-600 leading-6 space-y-3">
+            <EditableRichSection
+              value={requirementsHtml}
+              placeholder="Describe core requirements..."
+              emptyText="No requirements listed yet."
+              isSaving={savingSection === "requirements"}
+              isEditing={editingRequirements}
+              draft={draftRequirements}
+              setDraft={setDraftRequirements}
+            />
+          </div>
         </div>
       </section>
 
@@ -396,15 +401,17 @@ export function OverviewContent({
               </div>
             )}
           </div>
-          <EditableRichSection
-            value={notesHtml}
-            placeholder="Write project notes..."
-            emptyText="No notes added yet."
-            isSaving={savingSection === "notes"}
-            isEditing={editingNotes}
-            draft={draftNotes}
-            setDraft={setDraftNotes}
-          />
+          <div className="text-[13px] text-gray-600 leading-6 space-y-3">
+            <EditableRichSection
+              value={notesHtml}
+              placeholder="Write project notes..."
+              emptyText="No notes added yet."
+              isSaving={savingSection === "notes"}
+              isEditing={editingNotes}
+              draft={draftNotes}
+              setDraft={setDraftNotes}
+            />
+          </div>
         </div>
       </section>
 
@@ -431,6 +438,7 @@ export function OverviewContent({
           )}
         </div>
       </section>
+      </div>
     </div>
   );
 }

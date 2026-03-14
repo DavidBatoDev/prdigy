@@ -12,16 +12,25 @@ export function OverviewSidebar({ timelineItems, members }: OverviewSidebarProps
   const visibleItems = timelineItems.slice(0, MAX_OVERVIEW_MILESTONES);
 
   return (
-    <aside className="border-l border-gray-300 pl-8 space-y-8 sticky top-6 self-start">
+    <aside className="space-y-8 sticky top-6 self-start md:pl-4">
       {/* Milestones */}
       <div>
         <h2 className="text-[16px] font-semibold text-gray-900 mb-4">
           Milestones
         </h2>
         {timelineItems.length === 0 ? (
-          <p className="text-[13px] text-gray-500">
-            No timeline checkpoints yet.
-          </p>
+          <div className="relative pl-11 pb-2">
+            <span className="absolute left-[15px] top-7 bottom-0 w-px border-l-2 border-dashed border-gray-200" />
+            <span className="absolute left-0 top-0 w-8 h-8 rounded-full border-2 border-dashed border-gray-200 flex items-center justify-center bg-gray-50/50" />
+            <div className="flex flex-col pt-1.5">
+              <p className="text-[13px] font-medium text-gray-500">
+                No milestones yet
+              </p>
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                Project timeline will appear here
+              </p>
+            </div>
+          </div>
         ) : (
           <div className="space-y-0">
             {visibleItems.map((item, index) => {
@@ -58,6 +67,8 @@ export function OverviewSidebar({ timelineItems, members }: OverviewSidebarProps
           </div>
         )}
       </div>
+
+      <hr className="border-gray-200" />
 
       {/* Project Team */}
       <div>
