@@ -1,16 +1,13 @@
-import { useEffect, useState } from "react";
-import { Loader2, Save, X } from "lucide-react";
+import { useEffect } from "react";
 import { RichTextEditor } from "@/components/common/RichTextEditor";
-import { cleanHTML } from "@/components/common/RichTextEditor/utils/formatting";
-
 export interface EditableRichSectionProps {
   value: string;
   placeholder: string;
   emptyText: string;
   isSaving: boolean;
   isEditing: boolean;
-  onEditingChange: (isEditing: boolean) => void;
-  onSave: (value: string) => Promise<void>;
+  draft: string;
+  setDraft: (value: string) => void;
 }
 
 export function EditableRichSection({
@@ -19,21 +16,14 @@ export function EditableRichSection({
   emptyText,
   isSaving,
   isEditing,
-  onEditingChange,
-  onSave,
+  draft,
+  setDraft,
 }: EditableRichSectionProps) {
-  const [draft, setDraft] = useState(value);
-
   useEffect(() => {
     if (!isEditing) {
       setDraft(value);
     }
-  }, [value, isEditing]);
-
-  const handleSave = async () => {
-    await onSave(cleanHTML(draft));
-    onEditingChange(false);
-  };
+  }, [value, isEditing, setDraft]);
 
   const hasContent = Boolean(value.trim());
 
@@ -60,33 +50,6 @@ export function EditableRichSection({
           disabled={isSaving}
           autoFocus
         />
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => void handleSave()}
-            disabled={isSaving}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary/90 disabled:opacity-50"
-          >
-            {isSaving ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4" />
-            )}
-            Save
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setDraft(value);
-              onEditingChange(false);
-            }}
-            disabled={isSaving}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 disabled:opacity-50"
-          >
-            <X className="w-4 h-4" />
-            Cancel
-          </button>
-        </div>
       </div>
     );
   }
