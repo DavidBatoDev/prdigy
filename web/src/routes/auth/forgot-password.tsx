@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { Button } from "../../ui/button";
+import { useState } from "react";
+import { SignupLayout } from "../../components/auth/signup/SignupLayout";
 import { useToast } from "../../hooks/useToast";
 
 export const Route = createFileRoute("/auth/forgot-password")({
@@ -10,14 +10,6 @@ export const Route = createFileRoute("/auth/forgot-password")({
 function ForgotPasswordRoute() {
   const navigate = useNavigate();
   const toast = useToast();
-
-  const assets = useMemo(
-    () => ({
-      divider:
-        "https://www.figma.com/api/mcp/asset/46d22730-9df8-461e-9241-1e295b2063e6",
-    }),
-    []
-  );
 
   const EMAIL_FETCH_TIMEOUT_MS = 8000;
 
@@ -38,15 +30,64 @@ function ForgotPasswordRoute() {
 
   const [step, setStep] = useState<"request" | "verify">("request");
   const [email, setEmail] = useState("");
+  const [emailTouched, setEmailTouched] = useState(false);
   const [code, setCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  const isEmailValid = /^\S+@\S+\.\S+$/.test(email.trim());
+  const emailError =
+    emailTouched && !isEmailValid
+      ? "Enter a valid email address."
+      : "";
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    height: "52px",
+    padding: "0 16px",
+    borderRadius: "10px",
+    border: "1px solid #E5E5E5",
+    fontSize: "0.95rem",
+    color: "#2E2E2E",
+    background: "white",
+    outline: "none",
+    fontFamily: "'Open Sans', sans-serif",
+    boxSizing: "border-box",
+    transition: "border 0.15s, box-shadow 0.15s",
+  };
+
+  const labelStyle: React.CSSProperties = {
+    display: "block",
+    fontSize: "0.78rem",
+    fontWeight: 600,
+    color: "#2E2E2E",
+    marginBottom: "7px",
+    fontFamily: "'Open Sans', sans-serif",
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+  };
+
+  function focusInput(e: React.FocusEvent<HTMLInputElement>) {
+    e.currentTarget.style.border = "1px solid #FF962E";
+    e.currentTarget.style.boxShadow = "0 0 0 3px rgba(255,150,46,0.12)";
+  }
+
+  function blurInput(e: React.FocusEvent<HTMLInputElement>) {
+    e.currentTarget.style.border = "1px solid #E5E5E5";
+    e.currentTarget.style.boxShadow = "none";
+  }
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
   async function requestReset(e: React.FormEvent) {
     e.preventDefault();
+
+    setEmailTouched(true);
+    if (!isEmailValid) {
+      return;
+    }
+
     setIsLoading(true);
     try {
       const res = await fetchWithTimeout(`${supabaseUrl}/functions/v1/send-password-reset-email`, {
@@ -122,96 +163,239 @@ function ForgotPasswordRoute() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-white">
-      <div className="relative mx-auto flex min-h-screen max-w-6xl items-center justify-start px-6 py-16 lg:px-12">
-        <div className="flex w-full max-w-[720px] flex-col gap-10">
-          <div className="flex flex-col gap-3">
-            <h1 className="text-4xl font-normal text-black">Forgot your password?</h1>
-            <p className="text-lg font-normal text-[#020202]/80">
-              {step === "request"
-                ? "Enter your email to receive a verification code."
-                : "Enter the verification code from your email and a new password."}
-            </p>
-          </div>
+    <SignupLayout>
+      <div
+        style={{
+          background: "#FFFFFF",
+          border: "1px solid #EEEEEE",
+          borderRadius: "16px",
+          padding: "28px 24px",
+          boxShadow: "0 6px 20px rgba(18, 18, 18, 0.06)",
+          transition: "box-shadow 0.2s ease, transform 0.2s ease",
+          display: "flex",
+          flexDirection: "column",
+          gap: "24px",
+        }}
+      >
+        <img
+          src="/prodigylogos/light/logo1.svg"
+          alt="Prodigitality"
+          style={{ height: "32px", objectFit: "contain", objectPosition: "left" }}
+        />
 
-          {step === "request" ? (
-            <form onSubmit={requestReset} className="flex flex-col gap-6">
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-[#020202]">Email</label>
-                <input
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="w-full rounded-md border border-[#d4d4d4] px-4 py-3 text-base text-[#020202] placeholder:text-[#020202]/50 focus:border-[#ff9900] focus:outline-none focus:ring-2 focus:ring-[#ff9900]/30"
-                />
-              </div>
-              <div className="flex items-center justify-center gap-3">
-                <img src={assets.divider} alt="" className="h-px w-full max-w-[720px]" />
-              </div>
-              <div className="flex flex-col items-center gap-3">
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  variant="contained"
-                  colorScheme="primary"
-                  className="w-[255px] bg-[#ff9900] px-10 py-3 text-lg font-semibold text-white shadow-[0_1px_5px_rgba(0,0,0,0.12),0_2px_2px_rgba(0,0,0,0.14),0_3px_1px_-2px_rgba(0,0,0,0.2)] transition-transform hover:-translate-y-0.5 hover:bg-[#ff9900] disabled:hover:translate-y-0"
-                >
-                  {isLoading ? "Sending..." : "Send Code"}
-                </Button>
-                <Link to="/auth/login" className="text-sm font-normal text-[#020202] transition-colors hover:text-[#ff9900]">
-                  Back to login
-                </Link>
-              </div>
-            </form>
-          ) : (
-            <form onSubmit={verifyAndReset} className="flex flex-col gap-6">
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-[#020202]">Verification Code</label>
-                <input
-                  type="text"
-                  placeholder="000000"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  required
-                  className="w-full rounded-md border border-[#d4d4d4] px-4 py-3 text-center text-2xl tracking-[0.25em] text-[#020202] placeholder:text-[#020202]/50 focus:border-[#ff9900] focus:outline-none focus:ring-2 focus:ring-[#ff9900]/30"
-                  maxLength={6}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-[#020202]">New Password</label>
-                <input
-                  type="password"
-                  placeholder="********"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required
-                  className="w-full rounded-md border border-[#d4d4d4] px-4 py-3 text-base text-[#020202] placeholder:text-[#020202]/50 focus:border-[#ff9900] focus:outline-none focus:ring-2 focus:ring-[#ff9900]/30"
-                />
-              </div>
-              <div className="flex flex-col items-center gap-3">
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  variant="contained"
-                  colorScheme="primary"
-                  className="w-[255px] bg-[#ff9900] px-10 py-3 text-lg font-semibold text-white shadow-[0_1px_5px_rgba(0,0,0,0.12),0_2px_2px_rgba(0,0,0,0.14),0_3px_1px_-2px_rgba(0,0,0,0.2)] transition-transform hover:-translate-y-0.5 hover:bg-[#ff9900] disabled:hover:translate-y-0"
-                >
-                  {isLoading ? "Resetting..." : "Reset Password"}
-                </Button>
-                <button
-                  type="button"
-                  className="text-sm font-normal text-[#020202] transition-colors hover:text-[#ff9900]"
-                  onClick={() => setStep("request")}
-                >
-                  Resend Code
-                </button>
-              </div>
-            </form>
-          )}
+        <div>
+          <h1
+            style={{
+              fontFamily: "'Glacial Indifference', 'Open Sans', sans-serif",
+              fontSize: "1.9rem",
+              fontWeight: 700,
+              color: "#2E2E2E",
+              margin: "0 0 10px",
+            }}
+          >
+            Forgot your password?
+          </h1>
+          <p
+            style={{
+              color: "#6B6B6B",
+              fontSize: "0.95rem",
+              margin: 0,
+              lineHeight: 1.6,
+              fontFamily: "'Open Sans', sans-serif",
+            }}
+          >
+            {step === "request"
+              ? "Enter your email and we’ll send you a verification code to reset your password."
+              : "Enter the verification code from your email and set your new password."}
+          </p>
         </div>
+
+        {step === "request" ? (
+          <form onSubmit={requestReset} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+            <div>
+              <label htmlFor="forgot-email" style={labelStyle}>
+                Email
+              </label>
+              <input
+                id="forgot-email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onBlur={(e) => {
+                  setEmailTouched(true);
+                  blurInput(e);
+                }}
+                required
+                aria-invalid={Boolean(emailError)}
+                aria-describedby={emailError ? "forgot-email-error" : "forgot-email-help"}
+                style={inputStyle}
+                onFocus={focusInput}
+              />
+              <p
+                id="forgot-email-help"
+                style={{
+                  margin: "8px 0 0",
+                  fontSize: "0.82rem",
+                  color: "#8A8A8A",
+                  fontFamily: "'Open Sans', sans-serif",
+                }}
+              >
+                Make sure this is the email associated with your account.
+              </p>
+              {emailError ? (
+                <p
+                  id="forgot-email-error"
+                  role="alert"
+                  style={{
+                    margin: "6px 0 0",
+                    fontSize: "0.82rem",
+                    color: "#D14343",
+                    fontFamily: "'Open Sans', sans-serif",
+                  }}
+                >
+                  {emailError}
+                </p>
+              ) : null}
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              aria-busy={isLoading}
+              aria-disabled={isLoading}
+              style={{
+                width: "100%",
+                height: "52px",
+                borderRadius: "10px",
+                border: "none",
+                marginTop: "6px",
+                background:
+                  "linear-gradient(135deg, #E11C84 0%, #FF2D75 40%, #FF962E 100%)",
+                color: "white",
+                fontSize: "1rem",
+                fontWeight: 700,
+                cursor: isLoading ? "not-allowed" : "pointer",
+                opacity: isLoading ? 0.7 : 1,
+                fontFamily: "'Open Sans', sans-serif",
+                transition: "opacity 0.2s, transform 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                if (!isLoading) e.currentTarget.style.transform = "translateY(-1px)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+              }}
+            >
+              {isLoading ? "Sending..." : "Send Code"}
+            </button>
+
+            <Link
+              to="/auth/login"
+              style={{
+                textAlign: "center",
+                fontSize: "0.9rem",
+                color: "#6B6B6B",
+                marginTop: "2px",
+                fontFamily: "'Open Sans', sans-serif",
+                textDecoration: "none",
+              }}
+            >
+              Back to login
+            </Link>
+          </form>
+        ) : (
+          <form onSubmit={verifyAndReset} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div>
+              <label htmlFor="forgot-code" style={labelStyle}>
+                Verification Code
+              </label>
+              <input
+                id="forgot-code"
+                type="text"
+                placeholder="000000"
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                required
+                maxLength={6}
+                style={{
+                  ...inputStyle,
+                  textAlign: "center",
+                  fontSize: "1.4rem",
+                  letterSpacing: "0.3em",
+                  fontWeight: 700,
+                }}
+                onFocus={focusInput}
+                onBlur={blurInput}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="forgot-password" style={labelStyle}>
+                New Password
+              </label>
+              <input
+                id="forgot-password"
+                type="password"
+                placeholder="Enter your new password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                style={inputStyle}
+                onFocus={focusInput}
+                onBlur={blurInput}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              aria-busy={isLoading}
+              aria-disabled={isLoading}
+              style={{
+                width: "100%",
+                height: "52px",
+                borderRadius: "10px",
+                border: "none",
+                marginTop: "6px",
+                background:
+                  "linear-gradient(135deg, #E11C84 0%, #FF2D75 40%, #FF962E 100%)",
+                color: "white",
+                fontSize: "1rem",
+                fontWeight: 700,
+                cursor: isLoading ? "not-allowed" : "pointer",
+                opacity: isLoading ? 0.7 : 1,
+                fontFamily: "'Open Sans', sans-serif",
+                transition: "opacity 0.2s, transform 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                if (!isLoading) e.currentTarget.style.transform = "translateY(-1px)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+              }}
+            >
+              {isLoading ? "Resetting..." : "Reset Password"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setStep("request")}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#6B6B6B",
+                fontSize: "0.9rem",
+                cursor: "pointer",
+                fontFamily: "'Open Sans', sans-serif",
+                textDecoration: "underline",
+              }}
+            >
+              Resend Code
+            </button>
+          </form>
+        )}
       </div>
-    </div>
+    </SignupLayout>
   );
 }
