@@ -12,6 +12,19 @@ import {
 export class MilestonesRepositorySupabase implements IMilestonesRepository {
   constructor(@Inject(SUPABASE_ADMIN) private readonly db: SupabaseClient) {}
 
+  private async getNextPosition(roadmapId: string): Promise<number> {
+    const { data, error } = await this.db
+      .from('roadmap_milestones')
+      .select('position')
+      .eq('roadmap_id', roadmapId)
+      .order('position', { ascending: false })
+      .limit(1);
+
+    if (error) throw new Error(error.message);
+
+    return (data?.[0]?.position ?? -1) + 1;
+  }
+
   async findByRoadmap(roadmapId: string): Promise<any[]> {
     const { data, error } = await this.db
       .from('roadmap_milestones')
@@ -37,13 +50,38 @@ export class MilestonesRepositorySupabase implements IMilestonesRepository {
     dto: CreateMilestoneDto,
     userId: string,
   ): Promise<any> {
+    const requestedPosition = dto.position;
+    const resolvedPosition =
+      requestedPosition ?? (await this.getNextPosition(roadmapId));
+
     const { data, error } = await this.db
       .from('roadmap_milestones')
-      .insert({ ...dto, roadmap_id: roadmapId })
+      .insert({ ...dto, roadmap_id: roadmapId, position: resolvedPosition })
       .select()
       .single();
-    if (error) throw new Error(error.message);
-    return data;
+
+    if (!error) return data;
+
+    const isDuplicatePositionError =
+      error.message?.includes('roadmap_milestones_roadmap_id_position_key') ??
+      false;
+
+    if (!isDuplicatePositionError) throw new Error(error.message);
+
+    const nextAvailablePosition = await this.getNextPosition(roadmapId);
+    const { data: retryData, error: retryError } = await this.db
+      .from('roadmap_milestones')
+      .insert({
+        ...dto,
+        roadmap_id: roadmapId,
+        position: nextAvailablePosition,
+      })
+      .select()
+      .single();
+
+    if (retryError) throw new Error(retryError.message);
+
+    return retryData;
   }
 
   async update(id: string, dto: UpdateMilestoneDto): Promise<any> {
