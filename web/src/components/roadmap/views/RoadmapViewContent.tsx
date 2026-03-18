@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
 import { Link } from "@tanstack/react-router";
 import {
@@ -147,8 +147,6 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
       resetRoadmap();
     };
   }, [resetRoadmap]);
-
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Edit Roadmap modal state
   const [isBriefOpen, setIsBriefOpen] = useState(false);
@@ -366,16 +364,16 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
             className="relative h-full border-r border-gray-200 bg-white"
             initial={false}
             animate={{
-              width: isSidebarOpen ? 320 : 0,
+              width: 320,
             }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
-            style={{ minWidth: isSidebarOpen ? 320 : 0 }}
+            style={{ minWidth: 320 }}
           >
             <RoadmapLeftSidePanel
               messages={messages}
               onSendMessage={handleSendMessage}
               isGenerating={isGenerating}
-              isCollapsed={!isSidebarOpen}
+              isCollapsed={false}
               onSelectFeature={(epicId, featureId) => {
                 if (activeEpicId) {
                   navigateToFeatureNode(epicId, featureId);
@@ -390,21 +388,6 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
               onNavigateToEpicTab={navigateToEpicTab}
               highlightedEpicId={activeEpicId}
             />
-
-            <button
-              type="button"
-              aria-controls="roadmap-left-panel"
-              aria-expanded={isSidebarOpen}
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="absolute -right-3 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center hover:bg-gray-50"
-              title={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-            >
-              {isSidebarOpen ? (
-                <ChevronLeft className="w-4 h-4 text-gray-600" />
-              ) : (
-                <ChevronRight className="w-4 h-4 text-gray-600" />
-              )}
-            </button>
           </motion.div>
         )}
 

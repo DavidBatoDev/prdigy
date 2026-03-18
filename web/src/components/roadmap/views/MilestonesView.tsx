@@ -10,6 +10,12 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Roadmap, RoadmapEpic, RoadmapMilestone } from "@/types/roadmap";
+import {
+	getSortedEpics,
+	type ExplorerSearchResult,
+	ROADMAP_STRUCTURE_EXPLORER_CONFIG,
+	RoadmapStructureHeader,
+} from "../panels/explorer/RoadmapStructureHeader";
 import { calculateFeatureProgressFromTasks } from "../shared/featureProgress";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -36,9 +42,12 @@ const PX_PER_DAY: Record<Granularity, number> = {
 const MS_PER_DAY = 86_400_000;
 const LEFT_WIDTH = 320;
 const ROW_HEIGHT = 44;
-const SUPER_ROW_H = 22;
-const SUB_ROW_H = 30;
-const HEADER_HEIGHT = SUPER_ROW_H + SUB_ROW_H;
+const FIRST_EPIC_EXTRA_HEIGHT = 8;
+const SUPER_ROW_H = 28;
+const SUB_ROW_H = 40;
+const DATE_HEADER_HEIGHT = SUPER_ROW_H + SUB_ROW_H;
+const RIGHT_HEADER_HEIGHT = DATE_HEADER_HEIGHT;
+const DEFAULT_EXPLORER_HEADER_HEIGHT = 140;
 const FEATURE_BAR_HEIGHT = 28;
 const FEATURE_BAR_ROUNDED_CLASS = "rounded-sm";
 const FEATURE_BAR_TRACK_COLOR = "#cbd5e1";
@@ -309,6 +318,12 @@ export const MilestonesView = ({
 		useState<RoadmapMilestone["status"]>("not_started");
 	const [draftColor, setDraftColor] = useState("#f97316");
 	const scrollRef = useRef<HTMLDivElement>(null);
+	const leftHeaderRef = useRef<HTMLDivElement>(null);
+	const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+	const [leftHeaderHeight, setLeftHeaderHeight] = useState(
+		DEFAULT_EXPLORER_HEADER_HEIGHT,
+	);
+	const timelineExplorerConfig = ROADMAP_STRUCTURE_EXPLORER_CONFIG.timeline;
 
 	const sortedMilestones = useMemo(
 		() => [...milestones].sort((a, b) => (a.position ?? 0) - (b.position ?? 0)),
@@ -322,10 +337,94 @@ export const MilestonesView = ({
 			return n;
 		});
 
-	const sortedEpics = useMemo(
-		() => [...epics].sort((a, b) => (a.position ?? 0) - (b.position ?? 0)),
-		[epics],
+	const sortedEpics = useMemo(() => getSortedEpics(epics), [epics]);
+	const collapsableEpicIds = useMemo(
+		() =>
+			sortedEpics
+				.filter((epic) => (epic.features?.length ?? 0) > 0)
+				.map((epic) => epic.id),
+		[sortedEpics],
 	);
+	const hasAnyExpanded = useMemo(
+		() => collapsableEpicIds.some((id) => !collapsed.has(id)),
+		[collapsableEpicIds, collapsed],
+	);
+	const stickyHeaderHeight = Math.max(leftHeaderHeight, RIGHT_HEADER_HEIGHT);
+	const rightHeaderTopHeight = Math.max(
+		0,
+		leftHeaderHeight - DATE_HEADER_HEIGHT,
+	);
+
+	const getEpicRowKey = (epicId: string) => `epic:${epicId}`;
+	const getFeatureRowKey = (featureId: string) => `feature:${featureId}`;
+
+	const setRowRef = (key: string) => (node: HTMLDivElement | null) => {
+		if (node) {
+			rowRefs.current.set(key, node);
+			return;
+		}
+		rowRefs.current.delete(key);
+	};
+
+	const scrollToRow = (rowKey: string) => {
+		const scrollContainer = scrollRef.current;
+		const rowNode = rowRefs.current.get(rowKey);
+		if (!scrollContainer || !rowNode) return;
+
+		const targetTop = Math.max(0, rowNode.offsetTop - stickyHeaderHeight - 8);
+		scrollContainer.scrollTo({ top: targetTop, behavior: "smooth" });
+	};
+
+	const scrollToRowAfterLayout = (rowKey: string) => {
+		requestAnimationFrame(() => {
+			requestAnimationFrame(() => {
+				scrollToRow(rowKey);
+			});
+		});
+	};
+
+	const handleToggleCollapseAll = () => {
+		if (hasAnyExpanded) {
+			setCollapsed(new Set(collapsableEpicIds));
+			return;
+		}
+		setCollapsed(new Set());
+	};
+
+	const handleTimelineSearchResultSelect = (result: ExplorerSearchResult) => {
+		if (result.type === "epic") {
+			setCollapsed((prev) => {
+				if (!prev.has(result.id)) return prev;
+				const next = new Set(prev);
+				next.delete(result.id);
+				return next;
+			});
+			scrollToRowAfterLayout(getEpicRowKey(result.id));
+			return;
+		}
+
+		const targetEpicId = result.epicId;
+		const targetFeatureId =
+			result.type === "feature" ? result.id : (result.featureId ?? null);
+
+		if (targetEpicId) {
+			setCollapsed((prev) => {
+				if (!prev.has(targetEpicId)) return prev;
+				const next = new Set(prev);
+				next.delete(targetEpicId);
+				return next;
+			});
+		}
+
+		if (targetFeatureId) {
+			scrollToRowAfterLayout(getFeatureRowKey(targetFeatureId));
+			return;
+		}
+
+		if (targetEpicId) {
+			scrollToRowAfterLayout(getEpicRowKey(targetEpicId));
+		}
+	};
 
 	const { rangeStart, columns, pxPerDay, superGroups } = useMemo(() => {
 		const range = getTimelineRange(sortedEpics, granularity);
@@ -426,6 +525,29 @@ export const MilestonesView = ({
 		}
 	};
 
+	useEffect(() => {
+		const node = leftHeaderRef.current;
+		if (!node) return;
+
+		const updateHeight = () => {
+			const nextHeight = Math.max(
+				RIGHT_HEADER_HEIGHT,
+				Math.ceil(node.getBoundingClientRect().height),
+			);
+			setLeftHeaderHeight(nextHeight);
+		};
+
+		updateHeight();
+
+		if (typeof ResizeObserver === "undefined") {
+			return;
+		}
+
+		const observer = new ResizeObserver(() => updateHeight());
+		observer.observe(node);
+		return () => observer.disconnect();
+	}, []);
+
 	// Scroll to center today whenever granularity changes or on first mount.
 	// Use rAF so the browser has painted the new column layout before we measure clientWidth.
 	useEffect(() => {
@@ -480,542 +602,601 @@ export const MilestonesView = ({
 	};
 
 	return (
-		/* Absolute inset-0 ensures the scroll container is always bounded by the parent,
-       making overflow-auto actually trigger scrollbars regardless of flex context. */
-		<div ref={scrollRef} className="absolute inset-0 overflow-auto bg-white">
-			<div style={{ minWidth: LEFT_WIDTH + totalWidth }}>
-				{/* ── Sticky Two-Row Header ── */}
-				{/* Outer: single flex row — corner spans full height, right side stacks two rows */}
-				<div
-					className="sticky top-0 z-30 bg-white border-b border-gray-200 flex"
-					style={{ height: HEADER_HEIGHT }}
-				>
-					{/* Corner: pills — spans full header height */}
-					<div
-						className="shrink-0 sticky left-0 z-40 bg-white border-r border-gray-200 flex items-center gap-1 px-3"
-						style={{ width: LEFT_WIDTH, height: HEADER_HEIGHT }}
-					>
-						{GRANULARITIES.map((g) => (
-							<button
-								type="button"
-								key={g}
-								onClick={() => setGranularity(g)}
-								className={`px-2.5 py-1 text-xs font-medium rounded-full transition-colors ${
-									granularity === g
-										? "bg-orange-500 text-white shadow-sm"
-										: "text-gray-400 hover:text-gray-600 hover:bg-gray-100 border border-gray-200 bg-white"
-								}`}
-							>
-								{G_LABELS[g]}
-							</button>
-						))}
-					</div>
-
-					{/* Right side: two stacked rows */}
-					<div className="flex flex-col flex-1 overflow-hidden">
-						{/* Row 1: super-group spans */}
-						<div
-							className="flex"
-							style={{ height: SUPER_ROW_H, width: totalWidth }}
+		<div className="absolute inset-0 bg-white">
+			<div
+				className="absolute z-50 pointer-events-none"
+				style={{ top: 8, right: 16 }}
+			>
+				<div className="pointer-events-auto inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-white/95 p-2 shadow-sm backdrop-blur">
+					{GRANULARITIES.map((g) => (
+						<button
+							type="button"
+							key={g}
+							onClick={() => setGranularity(g)}
+							className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+								granularity === g
+									? "bg-orange-500 text-white shadow-sm"
+									: "text-gray-400 hover:text-gray-600 hover:bg-gray-100 border border-gray-200 bg-white"
+							}`}
 						>
-							{superGroups
-								? superGroups.map((grp, i) => (
-										<div
-											key={i}
-											className="shrink-0 flex items-center justify-center border-r border-gray-200 overflow-hidden"
-											style={{ width: grp.colCount * cw }}
-										>
-											<span className="text-[11px] font-semibold text-blue-500 truncate">
-												{grp.label}
-											</span>
-										</div>
-									))
-								: null}
-						</div>
-
-						{/* Row 2: sub-labels */}
-						<div
-							className="flex border-t border-gray-100"
-							style={{ height: SUB_ROW_H, width: totalWidth, ...gridBg }}
-						>
-							{columns.map((col, i) => (
-								<div
-									key={i}
-									className="shrink-0 flex items-center justify-center select-none"
-									style={{
-										width: cw,
-										backgroundColor:
-											i === todayColIndex ? "#fff7ed" : undefined,
-									}}
-								>
-									<span
-										className={`text-[11px] font-medium ${
-											i === todayColIndex
-												? "text-orange-500 font-semibold"
-												: "text-gray-500"
-										}`}
-									>
-										{subLabel(col, granularity)}
-									</span>
-								</div>
-							))}
-						</div>
-					</div>
+							{G_LABELS[g]}
+						</button>
+					))}
 				</div>
+			</div>
 
-				{/* ── Empty State ── */}
-				{sortedMilestones.map((milestone) => (
-					<div key={milestone.id} className="flex border-b border-orange-100">
+			{/* Absolute inset-0 ensures the scroll container is always bounded by the parent,
+       making overflow-auto actually trigger scrollbars regardless of flex context. */}
+			<div ref={scrollRef} className="absolute inset-0 overflow-auto bg-white">
+				<div style={{ minWidth: LEFT_WIDTH + totalWidth }}>
+					{/* ── Sticky Two-Row Header ── */}
+					{/* Outer: single flex row — corner spans full height, right side stacks two rows */}
+					<div className="sticky top-0 z-30 bg-white border-b border-gray-200 flex">
 						<div
-							className="sticky left-0 z-10 flex items-center gap-2 border-r border-gray-200 bg-white px-3"
-							style={{ width: LEFT_WIDTH, height: ROW_HEIGHT }}
+							className="shrink-0 sticky left-0 z-40 bg-white border-r border-gray-200"
+							style={{ width: LEFT_WIDTH }}
 						>
-							<span
-								className="h-2 w-2 shrink-0 rounded-full"
-								style={{ backgroundColor: milestone.color ?? "#f97316" }}
-							/>
-							<span className="min-w-0 flex-1 truncate text-xs font-semibold text-gray-700">
-								{milestone.title}
-							</span>
-							<span className="text-[11px] text-gray-500">
-								{fmtShort(milestone.target_date)}
-							</span>
-							<button
-								type="button"
-								onClick={() => startEditMilestone(milestone)}
-								className="inline-flex h-6 w-6 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
-								title="Edit milestone"
-							>
-								<Pencil size={12} />
-							</button>
-							<button
-								type="button"
-								onClick={() => void onDeleteMilestone(milestone.id)}
-								className="inline-flex h-6 w-6 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
-								title="Delete milestone"
-							>
-								<Trash2 size={12} />
-							</button>
+							<div ref={leftHeaderRef}>
+								<RoadmapStructureHeader
+									epics={sortedEpics}
+									hasAnyExpanded={hasAnyExpanded}
+									onToggleCollapseAll={handleToggleCollapseAll}
+									onSearchResultSelect={handleTimelineSearchResultSelect}
+									showCollapseToggle={
+										timelineExplorerConfig.allowFeatureCollapse === false
+									}
+									className="px-4 py-4 bg-white min-w-0"
+								/>
+							</div>
 						</div>
-						<div className="relative" style={{ width: totalWidth, ...gridBg }}>
-							{todayColInRange && (
+
+						<div className="flex flex-col flex-1 overflow-hidden">
+							{rightHeaderTopHeight > 0 && (
 								<div
-									className="absolute top-0 bottom-0 pointer-events-none"
-									style={{
-										left: todayColLeft,
-										width: cw,
-										backgroundColor: "#f97316",
-										opacity: 0.07,
-									}}
+									className="border-b border-gray-100 bg-white"
+									style={{ height: rightHeaderTopHeight, width: totalWidth }}
 								/>
 							)}
-							{renderMilestoneLines(true)}
-						</div>
-					</div>
-				))}
 
-				{!hasAnyDates && (
-					<div className="flex items-center justify-center py-24 text-center">
-						<div>
-							<BarChart2 className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-							<p className="text-gray-600 font-medium text-base">
-								No dates set yet
-							</p>
-							<p className="text-gray-400 text-sm mt-1 max-w-xs">
-								Add start and end dates to features to see them on the timeline
-							</p>
-						</div>
-					</div>
-				)}
-
-				{/* ── Body ── */}
-				{sortedEpics.map((epic) => {
-					const isCollapsed = collapsed.has(epic.id);
-					const epicColor = epic.color ?? "#6366f1";
-					const epicRange = computeEpicRange(epic);
-					const features = epic.features ?? [];
-
-					return (
-						<div key={epic.id}>
-							{/* Epic row */}
 							<div
-								className="flex border-b border-gray-200"
-								style={{ height: ROW_HEIGHT }}
+								className="flex"
+								style={{ height: SUPER_ROW_H, width: totalWidth }}
 							>
-								{/* LEFT: epic label — sticky */}
-								<div
-									className="flex items-center gap-1.5 px-3 shrink-0 sticky left-0 z-10 bg-white border-r border-gray-200 cursor-pointer hover:bg-gray-50 select-none group/epic"
-									style={{ width: LEFT_WIDTH }}
-									onClick={() => toggle(epic.id)}
-								>
-									<span className="text-gray-400 shrink-0">
-										{isCollapsed ? (
-											<ChevronRight size={14} />
-										) : (
-											<ChevronDown size={14} />
-										)}
-									</span>
-									<span className="text-sm font-semibold text-gray-800 truncate flex-1">
-										{epic.title}
-									</span>
-									<span className="text-xs text-gray-400 shrink-0">
-										{features.length}
-									</span>
-									<ExternalLink
-										size={12}
-										className="text-gray-300 shrink-0 opacity-0 group-hover/epic:opacity-100 transition-opacity"
-									/>
-								</div>
-
-								{/* RIGHT: epic span bar */}
-								<div
-									className="relative"
-									style={{ width: totalWidth, ...gridBg }}
-								>
-									{/* Today column highlight */}
-									{todayColInRange && (
-										<div
-											className="absolute top-0 bottom-0 pointer-events-none"
-											style={{
-												left: todayColLeft,
-												width: cw,
-												backgroundColor: "#f97316",
-												opacity: 0.07,
-											}}
-										/>
-									)}
-									{renderMilestoneLines(true)}
-									{/* Epic span marker: text + thin line */}
-									{epicRange &&
-										(() => {
-											const left = toPx(epicRange.start, rangeStart, pxPerDay);
-											const right = toPx(epicRange.end, rangeStart, pxPerDay);
-											const lineLeft = Math.max(0, left);
-											const lineWidth = Math.max(6, right - left);
-											const durationDays = getInclusiveDays(
-												epicRange.start,
-												epicRange.end,
-											);
-											const epicLabel = `${epic.title} • ${fmtEpicDateRange(epicRange.start, epicRange.end)} • (${durationDays} day${durationDays > 1 ? "s" : ""})`;
-											return (
-												<div
-													className="absolute top-1/2 -translate-y-1/2 pointer-events-none"
-													style={{
-														left: lineLeft,
-													}}
-												>
-													<div className="text-[11px] text-gray-700 font-medium whitespace-nowrap truncate max-w-[420px]">
-														{epicLabel}
-													</div>
-													<div
-														className="mt-1 rounded-sm"
-														style={{
-															width: lineWidth,
-															height: EPIC_LINE_HEIGHT,
-															backgroundColor: epicColor,
-															opacity: EPIC_LINE_OPACITY,
-														}}
-													/>
-												</div>
-											);
-										})()}
-								</div>
+								{superGroups
+									? superGroups.map((grp, i) => (
+											<div
+												key={i}
+												className="shrink-0 flex items-center justify-center border-r border-gray-200 overflow-hidden"
+												style={{ width: grp.colCount * cw }}
+											>
+												<span className="text-[11px] font-semibold text-blue-500 truncate">
+													{grp.label}
+												</span>
+											</div>
+										))
+									: null}
 							</div>
 
-							{/* Feature rows */}
-							{!isCollapsed &&
-								features.map((feature) => {
-									const hasDates = !!(feature.start_date && feature.end_date);
-									const taskProgress = calculateFeatureProgressFromTasks(
-										feature.tasks,
-									);
-									const clampedProgress = Math.max(
-										0,
-										Math.min(100, taskProgress),
-									);
-									const barLeft = hasDates
-										? toPx(new Date(feature.start_date!), rangeStart, pxPerDay)
-										: 0;
-									const barRight = hasDates
-										? toPx(new Date(feature.end_date!), rangeStart, pxPerDay)
-										: 0;
-									const barWidth = Math.max(6, barRight - barLeft);
-									const rawFillWidth = (barWidth * clampedProgress) / 100;
-									const fillWidth =
-										clampedProgress > 0 ? Math.max(3, rawFillWidth) : 0;
-									const estimatedLabelWidth =
-										feature.title.length * FEATURE_LABEL_CHAR_PX +
-										FEATURE_LABEL_HORIZONTAL_PADDING;
-									const labelFitsInside =
-										barWidth >=
-										Math.max(
-											FEATURE_LABEL_MIN_INSIDE_WIDTH,
-											estimatedLabelWidth,
-										);
-									const tooltip = hasDates
-										? `${fmtShort(feature.start_date!)} → ${fmtShort(feature.end_date!)} • ${clampedProgress}%`
-										: "No dates set";
-
-									return (
-										<div
-											key={feature.id}
-											className="flex border-b border-gray-100"
-											style={{ height: ROW_HEIGHT }}
+							<div
+								className="flex border-t border-gray-100"
+								style={{ height: SUB_ROW_H, width: totalWidth, ...gridBg }}
+							>
+								{columns.map((col, i) => (
+									<div
+										key={i}
+										className="shrink-0 flex items-center justify-center select-none"
+										style={{
+											width: cw,
+											backgroundColor:
+												i === todayColIndex ? "#fff7ed" : undefined,
+										}}
+									>
+										<span
+											className={`text-[11px] font-medium ${
+												i === todayColIndex
+													? "text-orange-500 font-semibold"
+													: "text-gray-500"
+											}`}
 										>
-											{/* LEFT: feature label — sticky */}
-											<div
-												className="flex items-center gap-1.5 px-3 pl-7 shrink-0 sticky left-0 z-10 bg-white border-r border-gray-200 hover:bg-gray-50/60"
-												style={{ width: LEFT_WIDTH }}
-											>
-												{(feature.tasks?.length ?? 0) > 0 ? (
-													<ChevronRight
-														size={12}
-														className="text-gray-400 shrink-0"
-													/>
-												) : (
-													<span className="w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0 mx-px" />
-												)}
-												<span className="text-xs text-gray-600 truncate flex-1">
-													{feature.title}
-												</span>
-												{(feature.tasks?.length ?? 0) > 0 && (
-													<span className="text-xs text-gray-400 shrink-0">
-														{feature.tasks!.length}
+											{subLabel(col, granularity)}
+										</span>
+									</div>
+								))}
+							</div>
+						</div>
+					</div>
+
+					{sortedMilestones.map((milestone) => (
+						<div key={milestone.id} className="flex">
+							<div
+								className="sticky left-0 z-10 flex items-center gap-2 border-r border-gray-200 bg-white px-3"
+								style={{ width: LEFT_WIDTH, height: ROW_HEIGHT }}
+							>
+								<span
+									className="h-2 w-2 shrink-0 rounded-full"
+									style={{ backgroundColor: milestone.color ?? "#f97316" }}
+								/>
+								<span className="min-w-0 flex-1 truncate text-xs font-semibold text-gray-700">
+									{milestone.title}
+								</span>
+								<span className="text-[11px] text-gray-500">
+									{fmtShort(milestone.target_date)}
+								</span>
+								<button
+									type="button"
+									onClick={() => startEditMilestone(milestone)}
+									className="inline-flex h-6 w-6 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+									title="Edit milestone"
+								>
+									<Pencil size={12} />
+								</button>
+								<button
+									type="button"
+									onClick={() => void onDeleteMilestone(milestone.id)}
+									className="inline-flex h-6 w-6 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
+									title="Delete milestone"
+								>
+									<Trash2 size={12} />
+								</button>
+							</div>
+							<div
+								className="relative border-b border-orange-100"
+								style={{ width: totalWidth, ...gridBg }}
+							>
+								{todayColInRange && (
+									<div
+										className="absolute top-0 bottom-0 pointer-events-none"
+										style={{
+											left: todayColLeft,
+											width: cw,
+											backgroundColor: "#f97316",
+											opacity: 0.07,
+										}}
+									/>
+								)}
+								{renderMilestoneLines(true)}
+							</div>
+						</div>
+					))}
+
+					{!hasAnyDates && (
+						<div className="flex items-center justify-center py-24 text-center">
+							<div>
+								<BarChart2 className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+								<p className="text-gray-600 font-medium text-base">
+									No dates set yet
+								</p>
+								<p className="text-gray-400 text-sm mt-1 max-w-xs">
+									Add start and end dates to features to see them on the
+									timeline
+								</p>
+							</div>
+						</div>
+					)}
+
+					{/* ── Body ── */}
+					{sortedEpics.map((epic, epicIndex) => {
+						const isCollapsed = collapsed.has(epic.id);
+						const epicColor = epic.color ?? "#6366f1";
+						const epicRange = computeEpicRange(epic);
+						const features = epic.features ?? [];
+						const epicRowHeight =
+							ROW_HEIGHT + (epicIndex === 0 ? FIRST_EPIC_EXTRA_HEIGHT : 0);
+
+						return (
+							<div key={epic.id}>
+								{/* Epic row */}
+								<div
+									ref={setRowRef(getEpicRowKey(epic.id))}
+									className="flex"
+									style={{ height: epicRowHeight }}
+								>
+									{/* LEFT: epic label — sticky */}
+									<div
+										className="group/epic sticky left-0 z-10 shrink-0 border-r border-gray-200 bg-white px-4"
+										style={{ width: LEFT_WIDTH }}
+									>
+										<div className="flex h-full min-w-0 items-center gap-1">
+											<div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2 py-2 pr-10 text-sm font-medium text-gray-900 transition-all hover:bg-white hover:shadow-sm">
+												<button
+													type="button"
+													onClick={() => toggle(epic.id)}
+													className="cursor-pointer rounded p-0.5 hover:bg-black/5"
+													aria-label={
+														isCollapsed ? "Expand epic" : "Collapse epic"
+													}
+												>
+													{isCollapsed ? (
+														<ChevronRight className="h-4 w-4 text-gray-500" />
+													) : (
+														<ChevronDown className="h-4 w-4 text-gray-500" />
+													)}
+												</button>
+												<button
+													type="button"
+													onClick={() => toggle(epic.id)}
+													className="min-w-0 flex-1 truncate text-left text-sm text-gray-900"
+													title={epic.title}
+												>
+													{epic.title}
+												</button>
+												{features.length > 0 && (
+													<span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-normal text-gray-500">
+														{features.length}
 													</span>
 												)}
 											</div>
-
-											{/* RIGHT: feature bar */}
-											<div
-												className="relative"
-												style={{ width: totalWidth, ...gridBg }}
+											<button
+												type="button"
+												className="shrink-0 rounded-lg border border-gray-200 bg-white p-2 text-blue-700 transition-all hover:bg-blue-50"
+												title="Navigate to epic"
+												aria-label={`Navigate to ${epic.title}`}
 											>
-												{/* Today column highlight */}
-												{todayColInRange && (
-													<div
-														className="absolute top-0 bottom-0 pointer-events-none"
-														style={{
-															left: todayColLeft,
-															width: cw,
-															backgroundColor: "#f97316",
-															opacity: 0.07,
-														}}
-													/>
-												)}
-												{renderMilestoneLines(true)}
-												{/* Bar */}
-												{hasDates && (
-													<>
-														<div
-															className={`absolute top-1/2 -translate-y-1/2 ${FEATURE_BAR_ROUNDED_CLASS} group cursor-default`}
-															style={{
-																left: Math.max(0, barLeft),
-																width: barWidth,
-																height: FEATURE_BAR_HEIGHT,
-																backgroundColor: FEATURE_BAR_TRACK_COLOR,
-																borderColor: FEATURE_BAR_BORDER_COLOR,
-																borderWidth: 1,
-															}}
-														>
-															<div
-																className={`absolute left-0 top-0 bottom-0 ${FEATURE_BAR_ROUNDED_CLASS}`}
-																style={{
-																	width: fillWidth,
-																	backgroundColor: FEATURE_BAR_FILL_COLOR,
-																}}
-															/>
+												<ExternalLink className="h-3 w-3" />
+											</button>
+										</div>
+									</div>
 
-															{/* Tooltip */}
-															<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
-																<div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-1.5 whitespace-nowrap shadow-xl">
-																	<div className="font-semibold mb-0.5">
-																		{feature.title}
-																	</div>
-																	<div className="text-gray-300 text-[11px]">
-																		{tooltip}
+									{/* RIGHT: epic span bar */}
+									<div
+										className="relative border-b border-gray-200"
+										style={{ width: totalWidth, ...gridBg }}
+									>
+										{/* Today column highlight */}
+										{todayColInRange && (
+											<div
+												className="absolute top-0 bottom-0 pointer-events-none"
+												style={{
+													left: todayColLeft,
+													width: cw,
+													backgroundColor: "#f97316",
+													opacity: 0.07,
+												}}
+											/>
+										)}
+										{renderMilestoneLines(true)}
+										{/* Epic span marker: text + thin line */}
+										{epicRange &&
+											(() => {
+												const left = toPx(
+													epicRange.start,
+													rangeStart,
+													pxPerDay,
+												);
+												const right = toPx(epicRange.end, rangeStart, pxPerDay);
+												const lineLeft = Math.max(0, left);
+												const lineWidth = Math.max(6, right - left);
+												const durationDays = getInclusiveDays(
+													epicRange.start,
+													epicRange.end,
+												);
+												const epicLabel = `${epic.title} • ${fmtEpicDateRange(epicRange.start, epicRange.end)} • (${durationDays} day${durationDays > 1 ? "s" : ""})`;
+												return (
+													<div
+														className="absolute top-1/2 -translate-y-1/2 pointer-events-none"
+														style={{
+															left: lineLeft,
+														}}
+													>
+														<div className="text-[11px] text-gray-700 font-medium whitespace-nowrap truncate max-w-[420px]">
+															{epicLabel}
+														</div>
+														<div
+															className="mt-1 rounded-sm"
+															style={{
+																width: lineWidth,
+																height: EPIC_LINE_HEIGHT,
+																backgroundColor: epicColor,
+																opacity: EPIC_LINE_OPACITY,
+															}}
+														/>
+													</div>
+												);
+											})()}
+									</div>
+								</div>
+
+								{/* Feature rows */}
+								{!isCollapsed &&
+									features.map((feature) => {
+										const hasDates = !!(feature.start_date && feature.end_date);
+										const taskProgress = calculateFeatureProgressFromTasks(
+											feature.tasks,
+										);
+										const clampedProgress = Math.max(
+											0,
+											Math.min(100, taskProgress),
+										);
+										const barLeft = hasDates
+											? toPx(
+													new Date(feature.start_date!),
+													rangeStart,
+													pxPerDay,
+												)
+											: 0;
+										const barRight = hasDates
+											? toPx(new Date(feature.end_date!), rangeStart, pxPerDay)
+											: 0;
+										const barWidth = Math.max(6, barRight - barLeft);
+										const rawFillWidth = (barWidth * clampedProgress) / 100;
+										const fillWidth =
+											clampedProgress > 0 ? Math.max(3, rawFillWidth) : 0;
+										const estimatedLabelWidth =
+											feature.title.length * FEATURE_LABEL_CHAR_PX +
+											FEATURE_LABEL_HORIZONTAL_PADDING;
+										const labelFitsInside =
+											barWidth >=
+											Math.max(
+												FEATURE_LABEL_MIN_INSIDE_WIDTH,
+												estimatedLabelWidth,
+											);
+										const tooltip = hasDates
+											? `${fmtShort(feature.start_date!)} → ${fmtShort(feature.end_date!)} • ${clampedProgress}%`
+											: "No dates set";
+
+										return (
+											<div
+												key={feature.id}
+												ref={setRowRef(getFeatureRowKey(feature.id))}
+												className="flex"
+												style={{ height: ROW_HEIGHT }}
+											>
+												{/* LEFT: feature label — sticky */}
+												<div
+													className="sticky left-0 z-10 shrink-0 border-r border-gray-200 bg-white pr-4 pl-10"
+													style={{ width: LEFT_WIDTH }}
+												>
+													<div
+														className="absolute left-10 top-0 bottom-0 w-[1.5px] bg-gray-200"
+														aria-hidden
+													/>
+													<div className="flex h-full w-full min-w-0 items-center gap-1.5 rounded-md border border-transparent px-2.5 pl-6 py-1.5 text-sm text-gray-700 transition-all hover:border-gray-200 hover:bg-white hover:shadow-sm">
+														<ChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+														<span className="min-w-0 flex-1 truncate text-left">
+															{feature.title}
+														</span>
+														{(feature.tasks?.length ?? 0) > 0 && (
+															<span className="pr-7 text-xs font-normal text-gray-500">
+																{feature.tasks?.length}
+															</span>
+														)}
+													</div>
+												</div>
+
+												{/* RIGHT: feature bar */}
+												<div
+													className="relative border-b border-gray-100"
+													style={{ width: totalWidth, ...gridBg }}
+												>
+													{/* Today column highlight */}
+													{todayColInRange && (
+														<div
+															className="absolute top-0 bottom-0 pointer-events-none"
+															style={{
+																left: todayColLeft,
+																width: cw,
+																backgroundColor: "#f97316",
+																opacity: 0.07,
+															}}
+														/>
+													)}
+													{renderMilestoneLines(true)}
+													{/* Bar */}
+													{hasDates && (
+														<>
+															<div
+																className={`absolute top-1/2 -translate-y-1/2 ${FEATURE_BAR_ROUNDED_CLASS} group cursor-default`}
+																style={{
+																	left: Math.max(0, barLeft),
+																	width: barWidth,
+																	height: FEATURE_BAR_HEIGHT,
+																	backgroundColor: FEATURE_BAR_TRACK_COLOR,
+																	borderColor: FEATURE_BAR_BORDER_COLOR,
+																	borderWidth: 1,
+																}}
+															>
+																<div
+																	className={`absolute left-0 top-0 bottom-0 ${FEATURE_BAR_ROUNDED_CLASS}`}
+																	style={{
+																		width: fillWidth,
+																		backgroundColor: FEATURE_BAR_FILL_COLOR,
+																	}}
+																/>
+
+																{/* Tooltip */}
+																<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
+																	<div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-1.5 whitespace-nowrap shadow-xl">
+																		<div className="font-semibold mb-0.5">
+																			{feature.title}
+																		</div>
+																		<div className="text-gray-300 text-[11px]">
+																			{tooltip}
+																		</div>
 																	</div>
 																</div>
+
+																{/* Inline label when title fits in the bar */}
+																{labelFitsInside && (
+																	<span className="absolute inset-0 flex items-center px-2 text-[10px] text-gray-800 font-medium truncate select-none">
+																		{feature.title}
+																	</span>
+																)}
 															</div>
 
-															{/* Inline label when title fits in the bar */}
-															{labelFitsInside && (
-																<span className="absolute inset-0 flex items-center px-2 text-[10px] text-gray-800 font-medium truncate select-none">
+															{/* Outside label when title doesn't fit in the bar */}
+															{!labelFitsInside && (
+																<span
+																	className="absolute top-1/2 -translate-y-1/2 text-[11px] text-gray-700 font-medium whitespace-nowrap select-none pointer-events-none"
+																	style={{
+																		left:
+																			Math.max(0, barLeft) +
+																			barWidth +
+																			FEATURE_LABEL_OUTSIDE_GAP,
+																	}}
+																>
 																	{feature.title}
 																</span>
 															)}
-														</div>
-
-														{/* Outside label when title doesn't fit in the bar */}
-														{!labelFitsInside && (
-															<span
-																className="absolute top-1/2 -translate-y-1/2 text-[11px] text-gray-700 font-medium whitespace-nowrap select-none pointer-events-none"
-																style={{
-																	left:
-																		Math.max(0, barLeft) +
-																		barWidth +
-																		FEATURE_LABEL_OUTSIDE_GAP,
-																}}
-															>
-																{feature.title}
-															</span>
-														)}
-													</>
-												)}
+														</>
+													)}
+												</div>
 											</div>
-										</div>
-									);
-								})}
-						</div>
-					);
-				})}
-			</div>
-
-			<button
-				type="button"
-				onClick={startCreateMilestone}
-				className="fixed bottom-6 left-1/2 z-40 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-orange-500 px-6 py-3 text-base font-semibold text-white shadow-lg transition-colors hover:bg-orange-600"
-			>
-				<Plus size={18} />
-				Add Milestone
-			</button>
-
-			{isMilestoneModalOpen && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-[2px]">
-					<div className="w-full max-w-sm overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-2xl">
-						<div className="flex items-center justify-between border-b border-orange-100 bg-gradient-to-r from-orange-50 to-amber-50 px-4 py-3">
-							<h3 className="text-base font-semibold text-gray-900">
-								{milestoneModalMode === "edit"
-									? "Edit Milestone"
-									: "Add Milestone"}
-							</h3>
-							<button
-								type="button"
-								onClick={cancelMilestoneEditor}
-								className="rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
-								aria-label="Close milestone modal"
-							>
-								<X size={16} />
-							</button>
-						</div>
-						<div className="space-y-3 px-4 py-3.5">
-							<div className="rounded-lg border border-orange-100 bg-orange-50/60 px-2.5 py-2">
-								<div className="flex items-center gap-2">
-									<span
-										className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white"
-										style={{ backgroundColor: draftColor }}
-									/>
-									<p className="truncate text-[13px] font-medium text-gray-700">
-										{draftTitle.trim() || "Milestone preview"}
-									</p>
-								</div>
-							</div>
-							<div className="space-y-1">
-								<label
-									htmlFor="milestone-title"
-									className="text-xs font-medium uppercase tracking-wide text-gray-500"
-								>
-									Title
-								</label>
-								<input
-									id="milestone-title"
-									type="text"
-									value={draftTitle}
-									onChange={(e) => setDraftTitle(e.target.value)}
-									placeholder="Milestone title"
-									className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 outline-none transition-colors focus:border-orange-400"
-								/>
-							</div>
-							<div className="grid grid-cols-[1.2fr_1fr_auto] gap-2">
-								<div className="space-y-1">
-									<label
-										htmlFor="milestone-date"
-										className="text-xs font-medium uppercase tracking-wide text-gray-500"
-									>
-										Target date
-									</label>
-									<input
-										id="milestone-date"
-										type="date"
-										value={draftDate}
-										onChange={(e) => setDraftDate(e.target.value)}
-										className="w-full rounded-lg border border-gray-300 px-2.5 py-2 text-sm text-gray-700 outline-none transition-colors focus:border-orange-400"
-									/>
-								</div>
-								<div className="space-y-1">
-									<label
-										htmlFor="milestone-status"
-										className="text-xs font-medium uppercase tracking-wide text-gray-500"
-									>
-										Status
-									</label>
-									<select
-										id="milestone-status"
-										value={draftStatus}
-										onChange={(e) =>
-											setDraftStatus(
-												e.target.value as RoadmapMilestone["status"],
-											)
-										}
-										className="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm text-gray-700 outline-none transition-colors focus:border-orange-400"
-									>
-										<option value="not_started">Not Started</option>
-										<option value="in_progress">In Progress</option>
-										<option value="at_risk">At Risk</option>
-										<option value="completed">Completed</option>
-										<option value="missed">Missed</option>
-									</select>
-								</div>
-								<div className="space-y-1">
-									<label
-										htmlFor="milestone-color"
-										className="text-xs font-medium uppercase tracking-wide text-gray-500"
-									>
-										Color
-									</label>
-									<input
-										id="milestone-color"
-										type="color"
-										value={draftColor}
-										onChange={(e) => setDraftColor(e.target.value)}
-										className="h-9 w-11 rounded-lg border border-gray-300 bg-white p-1"
-									/>
-								</div>
-							</div>
-						</div>
-						<div className="flex justify-end gap-2 border-t border-gray-200 px-4 py-3">
-							<button
-								type="button"
-								onClick={cancelMilestoneEditor}
-								disabled={isSavingMilestone}
-								className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100"
-							>
-								Cancel
-							</button>
-							<button
-								type="button"
-								disabled={isSavingMilestone || !draftTitle.trim() || !draftDate}
-								onClick={() => {
-									if (milestoneModalMode === "edit" && editingMilestoneId) {
-										const milestone = sortedMilestones.find(
-											(item) => item.id === editingMilestoneId,
 										);
-										if (milestone) {
-											void saveEditedMilestone(milestone);
-										}
-										return;
+									})}
+							</div>
+						);
+					})}
+				</div>
+
+				<button
+					type="button"
+					onClick={startCreateMilestone}
+					className="fixed bottom-6 left-1/2 z-40 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-orange-500 px-6 py-3 text-base font-semibold text-white shadow-lg transition-colors hover:bg-orange-600"
+				>
+					<Plus size={18} />
+					Add Milestone
+				</button>
+
+				{isMilestoneModalOpen && (
+					<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-[2px]">
+						<div className="w-full max-w-sm overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-2xl">
+							<div className="flex items-center justify-between border-b border-orange-100 bg-gradient-to-r from-orange-50 to-amber-50 px-4 py-3">
+								<h3 className="text-base font-semibold text-gray-900">
+									{milestoneModalMode === "edit"
+										? "Edit Milestone"
+										: "Add Milestone"}
+								</h3>
+								<button
+									type="button"
+									onClick={cancelMilestoneEditor}
+									className="rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+									aria-label="Close milestone modal"
+								>
+									<X size={16} />
+								</button>
+							</div>
+							<div className="space-y-3 px-4 py-3.5">
+								<div className="rounded-lg border border-orange-100 bg-orange-50/60 px-2.5 py-2">
+									<div className="flex items-center gap-2">
+										<span
+											className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white"
+											style={{ backgroundColor: draftColor }}
+										/>
+										<p className="truncate text-[13px] font-medium text-gray-700">
+											{draftTitle.trim() || "Milestone preview"}
+										</p>
+									</div>
+								</div>
+								<div className="space-y-1">
+									<label
+										htmlFor="milestone-title"
+										className="text-xs font-medium uppercase tracking-wide text-gray-500"
+									>
+										Title
+									</label>
+									<input
+										id="milestone-title"
+										type="text"
+										value={draftTitle}
+										onChange={(e) => setDraftTitle(e.target.value)}
+										placeholder="Milestone title"
+										className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 outline-none transition-colors focus:border-orange-400"
+									/>
+								</div>
+								<div className="grid grid-cols-[1.2fr_1fr_auto] gap-2">
+									<div className="space-y-1">
+										<label
+											htmlFor="milestone-date"
+											className="text-xs font-medium uppercase tracking-wide text-gray-500"
+										>
+											Target date
+										</label>
+										<input
+											id="milestone-date"
+											type="date"
+											value={draftDate}
+											onChange={(e) => setDraftDate(e.target.value)}
+											className="w-full rounded-lg border border-gray-300 px-2.5 py-2 text-sm text-gray-700 outline-none transition-colors focus:border-orange-400"
+										/>
+									</div>
+									<div className="space-y-1">
+										<label
+											htmlFor="milestone-status"
+											className="text-xs font-medium uppercase tracking-wide text-gray-500"
+										>
+											Status
+										</label>
+										<select
+											id="milestone-status"
+											value={draftStatus}
+											onChange={(e) =>
+												setDraftStatus(
+													e.target.value as RoadmapMilestone["status"],
+												)
+											}
+											className="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm text-gray-700 outline-none transition-colors focus:border-orange-400"
+										>
+											<option value="not_started">Not Started</option>
+											<option value="in_progress">In Progress</option>
+											<option value="at_risk">At Risk</option>
+											<option value="completed">Completed</option>
+											<option value="missed">Missed</option>
+										</select>
+									</div>
+									<div className="space-y-1">
+										<label
+											htmlFor="milestone-color"
+											className="text-xs font-medium uppercase tracking-wide text-gray-500"
+										>
+											Color
+										</label>
+										<input
+											id="milestone-color"
+											type="color"
+											value={draftColor}
+											onChange={(e) => setDraftColor(e.target.value)}
+											className="h-9 w-11 rounded-lg border border-gray-300 bg-white p-1"
+										/>
+									</div>
+								</div>
+							</div>
+							<div className="flex justify-end gap-2 border-t border-gray-200 px-4 py-3">
+								<button
+									type="button"
+									onClick={cancelMilestoneEditor}
+									disabled={isSavingMilestone}
+									className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100"
+								>
+									Cancel
+								</button>
+								<button
+									type="button"
+									disabled={
+										isSavingMilestone || !draftTitle.trim() || !draftDate
 									}
-									void saveNewMilestone();
-								}}
-								className="rounded-lg bg-orange-500 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
-							>
-								{milestoneModalMode === "edit"
-									? "Save Changes"
-									: "Create Milestone"}
-							</button>
+									onClick={() => {
+										if (milestoneModalMode === "edit" && editingMilestoneId) {
+											const milestone = sortedMilestones.find(
+												(item) => item.id === editingMilestoneId,
+											);
+											if (milestone) {
+												void saveEditedMilestone(milestone);
+											}
+											return;
+										}
+										void saveNewMilestone();
+									}}
+									className="rounded-lg bg-orange-500 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+								>
+									{milestoneModalMode === "edit"
+										? "Save Changes"
+										: "Create Milestone"}
+								</button>
+							</div>
 						</div>
 					</div>
-				</div>
-			)}
+				)}
+			</div>
 		</div>
 	);
 };
