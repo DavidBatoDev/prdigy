@@ -614,9 +614,13 @@ export const epicService = {
 	 */
 	async reorder(roadmapId: string, reorders: ReorderEpicDto[]): Promise<void> {
 		try {
+			const items = reorders.map((item) => ({
+				id: item.epic_id,
+				position: item.new_order_index,
+			}));
 			await apiClient.patch(`/api/epics/reorder`, {
 				roadmap_id: roadmapId,
-				reorders,
+				items,
 			});
 		} catch (error) {
 			throw handleServiceError(error, `Reorder epics in roadmap ${roadmapId}`);

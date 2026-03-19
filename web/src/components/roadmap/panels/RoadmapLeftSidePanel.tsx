@@ -1,5 +1,5 @@
 import { ChevronRight, ExternalLink, FolderOpen, GripVertical, Plus, RotateCcw } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
 	DndContext,
 	KeyboardSensor,
@@ -28,6 +28,7 @@ import {
 	RoadmapStructureHeader,
 } from "./explorer/RoadmapStructureHeader";
 import { FeatureReorderConfirmModal } from "./FeatureReorderConfirmModal";
+import { EpicReorderConfirmModal } from "./EpicReorderConfirmModal";
 
 export type { Message } from "./ChatPanel";
 
@@ -50,6 +51,7 @@ interface RoadmapLeftSidePanelProps {
 const TASK_NAVIGATE_OFFSET_X = 620;
 const FEATURE_REORDER_CONFIRM_SKIP_KEY =
 	"roadmap.leftPanel.skipFeatureReorderConfirm";
+const EPIC_REORDER_CONFIRM_SKIP_KEY = "roadmap.leftPanel.skipEpicReorderConfirm";
 
 type PendingFeatureReorder = {
 	epicId: string;
@@ -60,6 +62,43 @@ type PendingFeatureReorder = {
 	previousOrderIds: string[];
 	nextOrderIds: string[];
 };
+
+type PendingEpicReorder = {
+	epicTitle: string;
+	previousOrderIds: string[];
+	nextOrderIds: string[];
+};
+
+type SortableEpicRowProps = {
+	epicId: string;
+	canDrag: boolean;
+	children: (args: {
+		setNodeRef: (node: HTMLElement | null) => void;
+		style: {
+			transform?: string;
+			transition?: string;
+			opacity: number;
+		};
+		handleAttributes: any;
+		handleListeners: any;
+	}) => ReactNode;
+};
+
+function SortableEpicRow({ epicId, canDrag, children }: SortableEpicRowProps) {
+	const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+		useSortable({ id: epicId });
+
+	return children({
+		setNodeRef,
+		style: {
+			transform: CSS.Transform.toString(transform),
+			transition,
+			opacity: isDragging ? 0.7 : 1,
+		},
+		handleAttributes: canDrag ? attributes : {},
+		handleListeners: canDrag ? listeners : {},
+	});
+}
 
 type SortableFeatureRowProps = {
 	feature: RoadmapFeature;
@@ -243,6 +282,8 @@ function ExplorerPanel({
 		openAddTaskPanel,
 		reorderFeaturesInEpic,
 		previewFeatureOrderInEpic,
+		reorderEpicsInRoadmap,
+		previewEpicOrderInRoadmap,
 	} = useRoadmapStore();
 	const explorerConfig = ROADMAP_STRUCTURE_EXPLORER_CONFIG.roadmap;
 	const delayedOpenTimeouts = useRef<number[]>([]);
@@ -251,9 +292,15 @@ function ExplorerPanel({
 	);
 	const [pendingFeatureReorder, setPendingFeatureReorder] =
 		useState<PendingFeatureReorder | null>(null);
+	const [pendingEpicReorder, setPendingEpicReorder] =
+		useState<PendingEpicReorder | null>(null);
 	const [isPersistingFeatureReorder, setIsPersistingFeatureReorder] =
 		useState(false);
-	const [dontAskAgainInSession, setDontAskAgainInSession] = useState(false);
+	const [isPersistingEpicReorder, setIsPersistingEpicReorder] = useState(false);
+	const [dontAskFeatureReorderAgainInSession, setDontAskFeatureReorderAgainInSession] =
+		useState(false);
+	const [dontAskEpicReorderAgainInSession, setDontAskEpicReorderAgainInSession] =
+		useState(false);
 	const currentUserRole = roadmap?.currentUserRole;
 	const canEditRoadmap =
 		!currentUserRole ||
@@ -389,6 +436,13 @@ function ExplorerPanel({
 		);
 	};
 
+	const shouldSkipEpicReorderConfirm = () => {
+		return (
+			typeof window !== "undefined" &&
+			window.sessionStorage.getItem(EPIC_REORDER_CONFIRM_SKIP_KEY) === "1"
+		);
+	};
+
 	const persistFeatureReorder = async (change: PendingFeatureReorder) => {
 		setIsPersistingFeatureReorder(true);
 		try {
@@ -429,7 +483,7 @@ function ExplorerPanel({
 			return;
 		}
 
-		setDontAskAgainInSession(false);
+		setDontAskFeatureReorderAgainInSession(false);
 		setPendingFeatureReorder(change);
 	};
 
@@ -464,18 +518,92 @@ function ExplorerPanel({
 			);
 		}
 		setPendingFeatureReorder(null);
-		setDontAskAgainInSession(false);
+		setDontAskFeatureReorderAgainInSession(false);
 	};
 
 	const handleConfirmFeatureReorder = async () => {
 		if (!pendingFeatureReorder) return;
-		if (dontAskAgainInSession && typeof window !== "undefined") {
+		if (dontAskFeatureReorderAgainInSession && typeof window !== "undefined") {
 			window.sessionStorage.setItem(FEATURE_REORDER_CONFIRM_SKIP_KEY, "1");
 		}
 		const change = pendingFeatureReorder;
 		setPendingFeatureReorder(null);
-		setDontAskAgainInSession(false);
+		setDontAskFeatureReorderAgainInSession(false);
 		await persistFeatureReorder(change);
+	};
+
+	const persistEpicReorder = async (change: PendingEpicReorder) => {
+		setIsPersistingEpicReorder(true);
+		try {
+			await reorderEpicsInRoadmap(change.nextOrderIds);
+			toast.success(`Reordered epic "${change.epicTitle}"`);
+		} catch {
+			previewEpicOrderInRoadmap(change.previousOrderIds);
+		} finally {
+			setIsPersistingEpicReorder(false);
+		}
+	};
+
+	const queueEpicReorderFromDrag = (
+		activeEpicId: string,
+		previousOrderIds: string[],
+		nextOrderIds: string[],
+	) => {
+		const epic = sortedEpics.find((item) => item.id === activeEpicId);
+		if (!epic) return;
+
+		previewEpicOrderInRoadmap(nextOrderIds);
+		const change: PendingEpicReorder = {
+			epicTitle: epic.title,
+			previousOrderIds,
+			nextOrderIds,
+		};
+
+		if (shouldSkipEpicReorderConfirm()) {
+			void persistEpicReorder(change);
+			return;
+		}
+
+		setDontAskEpicReorderAgainInSession(false);
+		setPendingEpicReorder(change);
+	};
+
+	const handleEpicDragEnd = (event: DragEndEvent) => {
+		if (!canEditRoadmap) return;
+
+		const { active, over } = event;
+		if (!over || active.id === over.id) return;
+
+		const currentOrderIds = sortedEpics.map((epic) => epic.id);
+		const oldIndex = currentOrderIds.indexOf(active.id as string);
+		const newIndex = currentOrderIds.indexOf(over.id as string);
+		if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return;
+
+		const nextOrderIds = arrayMove(currentOrderIds, oldIndex, newIndex);
+		queueEpicReorderFromDrag(
+			active.id as string,
+			currentOrderIds,
+			nextOrderIds,
+		);
+	};
+
+	const handleCancelEpicReorder = () => {
+		if (pendingEpicReorder) {
+			previewEpicOrderInRoadmap(pendingEpicReorder.previousOrderIds);
+		}
+		setPendingEpicReorder(null);
+		setDontAskEpicReorderAgainInSession(false);
+	};
+
+	const handleConfirmEpicReorder = async () => {
+		if (!pendingEpicReorder) return;
+		if (dontAskEpicReorderAgainInSession && typeof window !== "undefined") {
+			window.sessionStorage.setItem(EPIC_REORDER_CONFIRM_SKIP_KEY, "1");
+		}
+		const change = pendingEpicReorder;
+		setPendingEpicReorder(null);
+		setDontAskEpicReorderAgainInSession(false);
+		await persistEpicReorder(change);
 	};
 
 	return (
@@ -513,173 +641,238 @@ function ExplorerPanel({
 							building your roadmap.
 						</p>
 					</div>
-				) : (
-					<div className="space-y-1">
-						{sortedEpics.map((epic) => {
-							const isEpicExpanded = true;
-							const isEpicHighlighted = highlightedEpicId === epic.id;
-							const features = (epic.features || []).sort(
-								(a, b) => a.position - b.position,
-							);
+					) : (
+						<div className="space-y-1">
+							<DndContext
+								sensors={sensors}
+								collisionDetection={closestCenter}
+								onDragEnd={handleEpicDragEnd}
+							>
+								<SortableContext
+									items={sortedEpics.map((epic) => epic.id)}
+									strategy={verticalListSortingStrategy}
+								>
+									{sortedEpics.map((epic) => {
+										const isEpicExpanded = true;
+										const isEpicHighlighted = highlightedEpicId === epic.id;
+										const features = (epic.features || []).sort(
+											(a, b) => a.position - b.position,
+										);
 
-							return (
-								<div key={epic.id} className="min-w-0">
-									{/* Epic */}
-									<div className="group relative flex items-center gap-1 min-w-0">
-										<div
-											className={`flex-1 min-w-0 flex items-center gap-2 px-3 py-2 pr-12 text-sm font-medium rounded-lg transition-all border ${
-												isEpicHighlighted
-													? "text-primary bg-orange-50 border-orange-200 shadow-sm"
-													: "text-gray-900 bg-gray-50 border-gray-200 hover:bg-white hover:shadow-sm"
-											}`}
-										>
-											<ChevronRight
-												className={`w-4 h-4 transition-transform rotate-90 ${
-													isEpicHighlighted ? "text-primary" : "text-gray-500"
-												}`}
-											/>
-											<span
-												onClick={() => {
-													onSelectEpic?.(epic.id);
-													onNavigateToNode?.(epic.id);
-												}}
-												onDoubleClick={() => {
-													runAfterNavigationDelay(() => {
-														onOpenEpicEditor?.(epic.id);
-													});
-												}}
-												className="truncate flex-1 min-w-0 text-left hover:text-primary transition-colors cursor-pointer"
-												title={epic.title}
+										return (
+											<SortableEpicRow
+												key={epic.id}
+												epicId={epic.id}
+												canDrag={canEditRoadmap}
 											>
-												{epic.title}
-											</span>
-											{features.length > 0 && (
-												<span className="text-xs font-normal text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
-													{features.length}
-												</span>
-											)}
-										</div>
-										{/* Quick Add Feature Button - Absolutely positioned */}
-										<button
-											type="button"
-											onClick={() => openAddFeatureModal(epic.id)}
-											className="absolute right-10 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center w-7 h-7 text-gray-700 bg-white border border-gray-200 rounded-md hover:bg-gray-50 hover:border-primary hover:text-primary shadow-sm"
-											title="Add feature to epic"
-										>
-											<Plus className="w-3.5 h-3.5" />
-										</button>
-										<button
-											type="button"
-											onClick={() => onNavigateToEpicTab?.(epic.id)}
-											className="shrink-0 inline-flex items-center gap-1 px-2 py-2 text-xs font-medium text-blue-700 bg-white border border-gray-200 rounded-lg hover:bg-blue-50 transition-colors"
-											title="Navigate to epic"
-										>
-											<ExternalLink className="w-3 h-3" />
-										</button>
-									</div>
-
-									{/* Features */}
-									{isEpicExpanded && features.length > 0 && (
-										<div className="ml-6 mt-1.5 space-y-1 pl-3">
-											<DndContext
-												sensors={sensors}
-												collisionDetection={closestCenter}
-												onDragEnd={(event) => handleFeatureDragEnd(epic, event)}
-											>
-												<SortableContext
-													items={features.map((feature) => feature.id)}
-													strategy={verticalListSortingStrategy}
-												>
-													{features.map((feature) => {
-														const isFeatureExpanded = expandedFeatures.has(feature.id);
-														const tasks = (feature.tasks || []).sort(
-															(a, b) => a.position - b.position,
-														);
-														const canCollapseFeature =
-															explorerConfig.allowFeatureCollapse &&
-															explorerConfig.showTaskRows &&
-															tasks.length > 0;
-
-														return (
-															<div key={feature.id} className="min-w-0">
-																<SortableFeatureRow
-																	feature={feature}
-																	epic={epic}
-																	canDrag={canEditRoadmap}
-																	isFeatureExpanded={isFeatureExpanded}
-																	canCollapseFeature={canCollapseFeature}
-																	taskCount={tasks.length}
-																	onToggleFeature={toggleFeature}
-																	onSelectFeature={onSelectFeature}
-																	onNavigateToNode={onNavigateToNode}
-																	onOpenFeatureEditor={onOpenFeatureEditor}
-																	onOpenAddTaskPanel={openAddTaskPanel}
-																	runAfterNavigationDelay={runAfterNavigationDelay}
+												{({ setNodeRef, style, handleAttributes, handleListeners }) => (
+													<div
+														ref={(node) => setNodeRef(node)}
+														style={style}
+														className="min-w-0"
+													>
+														{/* Epic */}
+														<div className="group relative flex items-center gap-1 min-w-0">
+															<div
+																className={`flex-1 min-w-0 flex items-center gap-2 px-3 py-2 pr-12 text-sm font-medium rounded-lg transition-all border ${
+																	isEpicHighlighted
+																		? "text-primary bg-orange-50 border-orange-200 shadow-sm"
+																		: "text-gray-900 bg-gray-50 border-gray-200 hover:bg-white hover:shadow-sm"
+																}`}
+															>
+																<div
+																	{...handleAttributes}
+																	{...handleListeners}
+																	onClick={(event) => event.stopPropagation()}
+																	className={`inline-flex h-6 w-5 shrink-0 items-center justify-center rounded text-gray-400 ${
+																		canEditRoadmap
+																			? "cursor-grab hover:bg-gray-100 hover:text-gray-600 active:cursor-grabbing"
+																			: "cursor-default opacity-50"
+																	}`}
+																	title="Drag to reorder epic"
+																	aria-label={`Drag to reorder ${epic.title}`}
+																>
+																	<GripVertical className="h-3.5 w-3.5" />
+																</div>
+																<ChevronRight
+																	className={`w-4 h-4 transition-transform rotate-90 ${
+																		isEpicHighlighted
+																			? "text-primary"
+																			: "text-gray-500"
+																	}`}
 																/>
-
-																{/* Tasks */}
-																{explorerConfig.showTaskRows &&
-																	isFeatureExpanded &&
-																	tasks.length > 0 && (
-																		<div className="ml-5 mt-1 space-y-0.5 pl-2">
-																			{tasks.map((task) => (
-																				<button
-																					key={task.id}
-																					onClick={() => {
-																						onSelectTask?.(task.id);
-																						onNavigateToNode?.(feature.id, {
-																							offsetX: TASK_NAVIGATE_OFFSET_X,
-																						});
-																					}}
-																					className="w-full flex items-center gap-2 px-2 py-1 text-xs hover:bg-white rounded transition-colors"
-																				>
-																					<div
-																						className={`w-1.5 h-1.5 rounded-full ${getTaskDotClasses(task.status)}`}
-																					/>
-																					<span
-																						onClick={(event) => {
-																							event.stopPropagation();
-																							onNavigateToNode?.(feature.id, {
-																								offsetX: TASK_NAVIGATE_OFFSET_X,
-																							});
-																						}}
-																						onDoubleClick={(event) => {
-																							event.stopPropagation();
-																							runAfterNavigationDelay(() => {
-																								onOpenTaskDetail?.(task.id);
-																							});
-																						}}
-																						className={`truncate text-left flex-1 transition-colors hover:text-primary ${getTaskTextClasses(task.status)}`}
-																						title="Focus in canvas"
-																					>
-																						{task.title}
-																					</span>
-																				</button>
-																			))}
-																		</div>
-																	)}
+																<span
+																	onClick={() => {
+																		onSelectEpic?.(epic.id);
+																		onNavigateToNode?.(epic.id);
+																	}}
+																	onDoubleClick={() => {
+																		runAfterNavigationDelay(() => {
+																			onOpenEpicEditor?.(epic.id);
+																		});
+																	}}
+																	className="truncate flex-1 min-w-0 text-left hover:text-primary transition-colors cursor-pointer"
+																	title={epic.title}
+																>
+																	{epic.title}
+																</span>
+																{features.length > 0 && (
+																	<span className="text-xs font-normal text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+																		{features.length}
+																	</span>
+																)}
 															</div>
-														);
-													})}
-												</SortableContext>
-											</DndContext>
-										</div>
-									)}
-								</div>
-							);
-						})}
-					</div>
-				)}
+															{/* Quick Add Feature Button - Absolutely positioned */}
+															<button
+																type="button"
+																onClick={() => openAddFeatureModal(epic.id)}
+																className="absolute right-10 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center w-7 h-7 text-gray-700 bg-white border border-gray-200 rounded-md hover:bg-gray-50 hover:border-primary hover:text-primary shadow-sm"
+																title="Add feature to epic"
+															>
+																<Plus className="w-3.5 h-3.5" />
+															</button>
+															<button
+																type="button"
+																onClick={() => onNavigateToEpicTab?.(epic.id)}
+																className="shrink-0 inline-flex items-center gap-1 px-2 py-2 text-xs font-medium text-blue-700 bg-white border border-gray-200 rounded-lg hover:bg-blue-50 transition-colors"
+																title="Navigate to epic"
+															>
+																<ExternalLink className="w-3 h-3" />
+															</button>
+														</div>
+
+														{/* Features */}
+														{isEpicExpanded && features.length > 0 && (
+															<div className="ml-6 mt-1.5 space-y-1 pl-3">
+																<DndContext
+																	sensors={sensors}
+																	collisionDetection={closestCenter}
+																	onDragEnd={(event) =>
+																		handleFeatureDragEnd(epic, event)
+																	}
+																>
+																	<SortableContext
+																		items={features.map((feature) => feature.id)}
+																		strategy={verticalListSortingStrategy}
+																	>
+																		{features.map((feature) => {
+																			const isFeatureExpanded =
+																				expandedFeatures.has(feature.id);
+																			const tasks = (feature.tasks || []).sort(
+																				(a, b) => a.position - b.position,
+																			);
+																			const canCollapseFeature =
+																				explorerConfig.allowFeatureCollapse &&
+																				explorerConfig.showTaskRows &&
+																				tasks.length > 0;
+
+																			return (
+																				<div key={feature.id} className="min-w-0">
+																					<SortableFeatureRow
+																						feature={feature}
+																						epic={epic}
+																						canDrag={canEditRoadmap}
+																						isFeatureExpanded={isFeatureExpanded}
+																						canCollapseFeature={canCollapseFeature}
+																						taskCount={tasks.length}
+																						onToggleFeature={toggleFeature}
+																						onSelectFeature={onSelectFeature}
+																						onNavigateToNode={onNavigateToNode}
+																						onOpenFeatureEditor={onOpenFeatureEditor}
+																						onOpenAddTaskPanel={openAddTaskPanel}
+																						runAfterNavigationDelay={
+																							runAfterNavigationDelay
+																						}
+																					/>
+
+																					{/* Tasks */}
+																					{explorerConfig.showTaskRows &&
+																						isFeatureExpanded &&
+																						tasks.length > 0 && (
+																							<div className="ml-5 mt-1 space-y-0.5 pl-2">
+																								{tasks.map((task) => (
+																									<button
+																										key={task.id}
+																										onClick={() => {
+																											onSelectTask?.(task.id);
+																											onNavigateToNode?.(
+																												feature.id,
+																												{
+																													offsetX:
+																														TASK_NAVIGATE_OFFSET_X,
+																												},
+																											);
+																										}}
+																										className="w-full flex items-center gap-2 px-2 py-1 text-xs hover:bg-white rounded transition-colors"
+																									>
+																										<div
+																											className={`w-1.5 h-1.5 rounded-full ${getTaskDotClasses(task.status)}`}
+																										/>
+																										<span
+																											onClick={(event) => {
+																												event.stopPropagation();
+																												onNavigateToNode?.(
+																													feature.id,
+																													{
+																														offsetX:
+																															TASK_NAVIGATE_OFFSET_X,
+																													},
+																												);
+																											}}
+																											onDoubleClick={(event) => {
+																												event.stopPropagation();
+																												runAfterNavigationDelay(
+																													() => {
+																														onOpenTaskDetail?.(
+																															task.id,
+																														);
+																													},
+																												);
+																											}}
+																											className={`truncate text-left flex-1 transition-colors hover:text-primary ${getTaskTextClasses(task.status)}`}
+																											title="Focus in canvas"
+																										>
+																											{task.title}
+																										</span>
+																									</button>
+																								))}
+																							</div>
+																						)}
+																				</div>
+																			);
+																		})}
+																	</SortableContext>
+																</DndContext>
+															</div>
+														)}
+													</div>
+												)}
+											</SortableEpicRow>
+										);
+									})}
+								</SortableContext>
+							</DndContext>
+						</div>
+					)}
 			</div>
 
 			<FeatureReorderConfirmModal
 				isOpen={pendingFeatureReorder !== null}
 				isSaving={isPersistingFeatureReorder}
 				featureTitle={pendingFeatureReorder?.featureTitle ?? null}
-				dontAskAgain={dontAskAgainInSession}
-				onDontAskAgainChange={setDontAskAgainInSession}
+				dontAskAgain={dontAskFeatureReorderAgainInSession}
+				onDontAskAgainChange={setDontAskFeatureReorderAgainInSession}
 				onCancel={handleCancelFeatureReorder}
 				onConfirm={handleConfirmFeatureReorder}
+			/>
+			<EpicReorderConfirmModal
+				isOpen={pendingEpicReorder !== null}
+				isSaving={isPersistingEpicReorder}
+				epicTitle={pendingEpicReorder?.epicTitle ?? null}
+				dontAskAgain={dontAskEpicReorderAgainInSession}
+				onDontAskAgainChange={setDontAskEpicReorderAgainInSession}
+				onCancel={handleCancelEpicReorder}
+				onConfirm={handleConfirmEpicReorder}
 			/>
 		</div>
 	);

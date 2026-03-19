@@ -75,6 +75,8 @@ interface RoadmapActions {
 		epicInput?: Partial<RoadmapEpic>,
 	) => Promise<void>;
 	updateEpic: (epic: RoadmapEpic) => Promise<void>;
+	reorderEpicsInRoadmap: (orderedEpicIds: string[]) => Promise<void>;
+	previewEpicOrderInRoadmap: (orderedEpicIds: string[]) => void;
 	deleteEpic: (epicId: string) => Promise<void>;
 
 	// Feature CRUD
@@ -290,6 +292,138 @@ export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
 			set({ isLoadingEpic: false });
 			throw error;
 		}
+	},
+
+	reorderEpicsInRoadmap: async (orderedEpicIds: string[]) => {
+		const { epics, roadmap } = get();
+		if (!roadmap) return;
+		if ((epics?.length ?? 0) === 0) return;
+
+		const allEpicIds = epics.map((epic) => epic.id);
+		const epicIdSet = new Set(allEpicIds);
+		const seen = new Set<string>();
+		const normalizedOrderIds: string[] = [];
+		for (const epicId of orderedEpicIds) {
+			if (!epicId || !epicIdSet.has(epicId) || seen.has(epicId)) {
+				continue;
+			}
+			seen.add(epicId);
+			normalizedOrderIds.push(epicId);
+		}
+		for (const epicId of allEpicIds) {
+			if (seen.has(epicId)) continue;
+			seen.add(epicId);
+			normalizedOrderIds.push(epicId);
+		}
+
+		const epicIndexById = new Map(epics.map((epic) => [epic.id, epic]));
+		try {
+			set({ isLoadingEpic: true });
+			const changedEpics = normalizedOrderIds
+				.map((epicId, index) => {
+					const epic = epicIndexById.get(epicId);
+					if (!epic) return null;
+					return { epic, nextPosition: index };
+				})
+				.filter(
+					(
+						item,
+					): item is {
+						epic: RoadmapEpic;
+						nextPosition: number;
+					} => item !== null,
+				);
+
+			const reorderPatch = normalizedOrderIds.map((epicId, index) => ({
+				epic_id: epicId,
+				new_order_index: index,
+			}));
+
+			const hasInvalidExistingPositions = epics.some((epic) => {
+				const position =
+					typeof epic.position === "number" ? epic.position : Number(epic.position);
+				return !Number.isFinite(position) || position < 0;
+			});
+
+			let patchSucceeded = false;
+			try {
+				await epicService.reorder(roadmap.id, reorderPatch);
+				patchSucceeded = true;
+			} catch (patchError) {
+				const message =
+					patchError instanceof Error ? patchError.message.toLowerCase() : "";
+				const shouldFallbackToSequential =
+					hasInvalidExistingPositions ||
+					message.includes("position must not be less than 0") ||
+					message.includes("duplicate key value violates unique constraint") ||
+					message.includes("invalid input syntax");
+				if (!shouldFallbackToSequential) {
+					throw patchError;
+				}
+			}
+
+			if (!patchSucceeded) {
+				const currentMaxPosition = epics.reduce((max, epic) => {
+					const position =
+						typeof epic.position === "number"
+							? epic.position
+							: Number(epic.position);
+					if (!Number.isFinite(position) || position < 0) return max;
+					return Math.max(max, position);
+				}, 0);
+				const tempBase = currentMaxPosition + epics.length + 1000;
+				for (const [index, item] of changedEpics.entries()) {
+					await epicService.update(item.epic.id, {
+						position: tempBase + index,
+					});
+				}
+
+				for (const item of changedEpics) {
+					await epicService.update(item.epic.id, {
+						position: Math.max(0, item.nextPosition),
+					});
+				}
+			}
+
+			set({
+				epics: normalizedOrderIds
+					.map((epicId, index) => {
+						const epic = epicIndexById.get(epicId);
+						if (!epic) return null;
+						return {
+							...epic,
+							position: index,
+							updated_at: new Date().toISOString(),
+						};
+					})
+					.filter((epic): epic is RoadmapEpic => epic !== null),
+				isLoadingEpic: false,
+			});
+		} catch (error) {
+			console.error("Failed to reorder epics:", error);
+			set({ isLoadingEpic: false });
+			throw error;
+		}
+	},
+
+	previewEpicOrderInRoadmap: (orderedEpicIds: string[]) => {
+		const { epics } = get();
+		if ((epics?.length ?? 0) === 0) return;
+
+		const epicIndexById = new Map(epics.map((epic) => [epic.id, epic]));
+		set({
+			epics: orderedEpicIds
+				.map((epicId, index) => {
+					const epic = epicIndexById.get(epicId);
+					if (!epic) return null;
+					return {
+						...epic,
+						position: index,
+						updated_at: new Date().toISOString(),
+					};
+				})
+				.filter((epic): epic is RoadmapEpic => epic !== null),
+		});
 	},
 
 	deleteEpic: async (epicId: string) => {

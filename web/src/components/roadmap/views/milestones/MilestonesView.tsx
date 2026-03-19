@@ -1,5 +1,6 @@
 import { BarChart2, Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { EpicReorderConfirmModal } from "../../panels/EpicReorderConfirmModal";
 import { FeatureReorderConfirmModal } from "../../panels/FeatureReorderConfirmModal";
 import { useToast } from "@/hooks/useToast";
 import { useRoadmapStore } from "@/stores/roadmapStore";
@@ -57,6 +58,8 @@ export interface MilestonesViewProps {
 const FEATURE_DATE_CONFIRM_SKIP_KEY = "roadmap.timeline.skipDragDateConfirm";
 const FEATURE_REORDER_CONFIRM_SKIP_KEY =
   "roadmap.milestones.skipFeatureReorderConfirm";
+const EPIC_REORDER_CONFIRM_SKIP_KEY =
+  "roadmap.milestones.skipEpicReorderConfirm";
 const FEATURE_DATE_PERSIST_DEBOUNCE_MS = 250;
 const MILESTONE_DATE_PERSIST_DEBOUNCE_MS = 250;
 
@@ -76,6 +79,15 @@ type PendingFeatureReorder = {
   epicId: string;
   featureId: string;
   featureTitle: string;
+  oldIndex: number;
+  newIndex: number;
+  previousOrderIds: string[];
+  nextOrderIds: string[];
+};
+
+type PendingEpicReorder = {
+  epicId: string;
+  epicTitle: string;
   oldIndex: number;
   newIndex: number;
   previousOrderIds: string[];
@@ -102,6 +114,12 @@ export const MilestonesView = ({
   const previewFeatureOrderInEpic = useRoadmapStore(
     (state) => state.previewFeatureOrderInEpic,
   );
+  const reorderEpicsInRoadmap = useRoadmapStore(
+    (state) => state.reorderEpicsInRoadmap,
+  );
+  const previewEpicOrderInRoadmap = useRoadmapStore(
+    (state) => state.previewEpicOrderInRoadmap,
+  );
   const [granularity, setGranularity] = useState<Granularity>("month");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [leftHeaderHeight, setLeftHeaderHeight] = useState(
@@ -111,6 +129,8 @@ export const MilestonesView = ({
     useState<PendingDateChange | null>(null);
   const [pendingFeatureReorder, setPendingFeatureReorder] =
     useState<PendingFeatureReorder | null>(null);
+  const [pendingEpicReorder, setPendingEpicReorder] =
+    useState<PendingEpicReorder | null>(null);
   const [featureDateVisualDrafts, setFeatureDateVisualDrafts] = useState<
     Record<string, FeatureDateVisualDraft>
   >({});
@@ -121,8 +141,11 @@ export const MilestonesView = ({
     useState(false);
   const [dontAskReorderAgainInSession, setDontAskReorderAgainInSession] =
     useState(false);
+  const [dontAskEpicReorderAgainInSession, setDontAskEpicReorderAgainInSession] =
+    useState(false);
   const [isPersistingFeatureReorder, setIsPersistingFeatureReorder] =
     useState(false);
+  const [isPersistingEpicReorder, setIsPersistingEpicReorder] = useState(false);
   const featureDatePersistTimeoutsRef = useRef<
     Map<string, ReturnType<typeof setTimeout>>
   >(new Map());
@@ -391,6 +414,13 @@ export const MilestonesView = ({
     return (
       typeof window !== "undefined" &&
       window.sessionStorage.getItem(FEATURE_REORDER_CONFIRM_SKIP_KEY) === "1"
+    );
+  }, []);
+
+  const shouldSkipEpicReorderConfirm = useCallback(() => {
+    return (
+      typeof window !== "undefined" &&
+      window.sessionStorage.getItem(EPIC_REORDER_CONFIRM_SKIP_KEY) === "1"
     );
   }, []);
 
@@ -697,6 +727,62 @@ export const MilestonesView = ({
     persistFeatureReorder,
   ]);
 
+  const persistEpicReorder = useCallback(
+    async (change: PendingEpicReorder) => {
+      setIsPersistingEpicReorder(true);
+      try {
+        await reorderEpicsInRoadmap(change.nextOrderIds);
+        toast.success(`Reordered epic "${change.epicTitle}"`);
+      } catch (error) {
+        console.error("Failed to reorder epics in milestone view", error);
+        previewEpicOrderInRoadmap(change.previousOrderIds);
+      } finally {
+        setIsPersistingEpicReorder(false);
+      }
+    },
+    [previewEpicOrderInRoadmap, reorderEpicsInRoadmap, toast],
+  );
+
+  const handleEpicReorderDraft = useCallback(
+    (change: PendingEpicReorder) => {
+      previewEpicOrderInRoadmap(change.nextOrderIds);
+      if (shouldSkipEpicReorderConfirm()) {
+        void persistEpicReorder(change);
+        return;
+      }
+      setDontAskEpicReorderAgainInSession(false);
+      setPendingEpicReorder(change);
+    },
+    [
+      persistEpicReorder,
+      previewEpicOrderInRoadmap,
+      shouldSkipEpicReorderConfirm,
+    ],
+  );
+
+  const handleCancelEpicReorder = useCallback(() => {
+    if (pendingEpicReorder) {
+      previewEpicOrderInRoadmap(pendingEpicReorder.previousOrderIds);
+    }
+    setPendingEpicReorder(null);
+    setDontAskEpicReorderAgainInSession(false);
+  }, [pendingEpicReorder, previewEpicOrderInRoadmap]);
+
+  const handleConfirmEpicReorder = useCallback(async () => {
+    if (!pendingEpicReorder) return;
+    if (dontAskEpicReorderAgainInSession && typeof window !== "undefined") {
+      window.sessionStorage.setItem(EPIC_REORDER_CONFIRM_SKIP_KEY, "1");
+    }
+    const change = pendingEpicReorder;
+    setPendingEpicReorder(null);
+    setDontAskEpicReorderAgainInSession(false);
+    await persistEpicReorder(change);
+  }, [
+    dontAskEpicReorderAgainInSession,
+    pendingEpicReorder,
+    persistEpicReorder,
+  ]);
+
   const handleFeatureSelect = useCallback(
     (feature: RoadmapFeature) => {
       if (!onOpenFeatureEditor) return;
@@ -741,6 +827,8 @@ export const MilestonesView = ({
             onAddFeature={onAddFeature}
             canReorderFeatures={canEditTimelineDates}
             onFeatureReorderDraft={handleFeatureReorderDraft}
+            canReorderEpics={canEditTimelineDates}
+            onEpicReorderDraft={handleEpicReorderDraft}
           />
 
           <div
@@ -845,6 +933,16 @@ export const MilestonesView = ({
           onDontAskAgainChange={setDontAskReorderAgainInSession}
           onCancel={handleCancelFeatureReorder}
           onConfirm={handleConfirmFeatureReorder}
+        />
+
+        <EpicReorderConfirmModal
+          isOpen={pendingEpicReorder !== null}
+          isSaving={isPersistingEpicReorder}
+          epicTitle={pendingEpicReorder?.epicTitle ?? null}
+          dontAskAgain={dontAskEpicReorderAgainInSession}
+          onDontAskAgainChange={setDontAskEpicReorderAgainInSession}
+          onCancel={handleCancelEpicReorder}
+          onConfirm={handleConfirmEpicReorder}
         />
       </div>
     </div>
