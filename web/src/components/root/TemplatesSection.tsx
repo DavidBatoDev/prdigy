@@ -739,13 +739,12 @@ export const TemplatesSection = () => {
         <div className="flex flex-col mb-8">
           <div className="flex items-center">
             <h2 className="text-2xl font-bold text-gray-900 mr-4 whitespace-nowrap">
-              Templates by Professional Consultants
+              Consultant Roadmap Templates
             </h2>
             <div className="flex-1 h-px bg-gray-200"></div>
           </div>
           <p className="text-base text-gray-600 mt-2">
-            Kickstart your project by borrowing complete roadmaps from
-            industry-leading experts.
+            Start with proven execution plans from real consultants and launch with structure from day one.
           </p>
         </div>
 
@@ -837,7 +836,7 @@ export const TemplatesSection = () => {
                     >
                       {isCloningTemplateId === template.preview.id
                         ? "Creating..."
-                        : "Use Template"}
+                        : "Browse Template"}
                     </button>
                   </div>
                 </div>
@@ -849,7 +848,7 @@ export const TemplatesSection = () => {
       <div>
         <div className="flex items-center mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mr-4 whitespace-nowrap">
-            Your Roadmaps
+            Your Structured Roadmaps
           </h2>
           <div className="flex-1 h-px bg-gray-200"></div>
         </div>
@@ -862,13 +861,13 @@ export const TemplatesSection = () => {
           <div className="text-center py-12">
             <p className="text-red-600 mb-4">{error}</p>
             <p className="text-gray-600">
-              Unable to load roadmaps. Please try again later.
+              Your consultant-backed roadmaps appear here once your project vision is in progress.
             </p>
           </div>
         ) : templates.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-2xl border-2 border-dashed border-gray-200">
             <p className="text-gray-600 text-lg">
-              No roadmaps yet. Create your first roadmap to get started!
+              Your execution-ready roadmap will appear here after consultant matching starts.
             </p>
           </div>
         ) : (

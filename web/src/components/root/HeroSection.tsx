@@ -22,7 +22,7 @@ export const HeroSection = () => {
               <img className="w-6 h-6 rounded-full border border-white" src="https://i.pravatar.cc/100?img=2" alt="Avatar" />
               <img className="w-6 h-6 rounded-full border border-white" src="https://i.pravatar.cc/100?img=3" alt="Avatar" />
             </div>
-            <span className="text-xs font-medium text-gray-600">Trusted by 100+ Startups & Companies</span>
+            <span className="text-xs font-medium text-gray-600">Used by teams to plan and execute real projects</span>
           </motion.div>
 
           {/* Headline */}
@@ -32,7 +32,7 @@ export const HeroSection = () => {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 leading-[1.1] tracking-tight"
           >
-            The platform for <span className="text-primary">freelancers</span> and <span className="text-secondary">expert consultants.</span>
+            Turn your idea into a <span className="text-primary">structured roadmap</span>, then build it with <span className="text-secondary">the right experts.</span>
           </motion.h1>
 
           {/* Subheadline */}
@@ -42,7 +42,7 @@ export const HeroSection = () => {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="text-xs md:text-sm text-gray-600 max-w-2xl leading-relaxed"
           >
-            Connect with verified professional talent for your projects. From tech mentorship to business strategy and execution, get it done with confidence, and manage your project with a roadmap cultivated by professional consultants and freelancers.
+            Prodigitality guides delivery from project vision to consultant-backed roadmap to freelancer execution. Clients, consultants, and specialists work inside one execution-ready system.
           </motion.p>
 
           {/* Action Button */}
@@ -52,13 +52,13 @@ export const HeroSection = () => {
             transition={{ duration: 0.5, delay: 0.3 }}
             className="pt-2"
           >
-            <Link to="/project/roadmap">
+            <Link to="/auth/signup" search={{ redirect: window.location.pathname }}>
               <Button
                 variant="contained"
                 colorScheme="primary"
                 className="rounded-full px-6 py-3 text-sm font-semibold shadow-md hover:shadow-lg transition-all"
               >
-                Create your own roadmap to get started
+                Create Your Roadmap
               </Button>
             </Link>
           </motion.div>

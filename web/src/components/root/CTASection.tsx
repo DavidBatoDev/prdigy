@@ -8,12 +8,11 @@ export const CTASection = () => {
       <div className="bg-linear-to-br from-primary-light via-secondary-light to-white rounded-3xl p-12 border-2 border-primary/20">
         <TrendingUp className="w-12 h-12 text-primary mx-auto mb-4" />
         <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-          Ready to build your project?
+          Turn your idea into a working product.
         </h2>
         <p className="text-lg text-gray-700 mb-8">
-          Create a professional roadmap in minutes and connect with expert
-          consultants who can bring your vision to life. AI-powered planning
-          meets human expertise.
+          Start with a structured roadmap, align with expert consultants, and
+          execute with vetted freelancers from first milestone to delivery.
         </p>
         <div className="flex items-center justify-center gap-4">
           <Link
@@ -24,9 +23,9 @@ export const CTASection = () => {
               Start Your Project
             </Button>
           </Link>
-          <Link to="/landing">
+          <Link to="/">
             <Button variant="outlined" colorScheme="primary" size="lg">
-              Learn More
+              Browse Templates
             </Button>
           </Link>
         </div>

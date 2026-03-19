@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useAuthStore } from "@/stores/authStore";
 import { fetchProfile } from "@/queries/profile";
-import { LeftSide } from "@/components/home/LeftSide";
+import { LeftSide, PrimaryFlow } from "@/components/home/LeftSide";
 import { RightSide } from "@/components/home/RightSide";
 import { useEffect } from "react";
 import { useTutorial } from "@/contexts/TutorialContext";
@@ -54,16 +54,21 @@ function DashboardPage() {
   return (
     <div className="min-h-screen bg-[#f6f7f8]">
       <div className="max-w-[1440px] mx-auto px-10 pt-[88px] pb-8">
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-[1fr_372px] gap-6">
-          {/* Left Column */}
-          <div data-tutorial="projects-section">
-            <LeftSide />
+        <div className="space-y-8">
+          {/* Primary onboarding flow above the fold */}
+          <div>
+            <PrimaryFlow />
           </div>
 
-          {/* Right Column */}
-          <div data-tutorial="right-sidebar">
-            <RightSide />
+          {/* Secondary sections below */}
+          <div className="grid grid-cols-[1fr_372px] gap-6">
+            <div data-tutorial="projects-section">
+              <LeftSide />
+            </div>
+
+            <div data-tutorial="right-sidebar">
+              <RightSide />
+            </div>
           </div>
         </div>
       </div>
