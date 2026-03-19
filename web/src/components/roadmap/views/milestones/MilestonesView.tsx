@@ -14,9 +14,12 @@ import {
 import {
   DATE_HEADER_HEIGHT,
   DEFAULT_EXPLORER_HEADER_HEIGHT,
+  type DateChangeConfirmPayload,
   FeatureDateChangeConfirmModal,
   type FeatureDateDraftCommit,
+  type FeatureDateVisualDraft,
   type Granularity,
+  type MilestoneDateDraftCommit,
   MilestoneEditorModal,
   MilestonesLeftPanel,
   MilestonesTimelineHeader,
@@ -47,6 +50,20 @@ export interface MilestonesViewProps {
 }
 
 const FEATURE_DATE_CONFIRM_SKIP_KEY = "roadmap.timeline.skipDragDateConfirm";
+const FEATURE_DATE_PERSIST_DEBOUNCE_MS = 250;
+const MILESTONE_DATE_PERSIST_DEBOUNCE_MS = 250;
+
+type PendingDateChange =
+  | {
+      kind: "feature";
+      change: FeatureDateDraftCommit;
+      payload: DateChangeConfirmPayload;
+    }
+  | {
+      kind: "milestone";
+      change: MilestoneDateDraftCommit;
+      payload: DateChangeConfirmPayload;
+    };
 
 export const MilestonesView = ({
   roadmap: _roadmap,
@@ -64,11 +81,21 @@ export const MilestonesView = ({
   const [leftHeaderHeight, setLeftHeaderHeight] = useState(
     DEFAULT_EXPLORER_HEADER_HEIGHT,
   );
-  const [pendingFeatureDateChange, setPendingFeatureDateChange] =
-    useState<FeatureDateDraftCommit | null>(null);
-  const [isConfirmingFeatureDateChange, setIsConfirmingFeatureDateChange] =
-    useState(false);
+  const [pendingDateChange, setPendingDateChange] =
+    useState<PendingDateChange | null>(null);
+  const [featureDateVisualDrafts, setFeatureDateVisualDrafts] = useState<
+    Record<string, FeatureDateVisualDraft>
+  >({});
+  const [milestoneDateVisualDrafts, setMilestoneDateVisualDrafts] = useState<
+    Record<string, string>
+  >({});
   const [dontAskAgainInSession, setDontAskAgainInSession] = useState(false);
+  const featureDatePersistTimeoutsRef = useRef<
+    Map<string, ReturnType<typeof setTimeout>>
+  >(new Map());
+  const milestoneDatePersistTimeoutsRef = useRef<
+    Map<string, ReturnType<typeof setTimeout>>
+  >(new Map());
   const verticalScrollRef = useRef<HTMLDivElement>(null);
   const timelineScrollRef = useRef<HTMLDivElement>(null);
   const leftHeaderRef = useRef<HTMLDivElement>(null);
@@ -79,7 +106,43 @@ export const MilestonesView = ({
     () => [...milestones].sort((a, b) => (a.position ?? 0) - (b.position ?? 0)),
     [milestones],
   );
+  const effectiveSortedMilestones = useMemo(
+    () =>
+      sortedMilestones.map((milestone) => {
+        const draftTargetDate = milestoneDateVisualDrafts[milestone.id];
+        if (!draftTargetDate) return milestone;
+        return {
+          ...milestone,
+          target_date: new Date(`${draftTargetDate}T00:00:00.000Z`).toISOString(),
+        };
+      }),
+    [sortedMilestones, milestoneDateVisualDrafts],
+  );
   const sortedEpics = useMemo(() => getSortedEpics(epics), [epics]);
+  const featureDatesById = useMemo(() => {
+    const map = new Map<string, { startDate: string; endDate: string }>();
+    for (const epic of sortedEpics) {
+      for (const feature of epic.features ?? []) {
+        if (feature.start_date && feature.end_date) {
+          map.set(feature.id, {
+            startDate: feature.start_date,
+            endDate: feature.end_date,
+          });
+        }
+      }
+    }
+    return map;
+  }, [sortedEpics]);
+  const milestoneDatesById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const milestone of sortedMilestones) {
+      map.set(
+        milestone.id,
+        new Date(milestone.target_date).toISOString().slice(0, 10),
+      );
+    }
+    return map;
+  }, [sortedMilestones]);
 
   const toggleEpic = useCallback((id: string) => {
     setCollapsed((state) => {
@@ -218,7 +281,7 @@ export const MilestonesView = ({
     gridBg,
   } = useMilestonesTimeline({
     sortedEpics,
-    sortedMilestones,
+    sortedMilestones: effectiveSortedMilestones,
     granularity,
   });
 
@@ -239,7 +302,7 @@ export const MilestonesView = ({
     cancelMilestoneEditor,
     submitMilestone,
   } = useMilestoneEditor({
-    sortedMilestones,
+    sortedMilestones: effectiveSortedMilestones,
     onAddMilestone,
     onUpdateMilestone,
   });
@@ -284,9 +347,37 @@ export const MilestonesView = ({
     return () => cancelAnimationFrame(raf);
   }, [todayPx]);
 
-  const applyFeatureDateChange = useCallback(
+  const shouldSkipDateConfirm = useCallback(() => {
+    return (
+      typeof window !== "undefined" &&
+      window.sessionStorage.getItem(FEATURE_DATE_CONFIRM_SKIP_KEY) === "1"
+    );
+  }, []);
+
+  const toFeatureConfirmPayload = useCallback(
+    (change: FeatureDateDraftCommit): DateChangeConfirmPayload => ({
+      entityLabel: change.feature.title,
+      oldStartDate: change.oldStartDate,
+      oldEndDate: change.oldEndDate,
+      newStartDate: change.newStartDate,
+      newEndDate: change.newEndDate,
+    }),
+    [],
+  );
+
+  const toMilestoneConfirmPayload = useCallback(
+    (change: MilestoneDateDraftCommit): DateChangeConfirmPayload => ({
+      entityLabel: change.milestone.title,
+      oldStartDate: change.oldTargetDate,
+      oldEndDate: change.oldTargetDate,
+      newStartDate: change.newTargetDate,
+      newEndDate: change.newTargetDate,
+    }),
+    [],
+  );
+
+  const persistFeatureDateChange = useCallback(
     async (change: FeatureDateDraftCommit) => {
-      setIsConfirmingFeatureDateChange(true);
       try {
         await onUpdateFeature({
           ...change.feature,
@@ -294,43 +385,218 @@ export const MilestonesView = ({
           end_date: change.newEndDate,
           updated_at: new Date().toISOString(),
         });
-        setPendingFeatureDateChange(null);
-      } finally {
-        setIsConfirmingFeatureDateChange(false);
+      } catch (error) {
+        console.error("Failed to update feature date range", error);
+        setFeatureDateVisualDrafts((prev) => {
+          const next = { ...prev };
+          delete next[change.feature.id];
+          return next;
+        });
       }
     },
     [onUpdateFeature],
   );
 
+  const persistMilestoneDateChange = useCallback(
+    async (change: MilestoneDateDraftCommit) => {
+      try {
+        await onUpdateMilestone({
+          ...change.milestone,
+          target_date: new Date(
+            `${change.newTargetDate}T00:00:00.000Z`,
+          ).toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      } catch (error) {
+        console.error("Failed to update milestone target date", error);
+        setMilestoneDateVisualDrafts((prev) => {
+          const next = { ...prev };
+          delete next[change.milestone.id];
+          return next;
+        });
+      }
+    },
+    [onUpdateMilestone],
+  );
+
+  const queueFeatureDatePersist = useCallback(
+    (change: FeatureDateDraftCommit) => {
+      const featureId = change.feature.id;
+      const previousTimeout = featureDatePersistTimeoutsRef.current.get(featureId);
+      if (previousTimeout) {
+        clearTimeout(previousTimeout);
+      }
+
+      const timeout = setTimeout(() => {
+        featureDatePersistTimeoutsRef.current.delete(featureId);
+        void persistFeatureDateChange(change);
+      }, FEATURE_DATE_PERSIST_DEBOUNCE_MS);
+      featureDatePersistTimeoutsRef.current.set(featureId, timeout);
+    },
+    [persistFeatureDateChange],
+  );
+
+  const queueMilestoneDatePersist = useCallback(
+    (change: MilestoneDateDraftCommit) => {
+      const milestoneId = change.milestone.id;
+      const previousTimeout =
+        milestoneDatePersistTimeoutsRef.current.get(milestoneId);
+      if (previousTimeout) {
+        clearTimeout(previousTimeout);
+      }
+
+      const timeout = setTimeout(() => {
+        milestoneDatePersistTimeoutsRef.current.delete(milestoneId);
+        void persistMilestoneDateChange(change);
+      }, MILESTONE_DATE_PERSIST_DEBOUNCE_MS);
+      milestoneDatePersistTimeoutsRef.current.set(milestoneId, timeout);
+    },
+    [persistMilestoneDateChange],
+  );
+
+  useEffect(() => {
+    return () => {
+      for (const timeout of featureDatePersistTimeoutsRef.current.values()) {
+        clearTimeout(timeout);
+      }
+      featureDatePersistTimeoutsRef.current.clear();
+      for (const timeout of milestoneDatePersistTimeoutsRef.current.values()) {
+        clearTimeout(timeout);
+      }
+      milestoneDatePersistTimeoutsRef.current.clear();
+    };
+  }, []);
+
+  useEffect(() => {
+    setFeatureDateVisualDrafts((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const [featureId, draft] of Object.entries(prev)) {
+        const serverDates = featureDatesById.get(featureId);
+        if (
+          serverDates &&
+          serverDates.startDate === draft.startDate &&
+          serverDates.endDate === draft.endDate
+        ) {
+          delete next[featureId];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [featureDatesById]);
+
+  useEffect(() => {
+    setMilestoneDateVisualDrafts((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const [milestoneId, draftDate] of Object.entries(prev)) {
+        const serverDate = milestoneDatesById.get(milestoneId);
+        if (serverDate && serverDate === draftDate) {
+          delete next[milestoneId];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [milestoneDatesById]);
+
   const handleFeatureDateDraftCommit = useCallback(
     (change: FeatureDateDraftCommit) => {
       if (!canEditTimelineDates) return;
-      const shouldSkipConfirm =
-        typeof window !== "undefined" &&
-        window.sessionStorage.getItem(FEATURE_DATE_CONFIRM_SKIP_KEY) === "1";
-      if (shouldSkipConfirm) {
-        void applyFeatureDateChange(change);
+      setFeatureDateVisualDrafts((prev) => ({
+        ...prev,
+        [change.feature.id]: {
+          startDate: change.newStartDate,
+          endDate: change.newEndDate,
+        },
+      }));
+
+      if (shouldSkipDateConfirm()) {
+        queueFeatureDatePersist(change);
         return;
       }
 
       setDontAskAgainInSession(false);
-      setPendingFeatureDateChange(change);
+      setPendingDateChange({
+        kind: "feature",
+        change,
+        payload: toFeatureConfirmPayload(change),
+      });
     },
-    [applyFeatureDateChange, canEditTimelineDates],
+    [
+      canEditTimelineDates,
+      queueFeatureDatePersist,
+      shouldSkipDateConfirm,
+      toFeatureConfirmPayload,
+    ],
   );
 
-  const handleConfirmFeatureDateChange = useCallback(async () => {
-    if (!pendingFeatureDateChange) return;
+  const handleMilestoneDateDraftCommit = useCallback(
+    (change: MilestoneDateDraftCommit) => {
+      if (!canEditTimelineDates) return;
+      setMilestoneDateVisualDrafts((prev) => ({
+        ...prev,
+        [change.milestone.id]: change.newTargetDate,
+      }));
+
+      if (shouldSkipDateConfirm()) {
+        queueMilestoneDatePersist(change);
+        return;
+      }
+
+      setDontAskAgainInSession(false);
+      setPendingDateChange({
+        kind: "milestone",
+        change,
+        payload: toMilestoneConfirmPayload(change),
+      });
+    },
+    [
+      canEditTimelineDates,
+      queueMilestoneDatePersist,
+      shouldSkipDateConfirm,
+      toMilestoneConfirmPayload,
+    ],
+  );
+
+  const handleConfirmDateChange = useCallback(() => {
+    if (!pendingDateChange) return;
     if (dontAskAgainInSession && typeof window !== "undefined") {
       window.sessionStorage.setItem(FEATURE_DATE_CONFIRM_SKIP_KEY, "1");
     }
-    await applyFeatureDateChange(pendingFeatureDateChange);
-  }, [applyFeatureDateChange, dontAskAgainInSession, pendingFeatureDateChange]);
-
-  const handleCancelFeatureDateChange = useCallback(() => {
-    setPendingFeatureDateChange(null);
+    if (pendingDateChange.kind === "feature") {
+      queueFeatureDatePersist(pendingDateChange.change);
+    } else {
+      queueMilestoneDatePersist(pendingDateChange.change);
+    }
+    setPendingDateChange(null);
     setDontAskAgainInSession(false);
-  }, []);
+  }, [
+    dontAskAgainInSession,
+    pendingDateChange,
+    queueFeatureDatePersist,
+    queueMilestoneDatePersist,
+  ]);
+
+  const handleCancelDateChange = useCallback(() => {
+    if (pendingDateChange?.kind === "feature") {
+      setFeatureDateVisualDrafts((prev) => {
+        const next = { ...prev };
+        delete next[pendingDateChange.change.feature.id];
+        return next;
+      });
+    }
+    if (pendingDateChange?.kind === "milestone") {
+      setMilestoneDateVisualDrafts((prev) => {
+        const next = { ...prev };
+        delete next[pendingDateChange.change.milestone.id];
+        return next;
+      });
+    }
+    setPendingDateChange(null);
+    setDontAskAgainInSession(false);
+  }, [pendingDateChange]);
 
   return (
     <div className="absolute inset-0 bg-white">
@@ -378,9 +644,12 @@ export const MilestonesView = ({
                 granularity={granularity}
                 gridBg={gridBg}
                 milestoneMarkers={milestoneMarkers}
+                rangeStart={rangeStart}
+                canEditDateRanges={canEditTimelineDates}
                 onMilestoneSelect={(marker) =>
                   startEditMilestone(marker.milestone)
                 }
+                onMilestoneDateDraftCommit={handleMilestoneDateDraftCommit}
               />
 
               {!hasAnyDates && (
@@ -409,6 +678,7 @@ export const MilestonesView = ({
                 rangeStart={rangeStart}
                 granularity={granularity}
                 canEditDateRanges={canEditTimelineDates}
+                featureDateVisualDrafts={featureDateVisualDrafts}
                 onFeatureDateDraftCommit={handleFeatureDateDraftCommit}
               />
             </div>
@@ -441,13 +711,13 @@ export const MilestonesView = ({
         />
 
         <FeatureDateChangeConfirmModal
-          isOpen={pendingFeatureDateChange !== null}
-          change={pendingFeatureDateChange}
-          isSaving={isConfirmingFeatureDateChange}
+          isOpen={pendingDateChange !== null}
+          change={pendingDateChange?.payload ?? null}
+          isSaving={false}
           dontAskAgain={dontAskAgainInSession}
           onDontAskAgainChange={setDontAskAgainInSession}
-          onCancel={handleCancelFeatureDateChange}
-          onConfirm={handleConfirmFeatureDateChange}
+          onCancel={handleCancelDateChange}
+          onConfirm={handleConfirmDateChange}
         />
       </div>
     </div>

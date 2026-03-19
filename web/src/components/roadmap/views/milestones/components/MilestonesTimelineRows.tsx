@@ -47,6 +47,11 @@ export type FeatureDateDraftCommit = {
 	newEndDate: string;
 };
 
+export type FeatureDateVisualDraft = {
+	startDate: string;
+	endDate: string;
+};
+
 interface MilestonesTimelineRowsProps {
 	sortedEpics: RoadmapEpic[];
 	collapsed: Set<string>;
@@ -58,6 +63,7 @@ interface MilestonesTimelineRowsProps {
 	rangeStart: Date;
 	granularity: Granularity;
 	canEditDateRanges?: boolean;
+	featureDateVisualDrafts?: Record<string, FeatureDateVisualDraft>;
 	onFeatureDateDraftCommit?: (change: FeatureDateDraftCommit) => void;
 }
 
@@ -72,6 +78,7 @@ export const MilestonesTimelineRows = ({
 	rangeStart,
 	granularity,
 	canEditDateRanges = true,
+	featureDateVisualDrafts = {},
 	onFeatureDateDraftCommit,
 }: MilestonesTimelineRowsProps) => {
 	const [dragState, setDragState] = useState<{
@@ -89,22 +96,32 @@ export const MilestonesTimelineRows = ({
 			event: ReactMouseEvent<HTMLDivElement>,
 			feature: RoadmapFeature,
 			mode: FeatureDragMode,
+			effectiveStartDate?: Date | null,
+			effectiveEndDate?: Date | null,
 		) => {
 			if (!canEditDateRanges) return;
-			if (!feature.start_date || !feature.end_date) return;
+			const startDate = effectiveStartDate
+				? floorToUnit(effectiveStartDate, "day")
+				: feature.start_date
+					? floorToUnit(new Date(feature.start_date), "day")
+					: null;
+			const endDate = effectiveEndDate
+				? floorToUnit(effectiveEndDate, "day")
+				: feature.end_date
+					? floorToUnit(new Date(feature.end_date), "day")
+					: null;
+			if (!startDate || !endDate) return;
 			event.preventDefault();
 			event.stopPropagation();
 
-			const initialStartDate = floorToUnit(new Date(feature.start_date), "day");
-			const initialEndDate = floorToUnit(new Date(feature.end_date), "day");
 			setDragState({
 				feature,
 				mode,
 				anchorClientX: event.clientX,
-				initialStartDate,
-				initialEndDate,
-				draftStartDate: initialStartDate,
-				draftEndDate: initialEndDate,
+				initialStartDate: startDate,
+				initialEndDate: endDate,
+				draftStartDate: startDate,
+				draftEndDate: endDate,
 			});
 		},
 		[canEditDateRanges],
@@ -305,15 +322,20 @@ export const MilestonesTimelineRows = ({
 						{!isCollapsed &&
 							features.map((feature) => {
 								const hasDates = !!(feature.start_date && feature.end_date);
+								const visualDraft = featureDateVisualDrafts[feature.id];
 								const featureDragState =
 									dragState?.feature.id === feature.id ? dragState : null;
 								const effectiveStartDate = featureDragState
 									? featureDragState.draftStartDate
+									: visualDraft
+										? floorToUnit(new Date(visualDraft.startDate), "day")
 									: hasDates
 										? floorToUnit(new Date(feature.start_date ?? ""), "day")
 										: null;
 								const effectiveEndDate = featureDragState
 									? featureDragState.draftEndDate
+									: visualDraft
+										? floorToUnit(new Date(visualDraft.endDate), "day")
 									: hasDates
 										? floorToUnit(new Date(feature.end_date ?? ""), "day")
 										: null;
@@ -373,7 +395,13 @@ export const MilestonesTimelineRows = ({
 													className={`absolute top-1/2 -translate-y-1/2 ${FEATURE_BAR_ROUNDED_CLASS} group ${canEditDateRanges ? "cursor-move" : "cursor-default"}`}
 													data-no-pan="true"
 													onMouseDown={(event) =>
-														handleDragStart(event, feature, "move")
+														handleDragStart(
+															event,
+															feature,
+															"move",
+															effectiveStartDate,
+															effectiveEndDate,
+														)
 													}
 													style={{
 														left: Math.max(0, barLeft),
@@ -398,14 +426,26 @@ export const MilestonesTimelineRows = ({
 																className="absolute left-0 top-0 bottom-0 z-20 w-2 cursor-ew-resize bg-black/0 hover:bg-black/10"
 																data-no-pan="true"
 																onMouseDown={(event) =>
-																	handleDragStart(event, feature, "start")
+																	handleDragStart(
+																		event,
+																		feature,
+																		"start",
+																		effectiveStartDate,
+																		effectiveEndDate,
+																	)
 																}
 															/>
 															<div
 																className="absolute right-0 top-0 bottom-0 z-20 w-2 cursor-ew-resize bg-black/0 hover:bg-black/10"
 																data-no-pan="true"
 																onMouseDown={(event) =>
-																	handleDragStart(event, feature, "end")
+																	handleDragStart(
+																		event,
+																		feature,
+																		"end",
+																		effectiveStartDate,
+																		effectiveEndDate,
+																	)
 																}
 															/>
 														</>
