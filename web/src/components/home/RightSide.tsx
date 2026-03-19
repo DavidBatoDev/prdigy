@@ -1,14 +1,14 @@
 import { CalendarWidget } from "./CalendarWidget";
-import { ActivityFeed } from "./ActivityFeed";
+import { InboxPanel } from "./InboxPanel";
 
 export function RightSide() {
   return (
     <div className="space-y-4">
-      {/* Calendar */}
+      {/* Schedule */}
       <CalendarWidget />
 
-      {/* Activity Feed */}
-      <ActivityFeed />
+      {/* Inbox */}
+      <InboxPanel />
     </div>
   );
 }

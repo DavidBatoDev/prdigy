@@ -3,7 +3,8 @@ import { Link } from "@tanstack/react-router";
 import { useState, useEffect, useCallback } from "react";
 import { projectService, type Project } from "@/services/project.service";
 import { supabase } from "@/lib/supabase";
-import { useUser } from "@/stores/authStore";
+import { useAuthStore, useUser } from "@/stores/authStore";
+import { getFreelancerStage } from "@/lib/freelancer-stage";
 
 const PROJECT_STATUS_CONFIG: Record<
   string,
@@ -43,10 +44,50 @@ const PROJECT_STATUS_CONFIG: Record<
 
 export function ProjectsGrid() {
   const user = useUser();
+  const { profile } = useAuthStore();
+  const persona = profile?.active_persona || "client";
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const matchItems = [
+    {
+      id: "match-1",
+      project: "Creator Marketplace Revamp",
+      state: "reviewing",
+      insight: "Your product UX and SaaS workflow background matches current project needs.",
+    },
+    {
+      id: "match-2",
+      project: "B2B Analytics Dashboard",
+      state: "shortlisted",
+      insight: "Your interaction design focus aligns with the roadmap's execution scope.",
+    },
+    {
+      id: "match-3",
+      project: "Mobile Onboarding Optimization",
+      state: "assigned",
+      insight: "Your growth UX profile and onboarding optimization experience are a strong fit.",
+    },
+  ] as const;
+
+  const hasAssignedMatch = matchItems.some((item) => item.state === "assigned");
+  const stage = getFreelancerStage(profile, { hasConfirmedMatch: hasAssignedMatch });
+  const skillsCount = profile?.skills?.length ?? 0;
+  const profileStrength = Math.min(
+    100,
+    35 +
+      (profile?.has_completed_onboarding ? 20 : 0) +
+      (profile?.headline ? 20 : 0) +
+      (skillsCount >= 3 ? 20 : skillsCount > 0 ? 10 : 0) +
+      (profile?.city || profile?.country ? 10 : 0),
+  );
+
   const fetchProjects = useCallback(async () => {
+    if (persona === "freelancer") {
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const data = await projectService.listDashboardProjects();
       setProjects(data);
@@ -62,6 +103,7 @@ export function ProjectsGrid() {
   }, [fetchProjects]);
 
   useEffect(() => {
+    if (persona === "freelancer") return;
     if (!user?.id) return;
 
     const channel = supabase
@@ -98,16 +140,81 @@ export function ProjectsGrid() {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div className="w-[18px] h-[18px] rounded-full bg-[#333438] flex items-center justify-center">
-            <div className="w-[8px] h-[8px] rounded-full bg-white" />
+            <div className="w-2 h-2 rounded-full bg-white" />
           </div>
           <h2 className="text-[20px] font-semibold text-[#333438]">
-            MY PROJECTS
+            {persona === "freelancer" ? "MATCHES" : "MY PROJECT VISIONS"}
           </h2>
         </div>
-        <button className="text-[20px] font-semibold text-[#333438] hover:text-[#ff9933]">
-          View All →
-        </button>
+        {persona === "freelancer" ? (
+          <span className="text-xs text-[#61636c]">
+            {stage === "assigned" ? "Assignment pipeline active" : "Matching engine active"}
+          </span>
+        ) : (
+          <button className="text-[20px] font-semibold text-[#333438] hover:text-[#ff9933]">
+            View All →
+          </button>
+        )}
       </div>
+
+      {persona === "freelancer" ? (
+        <div className="space-y-3">
+          <div className="bg-white rounded-xl shadow-sm p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-semibold text-[#333438]">Profile strength</p>
+              <p className="text-sm font-semibold text-[#333438]">{profileStrength}% match score</p>
+            </div>
+            <div className="w-full h-2 bg-[#e3e5e8] rounded-full overflow-hidden mb-2">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{ width: `${profileStrength}%`, backgroundColor: "var(--secondary)" }}
+              />
+            </div>
+            <p className="text-xs text-[#61636c]">
+              Increase your score by adding clearer role focus, stronger skills, and current availability.
+            </p>
+          </div>
+
+          {matchItems.map((item) => {
+            const stateMeta =
+              item.state === "assigned"
+                ? { label: "Assigned", className: "bg-emerald-100 text-emerald-700" }
+                : item.state === "shortlisted"
+                  ? { label: "Shortlisted", className: "bg-amber-100 text-amber-700" }
+                  : { label: "Reviewing", className: "bg-blue-100 text-blue-700" };
+
+            return (
+              <div key={item.id} className="bg-white rounded-xl shadow-sm p-4">
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div>
+                    <p className="text-sm font-semibold text-[#333438]">{item.project}</p>
+                    <p className="text-xs text-[#61636c] mt-1">{item.insight}</p>
+                  </div>
+                  <span className={`text-[11px] font-semibold px-2 py-1 rounded ${stateMeta.className}`}>
+                    {stateMeta.label}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] text-[#61636c]">
+                    {item.state === "assigned"
+                      ? "Assignment confirmed. Open your work queue to begin."
+                      : "Matching in progress. Consultant decisions update continuously."}
+                  </p>
+                  <button
+                    type="button"
+                    className="text-[11px] font-semibold"
+                    style={{ color: "var(--secondary)" }}
+                    onClick={() => console.info("Match opened:", item.id)}
+                  >
+                    View match →
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
 
       <div className="grid grid-cols-3 gap-6">
         {isLoading ? (
@@ -122,12 +229,16 @@ export function ProjectsGrid() {
               <Calendar className="w-8 h-8 text-[#ff9933]" />
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              No projects yet
+              {persona === "freelancer" ? "No matched projects yet" : "No project visions yet"}
             </h3>
             <p className="text-gray-500 max-w-sm">
-              Create your first project to get started tracking milestones and
-              tasks.
+              {persona === "freelancer"
+                ? "You're in matching now. Consultants are reviewing specialist needs, and your first matched project workspace will appear here automatically."
+                : "Post your first project vision to begin consultant matching and move into roadmap execution."}
             </p>
+            {persona === "freelancer" ? (
+              <p className="text-xs text-gray-500 mt-2">Profiles are being reviewed. New opportunities are opening soon.</p>
+            ) : null}
           </div>
         ) : (
           projects.slice(0, 2).map((project, index) => {
@@ -148,10 +259,10 @@ export function ProjectsGrid() {
                 statusColor={statusConfig.color}
                 statusBadgeClass={statusConfig.badgeClass}
                 title={project.title}
-                client="Unknown Client" // TODO: Fetch client details
-                progress={project.status === "completed" ? 100 : 0} // Default mock data
+                client={project.client_id ? "Assigned" : "Not assigned"}
+                progress={project.status === "completed" ? 100 : null}
                 progressColor={statusConfig.color}
-                nextUp={project.brief ? "Review Brief" : "Create Brief"} // Default mock data
+                nextUp={project.brief ? "Review project brief" : "Add project brief"}
                 dueDate={
                   project.custom_start_date || project.start_date || null
                 }
@@ -160,6 +271,7 @@ export function ProjectsGrid() {
           })
         )}
       </div>
+      )}
     </div>
   );
 }
@@ -184,7 +296,7 @@ function ProjectCard({
   statusBadgeClass: string;
   title: string;
   client: string;
-  progress: number;
+  progress: number | null;
   progressColor: string;
   nextUp: string;
   dueDate: string | null;
@@ -206,10 +318,10 @@ function ProjectCard({
             <div className="w-px h-[25px] bg-[#92969f]" />
             <div className="flex items-center gap-2">
               <div
-                className="w-[12px] h-[12px] rounded-full flex items-center justify-center"
+                className="w-3 h-3 rounded-full flex items-center justify-center"
                 style={{ backgroundColor: statusColor }}
               >
-                <div className="w-[6px] h-[6px] rounded-full bg-white" />
+                <div className="w-1.5 h-1.5 rounded-full bg-white" />
               </div>
               <span
                 className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${statusBadgeClass}`}
@@ -230,12 +342,15 @@ function ProjectCard({
         <div>
           <div className="flex items-center justify-between text-[12px] text-[#92969f] mb-2">
             <span>Progress</span>
-            <span>{progress}%</span>
+            <span>{progress === null ? "Not tracked yet" : `${progress}%`}</span>
           </div>
-          <div className="w-full h-[8px] bg-[#c4c7cc] rounded-full overflow-hidden">
+          <div className="w-full h-2 bg-[#c4c7cc] rounded-full overflow-hidden">
             <div
               className="h-full rounded-full transition-all"
-              style={{ width: `${progress}%`, backgroundColor: progressColor }}
+              style={{
+                width: `${progress ?? 0}%`,
+                backgroundColor: progressColor,
+              }}
             />
           </div>
         </div>
@@ -263,13 +378,8 @@ function ProjectCard({
       {/* Footer */}
       <div className="pt-4 border-t border-[#92969f]">
         <div className="flex items-center justify-between">
-          <div className="flex -space-x-2">
-            <div className="w-[40px] h-[40px] rounded-full bg-[#bdbdbd] border-2 border-white flex items-center justify-center text-white text-[14px] font-semibold">
-              FF
-            </div>
-            <div className="w-[40px] h-[40px] rounded-full bg-[#bdbdbd] flex items-center justify-center text-white text-[14px] font-semibold">
-              +3
-            </div>
+          <div className="text-[12px] text-[#92969f]">
+            Open project for matching and execution details
           </div>
           <Link
             to="/project/$projectId/overview"
@@ -294,7 +404,7 @@ function ProjectCardSkeleton() {
             <div className="w-8 h-4 bg-gray-200 rounded animate-pulse" />
             <div className="w-px h-[25px] bg-[#92969f]/30" />
             <div className="flex items-center gap-1">
-              <div className="w-[12px] h-[12px] rounded-full bg-gray-200 animate-pulse" />
+              <div className="w-3 h-3 rounded-full bg-gray-200 animate-pulse" />
               <div className="w-20 h-4 bg-gray-200 rounded animate-pulse" />
             </div>
           </div>
@@ -308,7 +418,7 @@ function ProjectCardSkeleton() {
             <div className="w-16 h-3 bg-gray-200 rounded animate-pulse" />
             <div className="w-8 h-3 bg-gray-200 rounded animate-pulse" />
           </div>
-          <div className="w-full h-[8px] bg-gray-200 rounded-full overflow-hidden" />
+          <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden" />
         </div>
 
         {/* Next Up */}
@@ -328,8 +438,8 @@ function ProjectCardSkeleton() {
       <div className="pt-4 border-t border-[#92969f]/30">
         <div className="flex items-center justify-between">
           <div className="flex -space-x-2">
-            <div className="w-[40px] h-[40px] rounded-full bg-gray-200 border-2 border-white animate-pulse" />
-            <div className="w-[40px] h-[40px] rounded-full bg-gray-200 border-2 border-white animate-pulse" />
+            <div className="w-10 h-10 rounded-full bg-gray-200 border-2 border-white animate-pulse" />
+            <div className="w-10 h-10 rounded-full bg-gray-200 border-2 border-white animate-pulse" />
           </div>
           <div className="w-24 h-4 bg-gray-200 rounded animate-pulse" />
         </div>

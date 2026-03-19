@@ -10,19 +10,19 @@ export function Hero() {
   // Design configuration mapping
   const content = {
     client: {
-      title: "Turn your vision into reality.",
+      title: "Turn your project vision into an execution roadmap.",
       description:
-        "Don't let your idea stay on a napkin. Match with an expert Consultant today to architect your roadmap.",
-      buttonText: "Post a Project Vision",
+        "Post your vision, get matched with a consultant, and unlock a structured roadmap your team can execute.",
+      buttonText: "Post Project Vision",
       buttonLink: "/project-posting",
       dataTutorial: "post-project-btn",
       artSrc: "/svgs/art/client-art.svg",
     },
     freelancer: {
-      title: "Propose your skills to expert Consultants.",
+      title: "Get matched to roadmap-driven projects.",
       description:
-        "Complete your activation form and make your profile visible to verified Consultants in the marketplace.",
-      buttonText: "I Want to Work",
+        "Complete your profile to get matched by consultants and contribute to active milestone delivery.",
+      buttonText: "Complete Activation",
       buttonLink: "/freelancer/go-live",
       dataTutorial: "freelancer-go-live-btn",
       artSrc: "/svgs/art/freelancer-art.svg",
@@ -37,10 +37,10 @@ export function Hero() {
       artSrc: "/svgs/art/consultant-art.svg",
     },
     admin: {
-      title: "Turn your vision into reality.",
+      title: "Turn your project vision into an execution roadmap.",
       description:
-        "Don't let your idea stay on a napkin. Match with an expert Consultant today to architect your roadmap.",
-      buttonText: "Post a Project Vision",
+        "Post your vision, get matched with a consultant, and unlock a structured roadmap your team can execute.",
+      buttonText: "Post Project Vision",
       buttonLink: "/project-posting",
       dataTutorial: "post-project-btn",
       artSrc: "/svgs/art/9@2x.svg",

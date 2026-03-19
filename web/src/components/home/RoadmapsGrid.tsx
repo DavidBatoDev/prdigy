@@ -2,6 +2,7 @@ import { CheckCircle2, Loader, Inbox, Briefcase } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { getRoadmapsPreview } from "@/api";
+import { useAuthStore } from "@/stores/authStore";
 import type { RoadmapPreview } from "@/api/endpoints/roadmap";
 
 interface Template {
@@ -77,15 +78,17 @@ const EpicOverview = ({ preview }: { preview: RoadmapPreview }) => {
 };
 
 export function RoadmapsGrid() {
+  const { profile } = useAuthStore();
+  const persona = profile?.active_persona || "client";
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isUnavailable, setIsUnavailable] = useState(false);
 
   useEffect(() => {
     const fetchRoadmaps = async () => {
       try {
         setLoading(true);
-        setError(null);
+        setIsUnavailable(false);
 
         const roadmaps = await getRoadmapsPreview();
 
@@ -109,9 +112,7 @@ export function RoadmapsGrid() {
         setTemplates(transformedTemplates);
       } catch (err) {
         console.error("Error fetching roadmaps:", err);
-        setError(
-          err instanceof Error ? err.message : "Failed to load roadmaps",
-        );
+        setIsUnavailable(true);
         setTemplates([]);
       } finally {
         setLoading(false);
@@ -126,7 +127,9 @@ export function RoadmapsGrid() {
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Your Roadmaps</h2>
         <p className="text-sm text-gray-600 mt-1">
-          View and manage your project roadmaps
+          {persona === "freelancer"
+            ? "Roadmaps are generated automatically after you are matched to a project"
+            : "Each matched project unlocks a consultant-led roadmap for structured execution"}
         </p>
       </div>
 
@@ -134,18 +137,33 @@ export function RoadmapsGrid() {
         <div className="flex justify-center items-center py-20">
           <Loader className="w-8 h-8 animate-spin text-primary" />
         </div>
-      ) : error ? (
+      ) : isUnavailable ? (
         <div className="text-center py-12">
-          <p className="text-red-600 mb-4">{error}</p>
-          <p className="text-gray-600">
-            Unable to load roadmaps. Please try again later.
+          <p className="text-gray-900 font-semibold mb-2">
+            Your roadmap workspace is preparing
           </p>
+          <p className="text-gray-600">
+            {persona === "freelancer"
+              ? "This is where your milestone roadmap will appear once you're matched."
+              : "After consultant matching starts, your roadmap appears here with milestones and execution phases."}
+          </p>
+          {persona === "freelancer" ? (
+            <p className="text-xs text-gray-500 mt-2">Your roadmap is being prepared based on your project assignment.</p>
+          ) : null}
         </div>
       ) : templates.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-gray-600 text-base">
-            No roadmaps yet. Create your first roadmap to get started!
+          <p className="text-gray-900 font-semibold mb-2">
+            Your first roadmap is taking shape
           </p>
+          <p className="text-gray-600 text-base">
+            {persona === "freelancer"
+              ? "This is where your milestone roadmap will appear once you're matched."
+              : "Post your project vision to trigger consultant matching and automatically generate your roadmap."}
+          </p>
+          {persona === "freelancer" ? (
+            <p className="text-xs text-gray-500 mt-2">Your roadmap is being prepared based on your project assignment.</p>
+          ) : null}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
