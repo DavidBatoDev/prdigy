@@ -1,15 +1,34 @@
-import { Project } from '../../../common/entities';
+import {
+  Project,
+  ProjectResourceFolder,
+  ProjectResourceLink,
+} from '../../../common/entities';
 import {
   AddProjectMemberDto,
   CreateProjectDto,
+  CreateProjectResourceFolderDto,
+  CreateProjectResourceLinkDto,
   InviteProjectByEmailDto,
   ProjectInviteQueryDto,
+  ReorderProjectResourceFoldersDto,
+  ReorderProjectResourceLinksDto,
   RespondProjectInviteDto,
   UpdateProjectDto,
   UpdateProjectMemberDto,
   UpdateProjectMemberPermissionsDto,
+  UpdateProjectResourceFolderDto,
+  UpdateProjectResourceLinkDto,
 } from '../dto/project.dto';
 import type { ProjectPermissions } from '../permissions/project-permissions';
+
+export type ProjectResourceFolderWithLinks = ProjectResourceFolder & {
+  links: ProjectResourceLink[];
+};
+
+export type ProjectResourcesPayload = {
+  folders: ProjectResourceFolderWithLinks[];
+  uncategorized_links: ProjectResourceLink[];
+};
 
 export interface ProjectsRepository {
   getCreatorProfileForProjectCreation(userId: string): Promise<{
@@ -87,4 +106,33 @@ export interface ProjectsRepository {
     memberId: string,
     dto: UpdateProjectMemberPermissionsDto,
   ): Promise<unknown>;
+  listProjectResources(projectId: string): Promise<ProjectResourcesPayload>;
+  createProjectResourceFolder(
+    projectId: string,
+    dto: CreateProjectResourceFolderDto,
+  ): Promise<ProjectResourceFolder>;
+  updateProjectResourceFolder(
+    projectId: string,
+    folderId: string,
+    dto: UpdateProjectResourceFolderDto,
+  ): Promise<ProjectResourceFolder>;
+  deleteProjectResourceFolder(projectId: string, folderId: string): Promise<void>;
+  reorderProjectResourceFolders(
+    projectId: string,
+    dto: ReorderProjectResourceFoldersDto,
+  ): Promise<ProjectResourceFolder[]>;
+  createProjectResourceLink(
+    projectId: string,
+    dto: CreateProjectResourceLinkDto,
+  ): Promise<ProjectResourceLink>;
+  updateProjectResourceLink(
+    projectId: string,
+    linkId: string,
+    dto: UpdateProjectResourceLinkDto,
+  ): Promise<ProjectResourceLink>;
+  deleteProjectResourceLink(projectId: string, linkId: string): Promise<void>;
+  reorderProjectResourceLinks(
+    projectId: string,
+    dto: ReorderProjectResourceLinksDto,
+  ): Promise<ProjectResourceLink[]>;
 }

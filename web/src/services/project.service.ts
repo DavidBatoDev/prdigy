@@ -87,6 +87,33 @@ export interface ProjectPermissions {
   };
 }
 
+export interface ProjectResourceLink {
+  id: string;
+  project_id: string;
+  folder_id?: string | null;
+  title: string;
+  url: string;
+  description?: string | null;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectResourceFolder {
+  id: string;
+  project_id: string;
+  name: string;
+  position: number;
+  created_at: string;
+  updated_at: string;
+  links: ProjectResourceLink[];
+}
+
+export interface ProjectResourcesPayload {
+  folders: ProjectResourceFolder[];
+  uncategorized_links: ProjectResourceLink[];
+}
+
 export interface ProjectInvite {
   id: string;
   project_id: string;
@@ -112,6 +139,38 @@ export interface ProjectInvite {
 }
 
 class ProjectService {
+  private normalizeResourcesPayload(raw: unknown): ProjectResourcesPayload {
+    const candidate = (
+      raw &&
+      typeof raw === "object" &&
+      "data" in (raw as Record<string, unknown>) &&
+      (raw as Record<string, unknown>).data &&
+      typeof (raw as Record<string, unknown>).data === "object"
+        ? (raw as Record<string, unknown>).data
+        : raw
+    ) as Record<string, unknown> | null;
+
+    const foldersRaw = Array.isArray(candidate?.folders) ? candidate.folders : [];
+    const uncategorizedRaw = Array.isArray(candidate?.uncategorized_links)
+      ? candidate.uncategorized_links
+      : [];
+
+    const folders = foldersRaw.map((folder) => {
+      const parsed = (folder ?? {}) as Record<string, unknown>;
+      return {
+        ...(parsed as unknown as ProjectResourceFolder),
+        links: Array.isArray(parsed.links)
+          ? (parsed.links as ProjectResourceLink[])
+          : [],
+      };
+    });
+
+    return {
+      folders: folders as ProjectResourceFolder[],
+      uncategorized_links: uncategorizedRaw as ProjectResourceLink[],
+    };
+  }
+
   /**
    * Create a new project
    */
@@ -587,6 +646,282 @@ class ProjectService {
         err.message || err.error?.message || "Failed to delete project",
       );
     }
+  }
+
+  async getResources(projectId: string): Promise<ProjectResourcesPayload> {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("Authentication required");
+
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/api/projects/${projectId}/resources`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      },
+    );
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(
+        err.message || err.error?.message || "Failed to fetch resources",
+      );
+    }
+
+    const raw = await response.json();
+    return this.normalizeResourcesPayload(raw);
+  }
+
+  async createResourceFolder(
+    projectId: string,
+    data: { name: string },
+  ): Promise<ProjectResourceFolder> {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("Authentication required");
+
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/api/projects/${projectId}/resources/folders`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(data),
+      },
+    );
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(
+        err.message || err.error?.message || "Failed to create folder",
+      );
+    }
+
+    return (await response.json()) as ProjectResourceFolder;
+  }
+
+  async updateResourceFolder(
+    projectId: string,
+    folderId: string,
+    data: { name?: string },
+  ): Promise<ProjectResourceFolder> {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("Authentication required");
+
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/api/projects/${projectId}/resources/folders/${folderId}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(data),
+      },
+    );
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(
+        err.message || err.error?.message || "Failed to update folder",
+      );
+    }
+
+    return (await response.json()) as ProjectResourceFolder;
+  }
+
+  async deleteResourceFolder(projectId: string, folderId: string): Promise<void> {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("Authentication required");
+
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/api/projects/${projectId}/resources/folders/${folderId}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      },
+    );
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(
+        err.message || err.error?.message || "Failed to delete folder",
+      );
+    }
+  }
+
+  async reorderResourceFolders(
+    projectId: string,
+    items: Array<{ id: string; position: number }>,
+  ): Promise<ProjectResourceFolder[]> {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("Authentication required");
+
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/api/projects/${projectId}/resources/folders/reorder`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ items }),
+      },
+    );
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(
+        err.message || err.error?.message || "Failed to reorder folders",
+      );
+    }
+
+    return (await response.json()) as ProjectResourceFolder[];
+  }
+
+  async createResourceLink(
+    projectId: string,
+    data: {
+      title: string;
+      url: string;
+      description?: string;
+      folder_id?: string | null;
+    },
+  ): Promise<ProjectResourceLink> {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("Authentication required");
+
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/api/projects/${projectId}/resources/links`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(data),
+      },
+    );
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(
+        err.message || err.error?.message || "Failed to create link",
+      );
+    }
+
+    return (await response.json()) as ProjectResourceLink;
+  }
+
+  async updateResourceLink(
+    projectId: string,
+    linkId: string,
+    data: {
+      title?: string;
+      url?: string;
+      description?: string;
+      folder_id?: string | null;
+    },
+  ): Promise<ProjectResourceLink> {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("Authentication required");
+
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/api/projects/${projectId}/resources/links/${linkId}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(data),
+      },
+    );
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(
+        err.message || err.error?.message || "Failed to update link",
+      );
+    }
+
+    return (await response.json()) as ProjectResourceLink;
+  }
+
+  async deleteResourceLink(projectId: string, linkId: string): Promise<void> {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("Authentication required");
+
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/api/projects/${projectId}/resources/links/${linkId}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      },
+    );
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(
+        err.message || err.error?.message || "Failed to delete link",
+      );
+    }
+  }
+
+  async reorderResourceLinks(
+    projectId: string,
+    params: {
+      folder_id?: string | null;
+      items: Array<{ id: string; position: number }>;
+    },
+  ): Promise<ProjectResourceLink[]> {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("Authentication required");
+
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/api/projects/${projectId}/resources/links/reorder`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(params),
+      },
+    );
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(
+        err.message || err.error?.message || "Failed to reorder links",
+      );
+    }
+
+    return (await response.json()) as ProjectResourceLink[];
   }
 }
 

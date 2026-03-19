@@ -1,14 +1,22 @@
 import {
+  ArrayMinSize,
   IsBoolean,
   IsArray,
   IsEmail,
   IsEnum,
   IsIn,
+  IsInt,
   IsOptional,
   IsString,
+  IsUrl,
   IsUUID,
   MaxLength,
+  Matches,
+  Min,
+  ValidateIf,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export enum ProjectMemberRole {
   CONSULTANT = 'consultant',
@@ -145,4 +153,117 @@ export class AssignConsultantDto {
 export class TransferProjectOwnerDto {
   @IsUUID()
   new_owner_id: string;
+}
+
+class ResourceReorderItemDto {
+  @IsUUID()
+  id: string;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  position: number;
+}
+
+export class CreateProjectResourceFolderDto {
+  @IsString()
+  @MaxLength(120)
+  @Matches(/\S/, {
+    message: 'Folder name must contain at least one non-whitespace character',
+  })
+  name: string;
+}
+
+export class UpdateProjectResourceFolderDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  @Matches(/\S/, {
+    message: 'Folder name must contain at least one non-whitespace character',
+  })
+  name?: string;
+}
+
+export class ReorderProjectResourceFoldersDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => ResourceReorderItemDto)
+  items: ResourceReorderItemDto[];
+}
+
+export class CreateProjectResourceLinkDto {
+  @IsString()
+  @MaxLength(255)
+  @Matches(/\S/, {
+    message: 'Link title must contain at least one non-whitespace character',
+  })
+  title: string;
+
+  @IsString()
+  @MaxLength(2048)
+  @IsUrl({
+    require_protocol: true,
+    require_tld: false,
+    require_host: true,
+    protocols: ['http', 'https'],
+  })
+  @Matches(/^https?:\/\//i, {
+    message: 'Link URL must start with http:// or https://',
+  })
+  url: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string;
+
+  @ValidateIf((_, value) => value !== undefined && value !== null)
+  @IsUUID()
+  folder_id?: string | null;
+}
+
+export class UpdateProjectResourceLinkDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  @Matches(/\S/, {
+    message: 'Link title must contain at least one non-whitespace character',
+  })
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  @IsUrl({
+    require_protocol: true,
+    require_tld: false,
+    require_host: true,
+    protocols: ['http', 'https'],
+  })
+  @Matches(/^https?:\/\//i, {
+    message: 'Link URL must start with http:// or https://',
+  })
+  url?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string;
+
+  @ValidateIf((_, value) => value !== undefined && value !== null)
+  @IsUUID()
+  folder_id?: string | null;
+}
+
+export class ReorderProjectResourceLinksDto {
+  @ValidateIf((_, value) => value !== undefined && value !== null)
+  @IsUUID()
+  folder_id?: string | null;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => ResourceReorderItemDto)
+  items: ResourceReorderItemDto[];
 }

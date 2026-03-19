@@ -175,6 +175,27 @@ export interface ProjectMember {
   joined_at: string;
 }
 
+export interface ProjectResourceFolder {
+  id: string;
+  project_id: string;
+  name: string;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectResourceLink {
+  id: string;
+  project_id: string;
+  folder_id?: string | null;
+  title: string;
+  url: string;
+  description?: string | null;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PaymentCheckpoint {
   id: string;
   project_id: string;

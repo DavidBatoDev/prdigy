@@ -10,13 +10,19 @@ import type { ProjectsRepository } from './repositories/projects.repository.inte
 import {
   AddProjectMemberDto,
   CreateProjectDto,
+  CreateProjectResourceFolderDto,
+  CreateProjectResourceLinkDto,
   InviteProjectByEmailDto,
   ProjectInviteQueryDto,
+  ReorderProjectResourceFoldersDto,
+  ReorderProjectResourceLinksDto,
   RespondProjectInviteDto,
   TransferProjectOwnerDto,
   UpdateProjectDto,
   UpdateProjectMemberDto,
   UpdateProjectMemberPermissionsDto,
+  UpdateProjectResourceFolderDto,
+  UpdateProjectResourceLinkDto,
 } from './dto/project.dto';
 import { Project } from '../../common/entities';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -28,6 +34,10 @@ import {
   type ProjectPermissions,
   resolvePermissionTemplateKey,
 } from './permissions/project-permissions';
+import type {
+  ProjectResourceFolderWithLinks,
+  ProjectResourcesPayload,
+} from './repositories/projects.repository.interface';
 
 @Injectable()
 export class ProjectsService {
@@ -130,6 +140,32 @@ export class ProjectsService {
         'You do not have permission to manage members.',
       );
     }
+  }
+
+  private async assertCanAccessProjectResources(
+    projectId: string,
+    callerId: string,
+  ): Promise<Project> {
+    const project = await this.getProjectOrThrow(projectId);
+    const isLead =
+      callerId === project.client_id || callerId === project.consultant_id;
+
+    if (isLead) {
+      return project;
+    }
+
+    const member = await this.projectsRepo.getMemberByProjectAndUserId(
+      projectId,
+      callerId,
+    );
+
+    if (!member) {
+      throw new ForbiddenException(
+        'Only project participants can manage resources.',
+      );
+    }
+
+    return project;
   }
 
   async assertProjectPermission(
@@ -450,6 +486,97 @@ export class ProjectsService {
     }
 
     return result;
+  }
+
+  async listProjectResources(
+    projectId: string,
+    callerId: string,
+  ): Promise<ProjectResourcesPayload> {
+    await this.assertCanAccessProjectResources(projectId, callerId);
+    return this.projectsRepo.listProjectResources(projectId);
+  }
+
+  async createProjectResourceFolder(
+    projectId: string,
+    callerId: string,
+    dto: CreateProjectResourceFolderDto,
+  ): Promise<ProjectResourceFolderWithLinks> {
+    await this.assertCanAccessProjectResources(projectId, callerId);
+    const folder = await this.projectsRepo.createProjectResourceFolder(
+      projectId,
+      dto,
+    );
+    return { ...folder, links: [] };
+  }
+
+  async updateProjectResourceFolder(
+    projectId: string,
+    folderId: string,
+    callerId: string,
+    dto: UpdateProjectResourceFolderDto,
+  ): Promise<ProjectResourceFolderWithLinks> {
+    await this.assertCanAccessProjectResources(projectId, callerId);
+    const folder = await this.projectsRepo.updateProjectResourceFolder(
+      projectId,
+      folderId,
+      dto,
+    );
+    return { ...folder, links: [] };
+  }
+
+  async deleteProjectResourceFolder(
+    projectId: string,
+    folderId: string,
+    callerId: string,
+  ): Promise<void> {
+    await this.assertCanAccessProjectResources(projectId, callerId);
+    await this.projectsRepo.deleteProjectResourceFolder(projectId, folderId);
+  }
+
+  async reorderProjectResourceFolders(
+    projectId: string,
+    callerId: string,
+    dto: ReorderProjectResourceFoldersDto,
+  ) {
+    await this.assertCanAccessProjectResources(projectId, callerId);
+    return this.projectsRepo.reorderProjectResourceFolders(projectId, dto);
+  }
+
+  async createProjectResourceLink(
+    projectId: string,
+    callerId: string,
+    dto: CreateProjectResourceLinkDto,
+  ) {
+    await this.assertCanAccessProjectResources(projectId, callerId);
+    return this.projectsRepo.createProjectResourceLink(projectId, dto);
+  }
+
+  async updateProjectResourceLink(
+    projectId: string,
+    linkId: string,
+    callerId: string,
+    dto: UpdateProjectResourceLinkDto,
+  ) {
+    await this.assertCanAccessProjectResources(projectId, callerId);
+    return this.projectsRepo.updateProjectResourceLink(projectId, linkId, dto);
+  }
+
+  async deleteProjectResourceLink(
+    projectId: string,
+    linkId: string,
+    callerId: string,
+  ): Promise<void> {
+    await this.assertCanAccessProjectResources(projectId, callerId);
+    await this.projectsRepo.deleteProjectResourceLink(projectId, linkId);
+  }
+
+  async reorderProjectResourceLinks(
+    projectId: string,
+    callerId: string,
+    dto: ReorderProjectResourceLinksDto,
+  ) {
+    await this.assertCanAccessProjectResources(projectId, callerId);
+    return this.projectsRepo.reorderProjectResourceLinks(projectId, dto);
   }
 
   async updateMember(

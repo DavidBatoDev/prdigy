@@ -3,6 +3,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
@@ -18,13 +20,19 @@ import {
   AddProjectMemberDto,
   AssignConsultantDto,
   CreateProjectDto,
+  CreateProjectResourceFolderDto,
+  CreateProjectResourceLinkDto,
   InviteProjectByEmailDto,
   ProjectInviteQueryDto,
+  ReorderProjectResourceFoldersDto,
+  ReorderProjectResourceLinksDto,
   RespondProjectInviteDto,
   TransferProjectOwnerDto,
   UpdateProjectDto,
   UpdateProjectMemberDto,
   UpdateProjectMemberPermissionsDto,
+  UpdateProjectResourceFolderDto,
+  UpdateProjectResourceLinkDto,
 } from './dto/project.dto';
 
 @Controller('projects')
@@ -87,7 +95,99 @@ export class ProjectsController {
     return this.projectsService.assignConsultant(id, dto.consultant_id);
   }
 
-  // ─── Team Member Endpoints ───────────────────────────────────────────────
+  @Get(':id/resources')
+  listResources(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.projectsService.listProjectResources(id, user.id);
+  }
+
+  @Post(':id/resources/folders')
+  createResourceFolder(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateProjectResourceFolderDto,
+  ) {
+    return this.projectsService.createProjectResourceFolder(id, user.id, dto);
+  }
+
+  @Patch(':id/resources/folders/reorder')
+  reorderResourceFolders(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ReorderProjectResourceFoldersDto,
+  ) {
+    return this.projectsService.reorderProjectResourceFolders(id, user.id, dto);
+  }
+
+  @Patch(':id/resources/folders/:folderId')
+  updateResourceFolder(
+    @Param('id') id: string,
+    @Param('folderId') folderId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateProjectResourceFolderDto,
+  ) {
+    return this.projectsService.updateProjectResourceFolder(
+      id,
+      folderId,
+      user.id,
+      dto,
+    );
+  }
+
+  @Delete(':id/resources/folders/:folderId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteResourceFolder(
+    @Param('id') id: string,
+    @Param('folderId') folderId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.projectsService.deleteProjectResourceFolder(id, folderId, user.id);
+  }
+
+  @Post(':id/resources/links')
+  createResourceLink(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateProjectResourceLinkDto,
+  ) {
+    return this.projectsService.createProjectResourceLink(id, user.id, dto);
+  }
+
+  @Patch(':id/resources/links/reorder')
+  reorderResourceLinks(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ReorderProjectResourceLinksDto,
+  ) {
+    return this.projectsService.reorderProjectResourceLinks(id, user.id, dto);
+  }
+
+  @Patch(':id/resources/links/:linkId')
+  updateResourceLink(
+    @Param('id') id: string,
+    @Param('linkId') linkId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateProjectResourceLinkDto,
+  ) {
+    return this.projectsService.updateProjectResourceLink(
+      id,
+      linkId,
+      user.id,
+      dto,
+    );
+  }
+
+  @Delete(':id/resources/links/:linkId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteResourceLink(
+    @Param('id') id: string,
+    @Param('linkId') linkId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.projectsService.deleteProjectResourceLink(id, linkId, user.id);
+  }
 
   @Post(':id/members')
   addMember(

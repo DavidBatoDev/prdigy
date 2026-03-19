@@ -7,23 +7,37 @@ import {
 import { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_ADMIN } from '../../../config/supabase.module';
 import { ProjectsRepository } from './projects.repository.interface';
-import { Project } from '../../../common/entities';
+import {
+  Project,
+  ProjectResourceFolder,
+  ProjectResourceLink,
+} from '../../../common/entities';
 import {
   AddProjectMemberDto,
   CreateProjectDto,
+  CreateProjectResourceFolderDto,
+  CreateProjectResourceLinkDto,
   InviteProjectByEmailDto,
   ProjectMemberRole,
   ProjectInviteQueryDto,
+  ReorderProjectResourceFoldersDto,
+  ReorderProjectResourceLinksDto,
   RespondProjectInviteDto,
   UpdateProjectDto,
   UpdateProjectMemberDto,
   UpdateProjectMemberPermissionsDto,
+  UpdateProjectResourceFolderDto,
+  UpdateProjectResourceLinkDto,
 } from '../dto/project.dto';
 import {
   getTemplateByKey,
   resolvePermissionTemplateKey,
 } from '../permissions/project-permissions';
 import type { ProjectPermissions } from '../permissions/project-permissions';
+import type {
+  ProjectResourceFolderWithLinks,
+  ProjectResourcesPayload,
+} from './projects.repository.interface';
 
 @Injectable()
 export class SupabaseProjectsRepository implements ProjectsRepository {
@@ -850,5 +864,609 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
 
     if (error) throw new BadRequestException(error.message);
     return data;
+  }
+
+  private normalizeRequiredText(value: string | undefined, field: string): string {
+    const normalized = typeof value === 'string' ? value.trim() : '';
+    if (!normalized) {
+      throw new BadRequestException(`${field} is required.`);
+    }
+    return normalized;
+  }
+
+  private normalizeOptionalText(value?: string): string | null {
+    if (value === undefined) return null;
+    const normalized = value.trim();
+    return normalized.length > 0 ? normalized : null;
+  }
+
+  private async assertResourceFolderBelongsToProject(
+    projectId: string,
+    folderId: string,
+  ): Promise<void> {
+    const { data, error } = await this.supabase
+      .from('project_resource_folders')
+      .select('id')
+      .eq('id', folderId)
+      .eq('project_id', projectId)
+      .maybeSingle();
+
+    if (error) {
+      throw new BadRequestException(
+        error.message || 'Failed to validate resource folder.',
+      );
+    }
+
+    if (!data) {
+      throw new NotFoundException('Resource folder not found.');
+    }
+  }
+
+  private async getNextResourceFolderPosition(projectId: string): Promise<number> {
+    const { data, error } = await this.supabase
+      .from('project_resource_folders')
+      .select('position')
+      .eq('project_id', projectId)
+      .order('position', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      throw new BadRequestException(
+        error.message || 'Failed to compute next folder position.',
+      );
+    }
+
+    return typeof data?.position === 'number' ? data.position + 1 : 0;
+  }
+
+  private async getNextResourceLinkPosition(
+    projectId: string,
+    folderId: string | null,
+  ): Promise<number> {
+    let query = this.supabase
+      .from('project_resource_links')
+      .select('position')
+      .eq('project_id', projectId)
+      .order('position', { ascending: false })
+      .limit(1);
+
+    if (folderId === null) {
+      query = query.is('folder_id', null);
+    } else {
+      query = query.eq('folder_id', folderId);
+    }
+
+    const { data, error } = await query.maybeSingle();
+    if (error) {
+      throw new BadRequestException(
+        error.message || 'Failed to compute next link position.',
+      );
+    }
+
+    return typeof data?.position === 'number' ? data.position + 1 : 0;
+  }
+
+  private normalizeReorderItems(
+    items: Array<{ id: string; position: number }>,
+    existingIds: string[],
+    subject: string,
+  ): Array<{ id: string; position: number }> {
+    const seenIds = new Set<string>();
+    for (const item of items) {
+      if (seenIds.has(item.id)) {
+        throw new BadRequestException(
+          `${subject} reorder payload contains duplicate ids.`,
+        );
+      }
+      seenIds.add(item.id);
+    }
+
+    if (items.length !== existingIds.length) {
+      throw new BadRequestException(
+        `${subject} reorder payload must include all items in the container.`,
+      );
+    }
+
+    const existingIdSet = new Set(existingIds);
+    for (const item of items) {
+      if (!existingIdSet.has(item.id)) {
+        throw new BadRequestException(
+          `${subject} reorder payload contains ids outside the container.`,
+        );
+      }
+    }
+
+    const sorted = [...items].sort((a, b) => a.position - b.position);
+    sorted.forEach((item, index) => {
+      if (item.position !== index) {
+        throw new BadRequestException(
+          `${subject} reorder positions must be contiguous and start at 0.`,
+        );
+      }
+    });
+
+    return sorted;
+  }
+
+  private async compactResourceLinksContainer(
+    projectId: string,
+    folderId: string | null,
+  ): Promise<void> {
+    let query = this.supabase
+      .from('project_resource_links')
+      .select('id, position')
+      .eq('project_id', projectId)
+      .order('position', { ascending: true })
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true });
+
+    if (folderId === null) {
+      query = query.is('folder_id', null);
+    } else {
+      query = query.eq('folder_id', folderId);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      throw new BadRequestException(error.message);
+    }
+
+    const links = (data as Array<{ id: string; position: number }> | null) ?? [];
+    if (links.length === 0) return;
+
+    const maxPosition = links.reduce((max, link) => {
+      const pos = typeof link.position === 'number' ? link.position : 0;
+      return Math.max(max, pos);
+    }, 0);
+    const tempBase = maxPosition + links.length + 1000;
+
+    for (const [index, link] of links.entries()) {
+      const { error: tempError } = await this.supabase
+        .from('project_resource_links')
+        .update({
+          position: tempBase + index,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', link.id)
+        .eq('project_id', projectId);
+      if (tempError) throw new BadRequestException(tempError.message);
+    }
+
+    for (const [index, link] of links.entries()) {
+      const { error: finalError } = await this.supabase
+        .from('project_resource_links')
+        .update({
+          position: index,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', link.id)
+        .eq('project_id', projectId);
+      if (finalError) throw new BadRequestException(finalError.message);
+    }
+  }
+
+  async listProjectResources(projectId: string): Promise<ProjectResourcesPayload> {
+    const [foldersResult, linksResult] = await Promise.all([
+      this.supabase
+        .from('project_resource_folders')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('position', { ascending: true }),
+      this.supabase
+        .from('project_resource_links')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('position', { ascending: true })
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true }),
+    ]);
+
+    if (foldersResult.error) {
+      throw new BadRequestException(foldersResult.error.message);
+    }
+    if (linksResult.error) {
+      throw new BadRequestException(linksResult.error.message);
+    }
+
+    const folders =
+      (foldersResult.data as ProjectResourceFolder[] | null)?.map((folder) => ({
+        ...folder,
+        links: [],
+      })) ?? [];
+    const folderMap = new Map<string, ProjectResourceFolderWithLinks>(
+      folders.map((folder) => [folder.id, folder]),
+    );
+
+    const uncategorizedLinks: ProjectResourceLink[] = [];
+    const links = (linksResult.data as ProjectResourceLink[] | null) ?? [];
+    for (const link of links) {
+      if (link.folder_id && folderMap.has(link.folder_id)) {
+        folderMap.get(link.folder_id)!.links.push(link);
+      } else {
+        uncategorizedLinks.push(link);
+      }
+    }
+
+    return {
+      folders,
+      uncategorized_links: uncategorizedLinks,
+    };
+  }
+
+  async createProjectResourceFolder(
+    projectId: string,
+    dto: CreateProjectResourceFolderDto,
+  ): Promise<ProjectResourceFolder> {
+    const name = this.normalizeRequiredText(dto.name, 'Folder name');
+    const position = await this.getNextResourceFolderPosition(projectId);
+
+    const { data, error } = await this.supabase
+      .from('project_resource_folders')
+      .insert({
+        project_id: projectId,
+        name,
+        position,
+      })
+      .select('*')
+      .single();
+
+    if (error || !data) {
+      throw new BadRequestException(
+        error?.message || 'Failed to create resource folder.',
+      );
+    }
+
+    return data as ProjectResourceFolder;
+  }
+
+  async updateProjectResourceFolder(
+    projectId: string,
+    folderId: string,
+    dto: UpdateProjectResourceFolderDto,
+  ): Promise<ProjectResourceFolder> {
+    const patch: Record<string, unknown> = {};
+    if (dto.name !== undefined) {
+      patch.name = this.normalizeRequiredText(dto.name, 'Folder name');
+    }
+
+    if (Object.keys(patch).length === 0) {
+      const { data, error } = await this.supabase
+        .from('project_resource_folders')
+        .select('*')
+        .eq('project_id', projectId)
+        .eq('id', folderId)
+        .maybeSingle();
+      if (error) throw new BadRequestException(error.message);
+      if (!data) throw new NotFoundException('Resource folder not found.');
+      return data as ProjectResourceFolder;
+    }
+
+    const { data, error } = await this.supabase
+      .from('project_resource_folders')
+      .update({
+        ...patch,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('project_id', projectId)
+      .eq('id', folderId)
+      .select('*')
+      .maybeSingle();
+
+    if (error) throw new BadRequestException(error.message);
+    if (!data) throw new NotFoundException('Resource folder not found.');
+    return data as ProjectResourceFolder;
+  }
+
+  async deleteProjectResourceFolder(
+    projectId: string,
+    folderId: string,
+  ): Promise<void> {
+    const { data: existing, error: findError } = await this.supabase
+      .from('project_resource_folders')
+      .select('id')
+      .eq('project_id', projectId)
+      .eq('id', folderId)
+      .maybeSingle();
+    if (findError) throw new BadRequestException(findError.message);
+    if (!existing) throw new NotFoundException('Resource folder not found.');
+
+    const { error } = await this.supabase
+      .from('project_resource_folders')
+      .delete()
+      .eq('project_id', projectId)
+      .eq('id', folderId);
+
+    if (error) throw new BadRequestException(error.message);
+  }
+
+  async reorderProjectResourceFolders(
+    projectId: string,
+    dto: ReorderProjectResourceFoldersDto,
+  ): Promise<ProjectResourceFolder[]> {
+    const { data, error } = await this.supabase
+      .from('project_resource_folders')
+      .select('id, position')
+      .eq('project_id', projectId)
+      .order('position', { ascending: true });
+    if (error) throw new BadRequestException(error.message);
+
+    const existing =
+      (data as Array<{ id: string; position: number }> | null) ?? [];
+    if (existing.length === 0) {
+      throw new BadRequestException('No resource folders found to reorder.');
+    }
+
+    const sortedItems = this.normalizeReorderItems(
+      dto.items,
+      existing.map((item) => item.id),
+      'Folder',
+    );
+
+    const maxPosition = existing.reduce((max, item) => {
+      const pos = typeof item.position === 'number' ? item.position : 0;
+      return Math.max(max, pos);
+    }, 0);
+    const tempBase = maxPosition + sortedItems.length + 1000;
+
+    for (const [index, item] of sortedItems.entries()) {
+      const { error: tempError } = await this.supabase
+        .from('project_resource_folders')
+        .update({
+          position: tempBase + index,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('project_id', projectId)
+        .eq('id', item.id);
+      if (tempError) throw new BadRequestException(tempError.message);
+    }
+
+    for (const item of sortedItems) {
+      const { error: finalError } = await this.supabase
+        .from('project_resource_folders')
+        .update({
+          position: item.position,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('project_id', projectId)
+        .eq('id', item.id);
+      if (finalError) throw new BadRequestException(finalError.message);
+    }
+
+    const { data: refreshed, error: refreshError } = await this.supabase
+      .from('project_resource_folders')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('position', { ascending: true });
+    if (refreshError) throw new BadRequestException(refreshError.message);
+    return (refreshed as ProjectResourceFolder[] | null) ?? [];
+  }
+
+  async createProjectResourceLink(
+    projectId: string,
+    dto: CreateProjectResourceLinkDto,
+  ): Promise<ProjectResourceLink> {
+    const title = this.normalizeRequiredText(dto.title, 'Link title');
+    const url = this.normalizeRequiredText(dto.url, 'Link URL');
+    const description = this.normalizeOptionalText(dto.description);
+    const folderId = dto.folder_id ?? null;
+
+    if (folderId) {
+      await this.assertResourceFolderBelongsToProject(projectId, folderId);
+    }
+
+    const position = await this.getNextResourceLinkPosition(projectId, folderId);
+
+    const { data, error } = await this.supabase
+      .from('project_resource_links')
+      .insert({
+        project_id: projectId,
+        folder_id: folderId,
+        title,
+        url,
+        description,
+        position,
+      })
+      .select('*')
+      .single();
+
+    if (error || !data) {
+      throw new BadRequestException(
+        error?.message || 'Failed to create resource link.',
+      );
+    }
+
+    return data as ProjectResourceLink;
+  }
+
+  async updateProjectResourceLink(
+    projectId: string,
+    linkId: string,
+    dto: UpdateProjectResourceLinkDto,
+  ): Promise<ProjectResourceLink> {
+    const { data: existing, error: existingError } = await this.supabase
+      .from('project_resource_links')
+      .select('*')
+      .eq('project_id', projectId)
+      .eq('id', linkId)
+      .maybeSingle();
+
+    if (existingError) throw new BadRequestException(existingError.message);
+    if (!existing) throw new NotFoundException('Resource link not found.');
+
+    const existingLink = existing as ProjectResourceLink;
+    const patch: Record<string, unknown> = {};
+    let shouldCompactSourceContainer = false;
+
+    if (dto.title !== undefined) {
+      patch.title = this.normalizeRequiredText(dto.title, 'Link title');
+    }
+    if (dto.url !== undefined) {
+      patch.url = this.normalizeRequiredText(dto.url, 'Link URL');
+    }
+    if (dto.description !== undefined) {
+      patch.description = this.normalizeOptionalText(dto.description);
+    }
+
+    const hasFolderIdInPayload = Object.prototype.hasOwnProperty.call(
+      dto,
+      'folder_id',
+    );
+    let sourceFolderIdForCompaction: string | null = existingLink.folder_id ?? null;
+    if (hasFolderIdInPayload) {
+      const nextFolderId = dto.folder_id ?? null;
+      if (nextFolderId !== null) {
+        await this.assertResourceFolderBelongsToProject(projectId, nextFolderId);
+      }
+
+      patch.folder_id = nextFolderId;
+      if (nextFolderId !== (existingLink.folder_id ?? null)) {
+        shouldCompactSourceContainer = true;
+        patch.position = await this.getNextResourceLinkPosition(
+          projectId,
+          nextFolderId,
+        );
+      } else {
+        sourceFolderIdForCompaction = null;
+      }
+    }
+
+    if (Object.keys(patch).length === 0) {
+      return existingLink;
+    }
+
+    const { data, error } = await this.supabase
+      .from('project_resource_links')
+      .update({
+        ...patch,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('project_id', projectId)
+      .eq('id', linkId)
+      .select('*')
+      .maybeSingle();
+
+    if (error) throw new BadRequestException(error.message);
+    if (!data) throw new NotFoundException('Resource link not found.');
+
+    if (shouldCompactSourceContainer) {
+      await this.compactResourceLinksContainer(
+        projectId,
+        sourceFolderIdForCompaction,
+      );
+    }
+
+    return data as ProjectResourceLink;
+  }
+
+  async deleteProjectResourceLink(projectId: string, linkId: string): Promise<void> {
+    const { data: existing, error: findError } = await this.supabase
+      .from('project_resource_links')
+      .select('id, folder_id')
+      .eq('project_id', projectId)
+      .eq('id', linkId)
+      .maybeSingle();
+
+    if (findError) throw new BadRequestException(findError.message);
+    if (!existing) throw new NotFoundException('Resource link not found.');
+
+    const sourceFolderId = (existing.folder_id as string | null) ?? null;
+
+    const { error } = await this.supabase
+      .from('project_resource_links')
+      .delete()
+      .eq('project_id', projectId)
+      .eq('id', linkId);
+
+    if (error) throw new BadRequestException(error.message);
+
+    await this.compactResourceLinksContainer(projectId, sourceFolderId);
+  }
+
+  async reorderProjectResourceLinks(
+    projectId: string,
+    dto: ReorderProjectResourceLinksDto,
+  ): Promise<ProjectResourceLink[]> {
+    const folderId = dto.folder_id ?? null;
+    if (folderId) {
+      await this.assertResourceFolderBelongsToProject(projectId, folderId);
+    }
+
+    let query = this.supabase
+      .from('project_resource_links')
+      .select('id, position')
+      .eq('project_id', projectId)
+      .order('position', { ascending: true })
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true });
+
+    if (folderId === null) {
+      query = query.is('folder_id', null);
+    } else {
+      query = query.eq('folder_id', folderId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw new BadRequestException(error.message);
+
+    const existing =
+      (data as Array<{ id: string; position: number }> | null) ?? [];
+    if (existing.length === 0) {
+      throw new BadRequestException('No resource links found to reorder.');
+    }
+
+    const sortedItems = this.normalizeReorderItems(
+      dto.items,
+      existing.map((item) => item.id),
+      'Link',
+    );
+
+    const maxPosition = existing.reduce((max, item) => {
+      const pos = typeof item.position === 'number' ? item.position : 0;
+      return Math.max(max, pos);
+    }, 0);
+    const tempBase = maxPosition + sortedItems.length + 1000;
+
+    for (const [index, item] of sortedItems.entries()) {
+      const { error: tempError } = await this.supabase
+        .from('project_resource_links')
+        .update({
+          position: tempBase + index,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('project_id', projectId)
+        .eq('id', item.id);
+      if (tempError) throw new BadRequestException(tempError.message);
+    }
+
+    for (const item of sortedItems) {
+      const { error: finalError } = await this.supabase
+        .from('project_resource_links')
+        .update({
+          position: item.position,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('project_id', projectId)
+        .eq('id', item.id);
+      if (finalError) throw new BadRequestException(finalError.message);
+    }
+
+    let refreshQuery = this.supabase
+      .from('project_resource_links')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('position', { ascending: true })
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true });
+
+    if (folderId === null) {
+      refreshQuery = refreshQuery.is('folder_id', null);
+    } else {
+      refreshQuery = refreshQuery.eq('folder_id', folderId);
+    }
+
+    const { data: refreshed, error: refreshError } = await refreshQuery;
+    if (refreshError) throw new BadRequestException(refreshError.message);
+    return (refreshed as ProjectResourceLink[] | null) ?? [];
   }
 }
