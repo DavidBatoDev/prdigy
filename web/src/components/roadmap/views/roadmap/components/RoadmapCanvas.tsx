@@ -1,10 +1,10 @@
 import { Plus } from "lucide-react";
 import { EpicTab } from "./EpicTab";
-import { MilestonesView } from "../milestones/MilestonesView";
-import type { RoadmapCanvasProps } from "./RoadmapCanvas.types";
+import { MilestonesView } from "../../milestones/MilestonesView";
+import type { RoadmapCanvasProps } from "../models/types";
 import { RoadmapCanvasOverlays } from "./RoadmapCanvasOverlays";
-import { RoadmapView } from "./RoadmapView";
-import { useRoadmapCanvasController } from "./useRoadmapCanvasController";
+import { RoadmapView } from "../RoadmapView";
+import { useRoadmapCanvasController } from "../hooks/useRoadmapCanvasController";
 
 const RoadmapCanvas = ({
   projectTitle: _projectTitle,
