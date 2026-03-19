@@ -703,9 +703,13 @@ export const featureService = {
 	 */
 	async reorder(epicId: string, reorders: ReorderFeatureDto[]): Promise<void> {
 		try {
+			const items = reorders.map((item) => ({
+				id: item.feature_id,
+				position: item.new_order_index,
+			}));
 			await apiClient.patch(`/api/features/reorder`, {
 				epic_id: epicId,
-				reorders,
+				items,
 			});
 		} catch (error) {
 			throw handleServiceError(error, `Reorder features in epic ${epicId}`);

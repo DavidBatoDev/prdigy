@@ -21,6 +21,7 @@ export {
 export { SidePanel } from "./panels/SidePanel";
 export { JSONRoadmapSidePanel } from "./panels/JSONRoadmapSidePanel";
 export { ChatPanel } from "./panels/ChatPanel";
+export { FeatureReorderConfirmModal } from "./panels/FeatureReorderConfirmModal";
 
 // Modal components
 export { EpicModal } from "./modals/EpicModal";

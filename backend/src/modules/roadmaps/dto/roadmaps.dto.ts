@@ -77,6 +77,9 @@ export class ReorderDto {
 }
 
 export class BulkReorderDto {
+  @IsUUID() @IsOptional() roadmap_id?: string;
+  @IsUUID() @IsOptional() epic_id?: string;
+  @IsUUID() @IsOptional() feature_id?: string;
   @IsArray() items: { id: string; position: number }[];
 }
 

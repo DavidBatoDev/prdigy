@@ -3,8 +3,24 @@ import {
 	ChevronDown,
 	ChevronRight,
 	ExternalLink,
+	GripVertical,
 	Plus,
 } from "lucide-react";
+import {
+	DndContext,
+	PointerSensor,
+	closestCenter,
+	type DragEndEvent,
+	useSensor,
+	useSensors,
+} from "@dnd-kit/core";
+import {
+	SortableContext,
+	arrayMove,
+	useSortable,
+	verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { RefObject } from "react";
 import type { RoadmapEpic } from "@/types/roadmap";
 import {
@@ -33,7 +49,73 @@ interface MilestonesLeftPanelProps {
 	) => (node: HTMLDivElement | null) => void;
 	onNavigateToEpic?: (epicId: string) => void;
 	onAddFeature?: (epicId: string) => void;
+	canReorderFeatures?: boolean;
+	onFeatureReorderDraft?: (change: {
+		epicId: string;
+		featureId: string;
+		featureTitle: string;
+		oldIndex: number;
+		newIndex: number;
+		previousOrderIds: string[];
+		nextOrderIds: string[];
+	}) => void;
 }
+
+type SortableMilestoneFeatureRowProps = {
+	feature: NonNullable<RoadmapEpic["features"]>[number];
+	taskCount: number;
+	canDrag: boolean;
+	onSetFeatureRowRef: (node: HTMLDivElement | null) => void;
+};
+
+const SortableMilestoneFeatureRow = ({
+	feature,
+	taskCount,
+	canDrag,
+	onSetFeatureRowRef,
+}: SortableMilestoneFeatureRowProps) => {
+	const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+		useSortable({ id: feature.id });
+
+	const style = {
+		transform: CSS.Transform.toString(transform),
+		transition,
+		opacity: isDragging ? 0.72 : 1,
+	};
+
+	return (
+		<div
+			ref={(node) => {
+				setNodeRef(node);
+				onSetFeatureRowRef(node);
+			}}
+			className="relative bg-white pr-4 pl-10"
+			style={{ ...style, height: ROW_HEIGHT }}
+		>
+			<div className="flex h-full w-full min-w-0 items-center gap-1.5 rounded-md border border-transparent px-2 py-1.5 text-sm text-gray-700 transition-all hover:border-gray-200 hover:bg-white hover:shadow-sm">
+				<div
+					{...(canDrag ? attributes : {})}
+					{...(canDrag ? listeners : {})}
+					onClick={(event) => event.stopPropagation()}
+					className={`inline-flex h-6 w-5 shrink-0 items-center justify-center rounded text-gray-400 ${
+						canDrag
+							? "cursor-grab hover:bg-gray-100 hover:text-gray-600 active:cursor-grabbing"
+							: "cursor-default opacity-50"
+					}`}
+					title="Drag to reorder feature"
+					aria-label={`Drag to reorder ${feature.title}`}
+				>
+					<GripVertical className="h-3.5 w-3.5" />
+				</div>
+				<ChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+				<span className="min-w-0 flex-1 truncate text-left">{feature.title}</span>
+				{taskCount > 0 && (
+					<span className="pr-7 text-xs font-normal text-gray-500">{taskCount}</span>
+				)}
+			</div>
+		</div>
+	);
+};
 
 export const MilestonesLeftPanel = ({
 	leftHeaderRef,
@@ -49,7 +131,40 @@ export const MilestonesLeftPanel = ({
 	setFeatureRowRef,
 	onNavigateToEpic,
 	onAddFeature,
+	canReorderFeatures = true,
+	onFeatureReorderDraft,
 }: MilestonesLeftPanelProps) => {
+	const sensors = useSensors(useSensor(PointerSensor));
+
+	const handleFeatureDragEnd = (
+		epic: RoadmapEpic,
+		features: NonNullable<RoadmapEpic["features"]>,
+		event: DragEndEvent,
+	) => {
+		if (!canReorderFeatures || !onFeatureReorderDraft) return;
+		const { active, over } = event;
+		if (!over || active.id === over.id) return;
+
+		const currentOrderIds = features.map((feature) => feature.id);
+		const oldIndex = currentOrderIds.indexOf(active.id as string);
+		const newIndex = currentOrderIds.indexOf(over.id as string);
+		if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return;
+
+		const nextOrderIds = arrayMove(currentOrderIds, oldIndex, newIndex);
+		const movedFeature = features.find((item) => item.id === active.id);
+		if (!movedFeature) return;
+
+		onFeatureReorderDraft({
+			epicId: epic.id,
+			featureId: movedFeature.id,
+			featureTitle: movedFeature.title,
+			oldIndex,
+			newIndex,
+			previousOrderIds: currentOrderIds,
+			nextOrderIds,
+		});
+	};
+
 	return (
 		<div
 			className="shrink-0 border-r border-gray-200 bg-white"
@@ -142,27 +257,28 @@ export const MilestonesLeftPanel = ({
 							</div>
 						</div>
 
-						{!isCollapsed &&
-							features.map((feature) => (
-								<div
-									key={`left-feature-${feature.id}`}
-									ref={setFeatureRowRef(feature.id)}
-									className="relative bg-white pr-4 pl-10"
-									style={{ height: ROW_HEIGHT }}
+						{!isCollapsed && (
+							<DndContext
+								sensors={sensors}
+								collisionDetection={closestCenter}
+								onDragEnd={(event) => handleFeatureDragEnd(epic, features, event)}
+							>
+								<SortableContext
+									items={features.map((feature) => feature.id)}
+									strategy={verticalListSortingStrategy}
 								>
-									<div className="flex h-full w-full min-w-0 items-center gap-1.5 rounded-md border border-transparent px-2.5 pl-6 py-1.5 text-sm text-gray-700 transition-all hover:border-gray-200 hover:bg-white hover:shadow-sm">
-										<ChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-										<span className="min-w-0 flex-1 truncate text-left">
-											{feature.title}
-										</span>
-										{(feature.tasks?.length ?? 0) > 0 && (
-											<span className="pr-7 text-xs font-normal text-gray-500">
-												{feature.tasks?.length}
-											</span>
-										)}
-									</div>
-								</div>
-							))}
+									{features.map((feature) => (
+										<SortableMilestoneFeatureRow
+											key={`left-feature-${feature.id}`}
+											feature={feature}
+											taskCount={feature.tasks?.length ?? 0}
+											canDrag={canReorderFeatures}
+											onSetFeatureRowRef={setFeatureRowRef(feature.id)}
+										/>
+									))}
+								</SortableContext>
+							</DndContext>
+						)}
 					</div>
 				);
 			})}

@@ -1,5 +1,8 @@
 import { BarChart2, Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FeatureReorderConfirmModal } from "../../panels/FeatureReorderConfirmModal";
+import { useToast } from "@/hooks/useToast";
+import { useRoadmapStore } from "@/stores/roadmapStore";
 import type {
   Roadmap,
   RoadmapEpic,
@@ -52,6 +55,8 @@ export interface MilestonesViewProps {
 }
 
 const FEATURE_DATE_CONFIRM_SKIP_KEY = "roadmap.timeline.skipDragDateConfirm";
+const FEATURE_REORDER_CONFIRM_SKIP_KEY =
+  "roadmap.milestones.skipFeatureReorderConfirm";
 const FEATURE_DATE_PERSIST_DEBOUNCE_MS = 250;
 const MILESTONE_DATE_PERSIST_DEBOUNCE_MS = 250;
 
@@ -67,6 +72,16 @@ type PendingDateChange =
       payload: DateChangeConfirmPayload;
     };
 
+type PendingFeatureReorder = {
+  epicId: string;
+  featureId: string;
+  featureTitle: string;
+  oldIndex: number;
+  newIndex: number;
+  previousOrderIds: string[];
+  nextOrderIds: string[];
+};
+
 export const MilestonesView = ({
   roadmap: _roadmap,
   milestones,
@@ -80,6 +95,13 @@ export const MilestonesView = ({
   canEditTimelineDates = true,
   onNavigateToEpic,
 }: MilestonesViewProps) => {
+  const toast = useToast();
+  const reorderFeaturesInEpic = useRoadmapStore(
+    (state) => state.reorderFeaturesInEpic,
+  );
+  const previewFeatureOrderInEpic = useRoadmapStore(
+    (state) => state.previewFeatureOrderInEpic,
+  );
   const [granularity, setGranularity] = useState<Granularity>("month");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [leftHeaderHeight, setLeftHeaderHeight] = useState(
@@ -87,13 +109,20 @@ export const MilestonesView = ({
   );
   const [pendingDateChange, setPendingDateChange] =
     useState<PendingDateChange | null>(null);
+  const [pendingFeatureReorder, setPendingFeatureReorder] =
+    useState<PendingFeatureReorder | null>(null);
   const [featureDateVisualDrafts, setFeatureDateVisualDrafts] = useState<
     Record<string, FeatureDateVisualDraft>
   >({});
   const [milestoneDateVisualDrafts, setMilestoneDateVisualDrafts] = useState<
     Record<string, string>
   >({});
-  const [dontAskAgainInSession, setDontAskAgainInSession] = useState(false);
+  const [dontAskDateAgainInSession, setDontAskDateAgainInSession] =
+    useState(false);
+  const [dontAskReorderAgainInSession, setDontAskReorderAgainInSession] =
+    useState(false);
+  const [isPersistingFeatureReorder, setIsPersistingFeatureReorder] =
+    useState(false);
   const featureDatePersistTimeoutsRef = useRef<
     Map<string, ReturnType<typeof setTimeout>>
   >(new Map());
@@ -358,6 +387,13 @@ export const MilestonesView = ({
     );
   }, []);
 
+  const shouldSkipFeatureReorderConfirm = useCallback(() => {
+    return (
+      typeof window !== "undefined" &&
+      window.sessionStorage.getItem(FEATURE_REORDER_CONFIRM_SKIP_KEY) === "1"
+    );
+  }, []);
+
   const toFeatureConfirmPayload = useCallback(
     (change: FeatureDateDraftCommit): DateChangeConfirmPayload => ({
       entityLabel: change.feature.title,
@@ -521,7 +557,7 @@ export const MilestonesView = ({
         return;
       }
 
-      setDontAskAgainInSession(false);
+      setDontAskDateAgainInSession(false);
       setPendingDateChange({
         kind: "feature",
         change,
@@ -549,7 +585,7 @@ export const MilestonesView = ({
         return;
       }
 
-      setDontAskAgainInSession(false);
+      setDontAskDateAgainInSession(false);
       setPendingDateChange({
         kind: "milestone",
         change,
@@ -566,7 +602,7 @@ export const MilestonesView = ({
 
   const handleConfirmDateChange = useCallback(() => {
     if (!pendingDateChange) return;
-    if (dontAskAgainInSession && typeof window !== "undefined") {
+    if (dontAskDateAgainInSession && typeof window !== "undefined") {
       window.sessionStorage.setItem(FEATURE_DATE_CONFIRM_SKIP_KEY, "1");
     }
     if (pendingDateChange.kind === "feature") {
@@ -575,9 +611,9 @@ export const MilestonesView = ({
       queueMilestoneDatePersist(pendingDateChange.change);
     }
     setPendingDateChange(null);
-    setDontAskAgainInSession(false);
+    setDontAskDateAgainInSession(false);
   }, [
-    dontAskAgainInSession,
+    dontAskDateAgainInSession,
     pendingDateChange,
     queueFeatureDatePersist,
     queueMilestoneDatePersist,
@@ -599,8 +635,67 @@ export const MilestonesView = ({
       });
     }
     setPendingDateChange(null);
-    setDontAskAgainInSession(false);
+    setDontAskDateAgainInSession(false);
   }, [pendingDateChange]);
+
+  const persistFeatureReorder = useCallback(
+    async (change: PendingFeatureReorder) => {
+      setIsPersistingFeatureReorder(true);
+      try {
+        await reorderFeaturesInEpic(change.epicId, change.nextOrderIds);
+        toast.success(`Reordered "${change.featureTitle}"`);
+      } catch (error) {
+        console.error("Failed to reorder features in milestone view", error);
+        previewFeatureOrderInEpic(change.epicId, change.previousOrderIds);
+      } finally {
+        setIsPersistingFeatureReorder(false);
+      }
+    },
+    [previewFeatureOrderInEpic, reorderFeaturesInEpic, toast],
+  );
+
+  const handleFeatureReorderDraft = useCallback(
+    (change: PendingFeatureReorder) => {
+      previewFeatureOrderInEpic(change.epicId, change.nextOrderIds);
+      if (shouldSkipFeatureReorderConfirm()) {
+        void persistFeatureReorder(change);
+        return;
+      }
+      setDontAskReorderAgainInSession(false);
+      setPendingFeatureReorder(change);
+    },
+    [
+      persistFeatureReorder,
+      previewFeatureOrderInEpic,
+      shouldSkipFeatureReorderConfirm,
+    ],
+  );
+
+  const handleCancelFeatureReorder = useCallback(() => {
+    if (pendingFeatureReorder) {
+      previewFeatureOrderInEpic(
+        pendingFeatureReorder.epicId,
+        pendingFeatureReorder.previousOrderIds,
+      );
+    }
+    setPendingFeatureReorder(null);
+    setDontAskReorderAgainInSession(false);
+  }, [pendingFeatureReorder, previewFeatureOrderInEpic]);
+
+  const handleConfirmFeatureReorder = useCallback(async () => {
+    if (!pendingFeatureReorder) return;
+    if (dontAskReorderAgainInSession && typeof window !== "undefined") {
+      window.sessionStorage.setItem(FEATURE_REORDER_CONFIRM_SKIP_KEY, "1");
+    }
+    const change = pendingFeatureReorder;
+    setPendingFeatureReorder(null);
+    setDontAskReorderAgainInSession(false);
+    await persistFeatureReorder(change);
+  }, [
+    dontAskReorderAgainInSession,
+    pendingFeatureReorder,
+    persistFeatureReorder,
+  ]);
 
   const handleFeatureSelect = useCallback(
     (feature: RoadmapFeature) => {
@@ -644,6 +739,8 @@ export const MilestonesView = ({
             setFeatureRowRef={setFeatureRowRef}
             onNavigateToEpic={onNavigateToEpic}
             onAddFeature={onAddFeature}
+            canReorderFeatures={canEditTimelineDates}
+            onFeatureReorderDraft={handleFeatureReorderDraft}
           />
 
           <div
@@ -734,10 +831,20 @@ export const MilestonesView = ({
           isOpen={pendingDateChange !== null}
           change={pendingDateChange?.payload ?? null}
           isSaving={false}
-          dontAskAgain={dontAskAgainInSession}
-          onDontAskAgainChange={setDontAskAgainInSession}
+          dontAskAgain={dontAskDateAgainInSession}
+          onDontAskAgainChange={setDontAskDateAgainInSession}
           onCancel={handleCancelDateChange}
           onConfirm={handleConfirmDateChange}
+        />
+
+        <FeatureReorderConfirmModal
+          isOpen={pendingFeatureReorder !== null}
+          isSaving={isPersistingFeatureReorder}
+          featureTitle={pendingFeatureReorder?.featureTitle ?? null}
+          dontAskAgain={dontAskReorderAgainInSession}
+          onDontAskAgainChange={setDontAskReorderAgainInSession}
+          onCancel={handleCancelFeatureReorder}
+          onConfirm={handleConfirmFeatureReorder}
         />
       </div>
     </div>

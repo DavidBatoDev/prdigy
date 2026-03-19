@@ -80,6 +80,11 @@ interface RoadmapActions {
 	// Feature CRUD
 	addFeature: (epicId: string, data: FeatureData) => Promise<void>;
 	updateFeature: (feature: RoadmapFeature) => Promise<void>;
+	reorderFeaturesInEpic: (
+		epicId: string,
+		orderedFeatureIds: string[],
+	) => Promise<void>;
+	previewFeatureOrderInEpic: (epicId: string, orderedFeatureIds: string[]) => void;
 	deleteFeature: (featureId: string) => Promise<void>;
 
 	// Task CRUD
@@ -380,6 +385,162 @@ export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
 			set({ isLoadingFeature: false });
 			throw error;
 		}
+	},
+
+	reorderFeaturesInEpic: async (epicId: string, orderedFeatureIds: string[]) => {
+		const { epics } = get();
+		const epic = epics.find((item) => item.id === epicId);
+		if (!epic) return;
+		if ((epic.features?.length ?? 0) === 0) return;
+
+		const epicFeatureIds = (epic.features ?? []).map((feature) => feature.id);
+		const epicFeatureIdSet = new Set(epicFeatureIds);
+		const seen = new Set<string>();
+		const normalizedOrderIds: string[] = [];
+		for (const featureId of orderedFeatureIds) {
+			if (!featureId || !epicFeatureIdSet.has(featureId) || seen.has(featureId)) {
+				continue;
+			}
+			seen.add(featureId);
+			normalizedOrderIds.push(featureId);
+		}
+		for (const featureId of epicFeatureIds) {
+			if (seen.has(featureId)) continue;
+			seen.add(featureId);
+			normalizedOrderIds.push(featureId);
+		}
+
+		const featureIndexById = new Map(
+			(epic.features ?? []).map((feature) => [feature.id, feature]),
+		);
+		try {
+			set({ isLoadingFeature: true });
+			const changedFeatures = normalizedOrderIds
+				.map((featureId, index) => {
+					const feature = featureIndexById.get(featureId);
+					if (!feature) return null;
+					return { feature, nextPosition: index };
+				})
+				.filter(
+					(
+						item,
+					): item is {
+						feature: RoadmapFeature;
+						nextPosition: number;
+					} => item !== null,
+				);
+
+			const reorderPatch = normalizedOrderIds.map((featureId, index) => ({
+				feature_id: featureId,
+				new_order_index: index,
+			}));
+
+			const hasInvalidExistingPositions = (epic.features ?? []).some((feature) => {
+				const position =
+					typeof feature.position === "number"
+						? feature.position
+						: Number(feature.position);
+				return !Number.isFinite(position) || position < 0;
+			});
+
+			let patchSucceeded = false;
+			try {
+				// Keep the reorder patch endpoint as the primary path.
+				await featureService.reorder(epicId, reorderPatch);
+				patchSucceeded = true;
+			} catch (patchError) {
+				const message =
+					patchError instanceof Error ? patchError.message.toLowerCase() : "";
+				const shouldFallbackToSequential =
+					hasInvalidExistingPositions ||
+					message.includes("position must not be less than 0") ||
+					message.includes("duplicate key value violates unique constraint") ||
+					message.includes("invalid input syntax");
+				if (!shouldFallbackToSequential) {
+					throw patchError;
+				}
+			}
+
+			if (!patchSucceeded) {
+				// Fallback: move to temporary high positive positions first, then finals.
+				const currentMaxPosition = (epic.features ?? []).reduce(
+					(max, feature) => {
+						const position =
+							typeof feature.position === "number"
+								? feature.position
+								: Number(feature.position);
+						if (!Number.isFinite(position) || position < 0) return max;
+						return Math.max(max, position);
+					},
+					0,
+				);
+				const tempBase =
+					currentMaxPosition + (epic.features?.length ?? 0) + 1000;
+				for (const [index, item] of changedFeatures.entries()) {
+					await featureService.update(item.feature.id, {
+						position: tempBase + index,
+					});
+				}
+
+				for (const item of changedFeatures) {
+					await featureService.update(item.feature.id, {
+						position: Math.max(0, item.nextPosition),
+					});
+				}
+			}
+
+			set({
+				epics: epics.map((item) => {
+					if (item.id !== epicId) return item;
+					const reorderedFeatures = normalizedOrderIds
+						.map((featureId, index) => {
+							const feature = featureIndexById.get(featureId);
+							if (!feature) return null;
+							return { ...feature, position: index };
+						})
+						.filter((feature): feature is RoadmapFeature => feature !== null);
+					return {
+						...item,
+						features: reorderedFeatures,
+						updated_at: new Date().toISOString(),
+					};
+				}),
+				isLoadingFeature: false,
+			});
+		} catch (error) {
+			console.error(`Failed to reorder features in epic ${epicId}:`, error);
+			set({ isLoadingFeature: false });
+			throw error;
+		}
+	},
+
+	previewFeatureOrderInEpic: (epicId: string, orderedFeatureIds: string[]) => {
+		const { epics } = get();
+		const epic = epics.find((item) => item.id === epicId);
+		if (!epic) return;
+		if ((epic.features?.length ?? 0) === 0) return;
+
+		const featureIndexById = new Map(
+			(epic.features ?? []).map((feature) => [feature.id, feature]),
+		);
+
+		set({
+			epics: epics.map((item) => {
+				if (item.id !== epicId) return item;
+				const reorderedFeatures = orderedFeatureIds
+					.map((featureId, index) => {
+						const feature = featureIndexById.get(featureId);
+						if (!feature) return null;
+						return { ...feature, position: index };
+					})
+					.filter((feature): feature is RoadmapFeature => feature !== null);
+				return {
+					...item,
+					features: reorderedFeatures,
+					updated_at: new Date().toISOString(),
+				};
+			}),
+		});
 	},
 
 	deleteFeature: async (featureId: string) => {

@@ -1,13 +1,33 @@
-import { ChevronRight, ExternalLink, FolderOpen, Plus, RotateCcw } from "lucide-react";
+import { ChevronRight, ExternalLink, FolderOpen, GripVertical, Plus, RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import {
+	DndContext,
+	KeyboardSensor,
+	PointerSensor,
+	closestCenter,
+	type DragEndEvent,
+	useSensor,
+	useSensors,
+} from "@dnd-kit/core";
+import {
+	SortableContext,
+	arrayMove,
+	sortableKeyboardCoordinates,
+	useSortable,
+	verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { Message } from "./ChatPanel";
 import { useEpics, useRoadmapStore } from "@/stores/roadmapStore";
+import type { RoadmapEpic, RoadmapFeature } from "@/types/roadmap";
+import { useToast } from "@/hooks/useToast";
 import {
 	getSortedEpics,
 	type ExplorerSearchResult,
 	ROADMAP_STRUCTURE_EXPLORER_CONFIG,
 	RoadmapStructureHeader,
 } from "./explorer/RoadmapStructureHeader";
+import { FeatureReorderConfirmModal } from "./FeatureReorderConfirmModal";
 
 export type { Message } from "./ChatPanel";
 
@@ -28,6 +48,129 @@ interface RoadmapLeftSidePanelProps {
 }
 
 const TASK_NAVIGATE_OFFSET_X = 620;
+const FEATURE_REORDER_CONFIRM_SKIP_KEY =
+	"roadmap.leftPanel.skipFeatureReorderConfirm";
+
+type PendingFeatureReorder = {
+	epicId: string;
+	featureId: string;
+	featureTitle: string;
+	oldIndex: number;
+	newIndex: number;
+	previousOrderIds: string[];
+	nextOrderIds: string[];
+};
+
+type SortableFeatureRowProps = {
+	feature: RoadmapFeature;
+	epic: RoadmapEpic;
+	canDrag: boolean;
+	isFeatureExpanded: boolean;
+	canCollapseFeature: boolean;
+	taskCount: number;
+	onToggleFeature: (featureId: string) => void;
+	onSelectFeature?: (epicId: string, featureId: string) => void;
+	onNavigateToNode?: (nodeId: string, options?: { offsetX?: number }) => void;
+	onOpenFeatureEditor?: (epicId: string, featureId: string) => void;
+	onOpenAddTaskPanel: (featureId: string) => void;
+	runAfterNavigationDelay: (callback: () => void) => void;
+};
+
+function SortableFeatureRow({
+	feature,
+	epic,
+	canDrag,
+	isFeatureExpanded,
+	canCollapseFeature,
+	taskCount,
+	onToggleFeature,
+	onSelectFeature,
+	onNavigateToNode,
+	onOpenFeatureEditor,
+	onOpenAddTaskPanel,
+	runAfterNavigationDelay,
+}: SortableFeatureRowProps) {
+	const {
+		attributes,
+		listeners,
+		setNodeRef,
+		transform,
+		transition,
+		isDragging,
+	} = useSortable({ id: feature.id });
+
+	const style = {
+		transform: CSS.Transform.toString(transform),
+		transition,
+		opacity: isDragging ? 0.7 : 1,
+	};
+
+	return (
+		<div ref={setNodeRef} style={style} className="min-w-0">
+			<div className="group relative h-11 w-full min-w-0 flex items-center gap-1.5 px-2.5 pr-10 text-sm text-gray-700 hover:bg-white hover:shadow-sm rounded-md transition-all border border-transparent hover:border-gray-200">
+				<div
+					{...(canDrag ? attributes : {})}
+					{...(canDrag ? listeners : {})}
+					onClick={(event) => event.stopPropagation()}
+					className={`inline-flex h-6 w-5 shrink-0 items-center justify-center rounded text-gray-400 ${
+						canDrag
+							? "cursor-grab hover:bg-gray-100 hover:text-gray-600 active:cursor-grabbing"
+							: "cursor-default opacity-50"
+					}`}
+					title="Drag to reorder feature"
+					aria-label={`Drag to reorder ${feature.title}`}
+				>
+					<GripVertical className="h-3.5 w-3.5" />
+				</div>
+				{canCollapseFeature ? (
+					<button
+						type="button"
+						onClick={(event) => {
+							event.stopPropagation();
+							onToggleFeature(feature.id);
+						}}
+						className="p-0.5 hover:bg-black/5 rounded cursor-pointer"
+						aria-label={isFeatureExpanded ? "Collapse feature" : "Expand feature"}
+					>
+						<ChevronRight
+							className={`w-3.5 h-3.5 text-gray-400 transition-transform ${
+								isFeatureExpanded ? "rotate-90" : ""
+							}`}
+						/>
+					</button>
+				) : (
+					<div className="w-2 h-2 rounded-full bg-gray-300 ml-0.5 mr-0.5" />
+				)}
+				<span
+					onClick={() => {
+						onSelectFeature?.(epic.id, feature.id);
+						onNavigateToNode?.(feature.id);
+					}}
+					onDoubleClick={() => {
+						runAfterNavigationDelay(() => {
+							onOpenFeatureEditor?.(epic.id, feature.id);
+						});
+					}}
+					className="truncate flex-1 min-w-0 text-left hover:text-primary transition-colors cursor-pointer"
+					title={feature.title}
+				>
+					{feature.title}
+				</span>
+				{taskCount > 0 && (
+					<span className="text-xs font-normal text-gray-500">{taskCount}</span>
+				)}
+				<button
+					type="button"
+					onClick={() => onOpenAddTaskPanel(feature.id)}
+					className="absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center w-6 h-6 text-gray-700 bg-white border border-gray-200 rounded hover:bg-gray-50 hover:border-primary hover:text-primary shadow-sm"
+					title="Add task to feature"
+				>
+					<Plus className="w-3 h-3" />
+				</button>
+			</div>
+		</div>
+			);
+		}
 
 export function RoadmapLeftSidePanel({
 	messages: _messages,
@@ -90,14 +233,37 @@ function ExplorerPanel({
 	highlightedEpicId,
 }: ExplorerPanelProps) {
 	const NAVIGATION_OPEN_DELAY_MS = 700;
+	const toast = useToast();
 
 	// Subscribe to epics from store
 	const epics = useEpics();
-	const { openAddFeatureModal, openAddTaskPanel } = useRoadmapStore();
+	const roadmap = useRoadmapStore((state) => state.roadmap);
+	const {
+		openAddFeatureModal,
+		openAddTaskPanel,
+		reorderFeaturesInEpic,
+		previewFeatureOrderInEpic,
+	} = useRoadmapStore();
 	const explorerConfig = ROADMAP_STRUCTURE_EXPLORER_CONFIG.roadmap;
 	const delayedOpenTimeouts = useRef<number[]>([]);
 	const [expandedFeatures, setExpandedFeatures] = useState<Set<string>>(
 		new Set(),
+	);
+	const [pendingFeatureReorder, setPendingFeatureReorder] =
+		useState<PendingFeatureReorder | null>(null);
+	const [isPersistingFeatureReorder, setIsPersistingFeatureReorder] =
+		useState(false);
+	const [dontAskAgainInSession, setDontAskAgainInSession] = useState(false);
+	const currentUserRole = roadmap?.currentUserRole;
+	const canEditRoadmap =
+		!currentUserRole ||
+		currentUserRole === "owner" ||
+		currentUserRole === "editor";
+	const sensors = useSensors(
+		useSensor(PointerSensor),
+		useSensor(KeyboardSensor, {
+			coordinateGetter: sortableKeyboardCoordinates,
+		}),
 	);
 
 	const runAfterNavigationDelay = (callback: () => void) => {
@@ -216,6 +382,102 @@ function ExplorerPanel({
 		});
 	};
 
+	const shouldSkipFeatureReorderConfirm = () => {
+		return (
+			typeof window !== "undefined" &&
+			window.sessionStorage.getItem(FEATURE_REORDER_CONFIRM_SKIP_KEY) === "1"
+		);
+	};
+
+	const persistFeatureReorder = async (change: PendingFeatureReorder) => {
+		setIsPersistingFeatureReorder(true);
+		try {
+			await reorderFeaturesInEpic(change.epicId, change.nextOrderIds);
+			toast.success(`Reordered "${change.featureTitle}"`);
+		} catch {
+			previewFeatureOrderInEpic(change.epicId, change.previousOrderIds);
+		} finally {
+			setIsPersistingFeatureReorder(false);
+		}
+	};
+
+	const queueFeatureReorderFromDrag = (
+		epic: RoadmapEpic,
+		activeFeatureId: string,
+		previousOrderIds: string[],
+		nextOrderIds: string[],
+		oldIndex: number,
+		newIndex: number,
+	) => {
+		const feature = (epic.features ?? []).find((item) => item.id === activeFeatureId);
+		if (!feature) return;
+
+		previewFeatureOrderInEpic(epic.id, nextOrderIds);
+
+		const change: PendingFeatureReorder = {
+			epicId: epic.id,
+			featureId: feature.id,
+			featureTitle: feature.title,
+			oldIndex,
+			newIndex,
+			previousOrderIds,
+			nextOrderIds,
+		};
+
+		if (shouldSkipFeatureReorderConfirm()) {
+			void persistFeatureReorder(change);
+			return;
+		}
+
+		setDontAskAgainInSession(false);
+		setPendingFeatureReorder(change);
+	};
+
+	const handleFeatureDragEnd = (epic: RoadmapEpic, event: DragEndEvent) => {
+		if (!canEditRoadmap) return;
+
+		const { active, over } = event;
+		if (!over || active.id === over.id) return;
+
+		const features = (epic.features ?? []).slice().sort((a, b) => a.position - b.position);
+		const currentOrderIds = features.map((feature) => feature.id);
+		const oldIndex = currentOrderIds.indexOf(active.id as string);
+		const newIndex = currentOrderIds.indexOf(over.id as string);
+		if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return;
+
+		const nextOrderIds = arrayMove(currentOrderIds, oldIndex, newIndex);
+		queueFeatureReorderFromDrag(
+			epic,
+			active.id as string,
+			currentOrderIds,
+			nextOrderIds,
+			oldIndex,
+			newIndex,
+		);
+	};
+
+	const handleCancelFeatureReorder = () => {
+		if (pendingFeatureReorder) {
+			previewFeatureOrderInEpic(
+				pendingFeatureReorder.epicId,
+				pendingFeatureReorder.previousOrderIds,
+			);
+		}
+		setPendingFeatureReorder(null);
+		setDontAskAgainInSession(false);
+	};
+
+	const handleConfirmFeatureReorder = async () => {
+		if (!pendingFeatureReorder) return;
+		if (dontAskAgainInSession && typeof window !== "undefined") {
+			window.sessionStorage.setItem(FEATURE_REORDER_CONFIRM_SKIP_KEY, "1");
+		}
+		const change = pendingFeatureReorder;
+		setPendingFeatureReorder(null);
+		setDontAskAgainInSession(false);
+		await persistFeatureReorder(change);
+	};
+
 	return (
 		<div className="flex flex-col h-full min-w-0 overflow-hidden bg-white ">
 			<RoadmapStructureHeader
@@ -319,118 +581,88 @@ function ExplorerPanel({
 									{/* Features */}
 									{isEpicExpanded && features.length > 0 && (
 										<div className="ml-6 mt-1.5 space-y-1 pl-3">
-											{features.map((feature) => {
-												const isFeatureExpanded = expandedFeatures.has(feature.id);
-												const tasks = (feature.tasks || []).sort(
-													(a, b) => a.position - b.position,
-												);
-												const canCollapseFeature =
-													explorerConfig.allowFeatureCollapse &&
-													explorerConfig.showTaskRows &&
-													tasks.length > 0;
+											<DndContext
+												sensors={sensors}
+												collisionDetection={closestCenter}
+												onDragEnd={(event) => handleFeatureDragEnd(epic, event)}
+											>
+												<SortableContext
+													items={features.map((feature) => feature.id)}
+													strategy={verticalListSortingStrategy}
+												>
+													{features.map((feature) => {
+														const isFeatureExpanded = expandedFeatures.has(feature.id);
+														const tasks = (feature.tasks || []).sort(
+															(a, b) => a.position - b.position,
+														);
+														const canCollapseFeature =
+															explorerConfig.allowFeatureCollapse &&
+															explorerConfig.showTaskRows &&
+															tasks.length > 0;
 
-												return (
-													<div key={feature.id} className="min-w-0">
-														{/* Feature */}
-														<div className="group relative h-11 w-full min-w-0 flex items-center gap-1.5 px-2.5 pr-10 text-sm text-gray-700 hover:bg-white hover:shadow-sm rounded-md transition-all border border-transparent hover:border-gray-200">
-															{canCollapseFeature ? (
-																<button
-																	type="button"
-																	onClick={(event) => {
-																		event.stopPropagation();
-																		toggleFeature(feature.id);
-																	}}
-																	className="p-0.5 hover:bg-black/5 rounded cursor-pointer"
-																	aria-label={
-																		isFeatureExpanded
-																			? "Collapse feature"
-																			: "Expand feature"
-																	}
-																>
-																	<ChevronRight
-																		className={`w-3.5 h-3.5 text-gray-400 transition-transform ${
-																			isFeatureExpanded ? "rotate-90" : ""
-																		}`}
-																	/>
-																</button>
-															) : (
-																<div className="w-2 h-2 rounded-full bg-gray-300 ml-1 mr-0.5" />
-															)}
-															<span
-																onClick={() => {
-																	onSelectFeature?.(epic.id, feature.id);
-																	onNavigateToNode?.(feature.id);
-																}}
-																onDoubleClick={() => {
-																	runAfterNavigationDelay(() => {
-																		onOpenFeatureEditor?.(epic.id, feature.id);
-																	});
-																}}
-																className="truncate flex-1 min-w-0 text-left hover:text-primary transition-colors cursor-pointer"
-																title={feature.title}
-															>
-																{feature.title}
-															</span>
-															{tasks.length > 0 && (
-																<span className="text-xs font-normal text-gray-500">
-																	{tasks.length}
-																</span>
-															)}
-															{/* Quick Add Task Button - Absolutely positioned */}
-															<button
-																type="button"
-																onClick={() => openAddTaskPanel(feature.id)}
-																className="absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center w-6 h-6 text-gray-700 bg-white border border-gray-200 rounded hover:bg-gray-50 hover:border-primary hover:text-primary shadow-sm"
-																title="Add task to feature"
-															>
-																<Plus className="w-3 h-3" />
-															</button>
-														</div>
+														return (
+															<div key={feature.id} className="min-w-0">
+																<SortableFeatureRow
+																	feature={feature}
+																	epic={epic}
+																	canDrag={canEditRoadmap}
+																	isFeatureExpanded={isFeatureExpanded}
+																	canCollapseFeature={canCollapseFeature}
+																	taskCount={tasks.length}
+																	onToggleFeature={toggleFeature}
+																	onSelectFeature={onSelectFeature}
+																	onNavigateToNode={onNavigateToNode}
+																	onOpenFeatureEditor={onOpenFeatureEditor}
+																	onOpenAddTaskPanel={openAddTaskPanel}
+																	runAfterNavigationDelay={runAfterNavigationDelay}
+																/>
 
-														{/* Tasks */}
-														{explorerConfig.showTaskRows &&
-															isFeatureExpanded &&
-															tasks.length > 0 && (
-																<div className="ml-5 mt-1 space-y-0.5 pl-2">
-																	{tasks.map((task) => (
-																		<button
-																			key={task.id}
-																			onClick={() => {
-																				onSelectTask?.(task.id);
-																				onNavigateToNode?.(feature.id, {
-																					offsetX: TASK_NAVIGATE_OFFSET_X,
-																				});
-																			}}
-																			className="w-full flex items-center gap-2 px-2 py-1 text-xs hover:bg-white rounded transition-colors"
-																		>
-																			<div
-																				className={`w-1.5 h-1.5 rounded-full ${getTaskDotClasses(task.status)}`}
-																			/>
-																			<span
-																				onClick={(event) => {
-																					event.stopPropagation();
-																					onNavigateToNode?.(feature.id, {
-																						offsetX: TASK_NAVIGATE_OFFSET_X,
-																					});
-																				}}
-																				onDoubleClick={(event) => {
-																					event.stopPropagation();
-																					runAfterNavigationDelay(() => {
-																						onOpenTaskDetail?.(task.id);
-																					});
-																				}}
-																				className={`truncate text-left flex-1 transition-colors hover:text-primary ${getTaskTextClasses(task.status)}`}
-																				title="Focus in canvas"
-																			>
-																				{task.title}
-																			</span>
-																		</button>
-																	))}
-																</div>
-															)}
-													</div>
-												);
-											})}
+																{/* Tasks */}
+																{explorerConfig.showTaskRows &&
+																	isFeatureExpanded &&
+																	tasks.length > 0 && (
+																		<div className="ml-5 mt-1 space-y-0.5 pl-2">
+																			{tasks.map((task) => (
+																				<button
+																					key={task.id}
+																					onClick={() => {
+																						onSelectTask?.(task.id);
+																						onNavigateToNode?.(feature.id, {
+																							offsetX: TASK_NAVIGATE_OFFSET_X,
+																						});
+																					}}
+																					className="w-full flex items-center gap-2 px-2 py-1 text-xs hover:bg-white rounded transition-colors"
+																				>
+																					<div
+																						className={`w-1.5 h-1.5 rounded-full ${getTaskDotClasses(task.status)}`}
+																					/>
+																					<span
+																						onClick={(event) => {
+																							event.stopPropagation();
+																							onNavigateToNode?.(feature.id, {
+																								offsetX: TASK_NAVIGATE_OFFSET_X,
+																							});
+																						}}
+																						onDoubleClick={(event) => {
+																							event.stopPropagation();
+																							runAfterNavigationDelay(() => {
+																								onOpenTaskDetail?.(task.id);
+																							});
+																						}}
+																						className={`truncate text-left flex-1 transition-colors hover:text-primary ${getTaskTextClasses(task.status)}`}
+																						title="Focus in canvas"
+																					>
+																						{task.title}
+																					</span>
+																				</button>
+																			))}
+																		</div>
+																	)}
+															</div>
+														);
+													})}
+												</SortableContext>
+											</DndContext>
 										</div>
 									)}
 								</div>
@@ -439,6 +671,16 @@ function ExplorerPanel({
 					</div>
 				)}
 			</div>
+
+			<FeatureReorderConfirmModal
+				isOpen={pendingFeatureReorder !== null}
+				isSaving={isPersistingFeatureReorder}
+				featureTitle={pendingFeatureReorder?.featureTitle ?? null}
+				dontAskAgain={dontAskAgainInSession}
+				onDontAskAgainChange={setDontAskAgainInSession}
+				onCancel={handleCancelFeatureReorder}
+				onConfirm={handleConfirmFeatureReorder}
+			/>
 		</div>
 	);
 }
