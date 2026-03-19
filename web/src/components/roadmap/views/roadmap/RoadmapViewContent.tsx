@@ -11,8 +11,8 @@ import {
   RoadmapMetadataModal,
   type RoadmapMetadataFormData,
 } from "@/components/roadmap";
-import { RoadmapTopBar } from "./RoadmapTopBar";
-import { RoadmapPageSkeleton } from "./RoadmapPageSkeleton";
+import { RoadmapTopBar } from "../RoadmapTopBar";
+import { RoadmapPageSkeleton } from "../RoadmapPageSkeleton";
 import { callGeminiAPI } from "@/lib/gemini";
 import { useRoadmapStore } from "@/stores/roadmapStore";
 import { useProjectSettingsStore } from "@/stores/projectSettingsStore";

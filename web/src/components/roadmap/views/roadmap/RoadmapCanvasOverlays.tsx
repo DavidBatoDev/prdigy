@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
-import { SidePanel } from "../panels/SidePanel";
-import { EpicModal } from "../modals/EpicModal";
-import { FeatureModal } from "../modals/FeatureModal";
+import { SidePanel } from "../../panels/SidePanel";
+import { EpicModal } from "../../modals/EpicModal";
+import { FeatureModal } from "../../modals/FeatureModal";
 import type {
   RoadmapEpic,
   RoadmapTask,

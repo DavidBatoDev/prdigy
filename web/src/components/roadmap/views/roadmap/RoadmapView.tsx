@@ -9,8 +9,11 @@ import {
   type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { EpicWidget, type EpicWidgetData } from "../widgets/EpicWidget";
-import { FeatureWidget, type FeatureWidgetData } from "../widgets/FeatureWidget";
+import { EpicWidget, type EpicWidgetData } from "../../widgets/EpicWidget";
+import {
+  FeatureWidget,
+  type FeatureWidgetData,
+} from "../../widgets/FeatureWidget";
 import type {
   Roadmap,
   RoadmapEpic,

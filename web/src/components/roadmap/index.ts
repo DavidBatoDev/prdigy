@@ -5,12 +5,12 @@ export { TaskWidget, type TaskWidgetData } from "./widgets/TaskWidget";
 export { TaskListItem } from "./widgets/TaskListItem";
 
 // View components
-export { RoadmapCanvas } from "./views/RoadmapCanvas";
-export { RoadmapView } from "./views/RoadmapView";
-export { RoadmapViewContent } from "./views/RoadmapViewContent";
+export { RoadmapCanvas } from "./views/roadmap/RoadmapCanvas";
+export { RoadmapView } from "./views/roadmap/RoadmapView";
+export { RoadmapViewContent } from "./views/roadmap/RoadmapViewContent";
 export { RoadmapTopBar } from "./views/RoadmapTopBar";
-export { EpicTab } from "./views/EpicTab";
-export { MilestonesView } from "./views/MilestonesView";
+export { EpicTab } from "./views/roadmap/EpicTab";
+export { MilestonesView } from "./views/milestones/MilestonesView";
 
 // Panel components
 export {
