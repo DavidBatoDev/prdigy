@@ -3,6 +3,7 @@ import {
 	ChevronDown,
 	ChevronRight,
 	ExternalLink,
+	Plus,
 } from "lucide-react";
 import type { RefObject } from "react";
 import type { RoadmapEpic } from "@/types/roadmap";
@@ -31,6 +32,7 @@ interface MilestonesLeftPanelProps {
 		featureId: string,
 	) => (node: HTMLDivElement | null) => void;
 	onNavigateToEpic?: (epicId: string) => void;
+	onAddFeature?: (epicId: string) => void;
 }
 
 export const MilestonesLeftPanel = ({
@@ -46,6 +48,7 @@ export const MilestonesLeftPanel = ({
 	setEpicRowRef,
 	setFeatureRowRef,
 	onNavigateToEpic,
+	onAddFeature,
 }: MilestonesLeftPanelProps) => {
 	return (
 		<div
@@ -91,7 +94,7 @@ export const MilestonesLeftPanel = ({
 							className="group/epic bg-white px-4"
 						>
 							<div className="flex h-full min-w-0 items-center gap-1">
-								<div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2 py-2 pr-10 text-sm font-medium text-gray-900 transition-all hover:bg-white hover:shadow-sm">
+								<div className="relative flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2 py-2 pr-12 text-sm font-medium text-gray-900 transition-all hover:bg-white hover:shadow-sm">
 									<button
 										type="button"
 										onClick={() => onToggleEpic(epic.id)}
@@ -117,6 +120,15 @@ export const MilestonesLeftPanel = ({
 											{features.length}
 										</span>
 									)}
+									<button
+										type="button"
+										onClick={() => onAddFeature?.(epic.id)}
+										className="absolute right-2 inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-700 opacity-0 shadow-sm transition-all hover:border-orange-300 hover:text-orange-600 group-hover/epic:opacity-100"
+										title="Add feature to epic"
+										aria-label={`Add feature to ${epic.title}`}
+									>
+										<Plus className="h-3.5 w-3.5" />
+									</button>
 								</div>
 								<button
 									type="button"

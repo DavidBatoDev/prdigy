@@ -45,6 +45,8 @@ export interface MilestonesViewProps {
   onUpdateMilestone: (milestone: RoadmapMilestone) => Promise<void> | void;
   onDeleteMilestone: (id: string) => Promise<void> | void;
   onUpdateFeature: (feature: RoadmapFeature) => Promise<void> | void;
+  onAddFeature?: (epicId: string) => void;
+  onOpenFeatureEditor?: (epicId: string, featureId: string) => void;
   canEditTimelineDates?: boolean;
   onNavigateToEpic?: (epicId: string) => void;
 }
@@ -73,6 +75,8 @@ export const MilestonesView = ({
   onUpdateMilestone,
   onDeleteMilestone: _onDeleteMilestone,
   onUpdateFeature,
+  onAddFeature,
+  onOpenFeatureEditor,
   canEditTimelineDates = true,
   onNavigateToEpic,
 }: MilestonesViewProps) => {
@@ -598,6 +602,20 @@ export const MilestonesView = ({
     setDontAskAgainInSession(false);
   }, [pendingDateChange]);
 
+  const handleFeatureSelect = useCallback(
+    (feature: RoadmapFeature) => {
+      if (!onOpenFeatureEditor) return;
+      const epicId =
+        feature.epic_id ??
+        sortedEpics.find((epic) =>
+          (epic.features ?? []).some((item) => item.id === feature.id),
+        )?.id;
+      if (!epicId) return;
+      onOpenFeatureEditor(epicId, feature.id);
+    },
+    [onOpenFeatureEditor, sortedEpics],
+  );
+
   return (
     <div className="absolute inset-0 bg-white">
       <MilestonesToolbar
@@ -625,6 +643,7 @@ export const MilestonesView = ({
             setEpicRowRef={setEpicRowRef}
             setFeatureRowRef={setFeatureRowRef}
             onNavigateToEpic={onNavigateToEpic}
+            onAddFeature={onAddFeature}
           />
 
           <div
@@ -679,6 +698,7 @@ export const MilestonesView = ({
                 granularity={granularity}
                 canEditDateRanges={canEditTimelineDates}
                 featureDateVisualDrafts={featureDateVisualDrafts}
+                onFeatureSelect={handleFeatureSelect}
                 onFeatureDateDraftCommit={handleFeatureDateDraftCommit}
               />
             </div>

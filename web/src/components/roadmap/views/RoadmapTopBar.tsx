@@ -156,7 +156,7 @@ export function RoadmapTopBar({
           >
             <span className="inline-flex items-center gap-1.5">
               <LayoutGrid className="w-4 h-4" />
-              Roadmap View
+              Roadmap
             </span>
           </button>
           <button
@@ -169,7 +169,7 @@ export function RoadmapTopBar({
           >
             <span className="inline-flex items-center gap-1.5">
               <CalendarDays className="w-4 h-4" />
-              Timeline
+              Milestones
             </span>
           </button>
         </div>

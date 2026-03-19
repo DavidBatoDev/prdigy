@@ -64,6 +64,7 @@ interface MilestonesTimelineRowsProps {
 	granularity: Granularity;
 	canEditDateRanges?: boolean;
 	featureDateVisualDrafts?: Record<string, FeatureDateVisualDraft>;
+	onFeatureSelect?: (feature: RoadmapFeature) => void;
 	onFeatureDateDraftCommit?: (change: FeatureDateDraftCommit) => void;
 }
 
@@ -79,6 +80,7 @@ export const MilestonesTimelineRows = ({
 	granularity,
 	canEditDateRanges = true,
 	featureDateVisualDrafts = {},
+	onFeatureSelect,
 	onFeatureDateDraftCommit,
 }: MilestonesTimelineRowsProps) => {
 	const [dragState, setDragState] = useState<{
@@ -89,6 +91,7 @@ export const MilestonesTimelineRows = ({
 		initialEndDate: Date;
 		draftStartDate: Date;
 		draftEndDate: Date;
+		hasMoved: boolean;
 	} | null>(null);
 
 	const handleDragStart = useCallback(
@@ -122,6 +125,7 @@ export const MilestonesTimelineRows = ({
 				initialEndDate: endDate,
 				draftStartDate: startDate,
 				draftEndDate: endDate,
+				hasMoved: false,
 			});
 		},
 		[canEditDateRanges],
@@ -132,6 +136,7 @@ export const MilestonesTimelineRows = ({
 
 		const handleMouseMove = (event: MouseEvent) => {
 			const dx = event.clientX - dragState.anchorClientX;
+			const hasMoved = Math.abs(dx) >= 2;
 			const initialStartPx = toTimelinePx(
 				dragState.initialStartDate,
 				rangeStart,
@@ -161,6 +166,7 @@ export const MilestonesTimelineRows = ({
 								...prev,
 								draftStartDate: addDays(prev.initialStartDate, deltaDays),
 								draftEndDate: addDays(prev.initialEndDate, deltaDays),
+								hasMoved: prev.hasMoved || hasMoved,
 							}
 						: prev,
 				);
@@ -185,6 +191,7 @@ export const MilestonesTimelineRows = ({
 								...prev,
 								draftStartDate: nextStartDate,
 								draftEndDate: prev.initialEndDate,
+								hasMoved: prev.hasMoved || hasMoved,
 							}
 						: prev,
 				);
@@ -208,12 +215,19 @@ export const MilestonesTimelineRows = ({
 							...prev,
 							draftStartDate: prev.initialStartDate,
 							draftEndDate: nextEndDate,
+							hasMoved: prev.hasMoved || hasMoved,
 						}
 					: prev,
 			);
 		};
 
 		const handleMouseUp = () => {
+			if (!dragState.hasMoved && dragState.mode === "move" && onFeatureSelect) {
+				onFeatureSelect(dragState.feature);
+				setDragState(null);
+				return;
+			}
+
 			const oldStartDate = toISODateString(dragState.initialStartDate);
 			const oldEndDate = toISODateString(dragState.initialEndDate);
 			const newStartDate = toISODateString(dragState.draftStartDate);
@@ -243,7 +257,7 @@ export const MilestonesTimelineRows = ({
 			window.removeEventListener("mousemove", handleMouseMove);
 			window.removeEventListener("mouseup", handleMouseUp);
 		};
-	}, [dragState, rangeStart, granularity, cw, onFeatureDateDraftCommit]);
+	}, [dragState, rangeStart, granularity, cw, onFeatureDateDraftCommit, onFeatureSelect]);
 
 	return (
 		<>
@@ -325,6 +339,7 @@ export const MilestonesTimelineRows = ({
 								const visualDraft = featureDateVisualDrafts[feature.id];
 								const featureDragState =
 									dragState?.feature.id === feature.id ? dragState : null;
+								const isDraggingThisFeature = featureDragState !== null;
 								const effectiveStartDate = featureDragState
 									? featureDragState.draftStartDate
 									: visualDraft
@@ -392,7 +407,13 @@ export const MilestonesTimelineRows = ({
 										{hasDates && (
 											<>
 												<div
-													className={`absolute top-1/2 -translate-y-1/2 ${FEATURE_BAR_ROUNDED_CLASS} group ${canEditDateRanges ? "cursor-move" : "cursor-default"}`}
+													className={`absolute top-1/2 -translate-y-1/2 ${FEATURE_BAR_ROUNDED_CLASS} group ${
+														canEditDateRanges
+															? isDraggingThisFeature
+																? "cursor-grabbing"
+																: "cursor-pointer"
+															: "cursor-default"
+													}`}
 													data-no-pan="true"
 													onMouseDown={(event) =>
 														handleDragStart(
@@ -422,8 +443,10 @@ export const MilestonesTimelineRows = ({
 
 													{canEditDateRanges && (
 														<>
+															<div className="pointer-events-none absolute left-0 top-0 bottom-0 z-10 w-px bg-gray-600/70" />
+															<div className="pointer-events-none absolute right-0 top-0 bottom-0 z-10 w-px bg-gray-600/70" />
 															<div
-																className="absolute left-0 top-0 bottom-0 z-20 w-2 cursor-ew-resize bg-black/0 hover:bg-black/10"
+																className="absolute left-0 top-0 bottom-0 z-20 w-px cursor-ew-resize bg-black/0 hover:bg-black/15"
 																data-no-pan="true"
 																onMouseDown={(event) =>
 																	handleDragStart(
@@ -436,7 +459,7 @@ export const MilestonesTimelineRows = ({
 																}
 															/>
 															<div
-																className="absolute right-0 top-0 bottom-0 z-20 w-2 cursor-ew-resize bg-black/0 hover:bg-black/10"
+																className="absolute right-0 top-0 bottom-0 z-20 w-px cursor-ew-resize bg-black/0 hover:bg-black/15"
 																data-no-pan="true"
 																onMouseDown={(event) =>
 																	handleDragStart(
