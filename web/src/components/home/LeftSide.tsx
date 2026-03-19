@@ -1,41 +1,45 @@
 import { Hero } from "./Hero";
-import { ProgressTracker } from "./ProgressTracker";
-import { FreelancerTodaySection } from "./FreelancerTodaySection";
 import { MyWorkSection } from "./MyWorkSection";
-// import { EscrowWallet } from "./EscrowWallet";
-// import { ActivityOverview } from "./ActivityOverview";
 import { ProjectsGrid } from "./ProjectsGrid";
 import { RoadmapsGrid } from "./RoadmapsGrid";
+import { ConsultantDashboardWidgets } from "./ConsultantDashboardWidgets";
+import { useAuthStore } from "@/stores/authStore";
 
 export function PrimaryFlow() {
+  const { profile } = useAuthStore();
+  const persona = profile?.active_persona || "client";
+  const isFreelancer = persona === "freelancer";
+
   return (
-    <div className="space-y-8">
-      {/* Hero Section */}
-      <Hero />
+    <ConsultantDashboardWidgets leadContent={<Hero />}>
+      {!isFreelancer ? (
+        <>
+          {/* Projects Grid */}
+          <ProjectsGrid />
+        </>
+      ) : null}
 
-      {/* Unified progress tracker */}
-      <ProgressTracker />
+      {/* Roadmaps Grid */}
+      <RoadmapsGrid />
 
-      {/* Today */}
-      <FreelancerTodaySection />
-
-      {/* Escrow & Activity Overview */}
-      {/* <div className="flex gap-6">
-        <EscrowWallet />
-        <ActivityOverview />
-      </div> */}
-    </div>
+      {!isFreelancer ? (
+        <>
+          {/* My Work */}
+          <MyWorkSection />
+        </>
+      ) : null}
+    </ConsultantDashboardWidgets>
   );
 }
 
 export function LeftSide() {
   return (
     <div className="space-y-8">
-      {/* Roadmaps Grid */}
-      <RoadmapsGrid />
-
       {/* Projects Grid */}
       <ProjectsGrid />
+
+      {/* Roadmaps Grid */}
+      <RoadmapsGrid />
 
       {/* My Work */}
       <MyWorkSection />

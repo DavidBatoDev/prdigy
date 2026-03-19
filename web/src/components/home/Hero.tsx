@@ -52,17 +52,17 @@ export function Hero() {
 
   if (isLoading) {
     return (
-      <div className="relative bg-[#f6f7f8] rounded-xl overflow-hidden h-[275px] animate-pulse">
-        <div className="relative z-10 flex items-center h-full px-12">
+      <div className="relative bg-[#f6f7f8] rounded-xl overflow-hidden animate-pulse h-40">
+        <div className="relative z-10 flex items-center h-full px-8 py-4">
           {/* Skeleton Container */}
-          <div className="max-w-[583px] w-full">
+          <div className="max-w-[540px] w-full">
             {/* Title Skeleton */}
-            <div className="h-12 bg-gray-200 rounded-md w-3/4 mb-4" />
+            <div className="bg-gray-200 rounded-md w-3/4 h-6 mb-2" />
 
             {/* Description Skeleton */}
-            <div className="space-y-2 mb-8">
-              <div className="h-5 bg-gray-200 rounded-md w-full" />
-              <div className="h-5 bg-gray-200 rounded-md w-2/3" />
+            <div className="space-y-2 mb-4">
+              <div className="h-4 bg-gray-200 rounded-md w-full" />
+              <div className="h-4 bg-gray-200 rounded-md w-2/3" />
             </div>
 
             {/* Button Skeleton */}
@@ -75,7 +75,7 @@ export function Hero() {
 
   return (
     <div
-      className="relative rounded-xl overflow-hidden h-[275px] transition-colors duration-500"
+      className="relative rounded-xl overflow-hidden transition-colors duration-500 h-40"
       data-theme={persona}
       style={{ backgroundColor: "var(--primary-light)" }}
     >
@@ -83,24 +83,11 @@ export function Hero() {
       <img
         src={currentContent.artSrc}
         alt="decoration"
-        className="absolute right-0 top-0 h-full object-cover opacity-80"
+        className="absolute right-0 top-0 h-full object-cover w-[200px] opacity-55 -scale-x-100"
       />
 
-      {/* Decorative wave at bottom */}
-      <svg
-        className="absolute bottom-0 left-0 w-full h-[120px]"
-        viewBox="0 0 1000 200"
-        preserveAspectRatio="none"
-      >
-        <path
-          d="M0,90 Q10,80 700,200 T1000,100 L1000,200 L0,200 Z"
-          fill="var(--secondary)" // Using secondary color for wave
-          opacity="0.6"
-        />
-      </svg>
-
       <div className="absolute inset-0 opacity-100">
-        <div className="absolute top-[-50px] left-[-194px] w-[883px] h-[275px]">
+        <div className="absolute top-[-30px] left-[-120px] w-[620px] h-[180px]">
           {/* Decorative circles */}
           <div
             className="absolute w-[174px] h-[145px] rounded-full blur-3xl opacity-90 transition-colors duration-500"
@@ -129,18 +116,20 @@ export function Hero() {
         </div>
       </div>
 
-      <div className="relative z-10 flex items-center h-full px-12">
-        <div className="max-w-[583px]">
-          <h1 className="text-[48px] leading-[40px] font-normal text-[#333438] mb-4">
+      <div className="relative z-10 h-full px-8 py-4 flex items-center">
+        <div className="max-w-[calc(100%-220px)]">
+          <h1
+            className="text-[#333438] text-[28px] leading-8 font-semibold mb-1 whitespace-nowrap"
+          >
             {currentContent.title}
           </h1>
-          <p className="text-[16px] leading-[24px] text-[#61636c] mb-8">
+          <p className="text-[#61636c] text-[14px] leading-5">
             {currentContent.description}
           </p>
           <Link
             to={currentContent.buttonLink}
             data-tutorial={currentContent.dataTutorial}
-            className="text-white px-6 py-2 rounded flex items-center gap-2 shadow-md transition-all w-fit"
+            className="text-white px-6 py-2 rounded flex items-center gap-2 transition-all w-fit shadow-sm mt-3"
             style={{
               backgroundColor: "var(--secondary)",
             }}
