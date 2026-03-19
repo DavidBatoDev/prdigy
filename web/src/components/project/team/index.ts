@@ -1,9 +1,6 @@
 export { TeamPage } from "./TeamPage";
 export { TeamSkeleton } from "./TeamSkeleton";
-export { PersonCard } from "./PersonCard";
-export { PrincipalsCard } from "./PrincipalsCard";
 export { EditableRole } from "./EditableRole";
-export { MembersTable } from "./MembersTable";
 export { AddMemberModal } from "./AddMemberModal";
 export { PermissionsDrawer } from "./PermissionsDrawer";
 export { memberDisplayName } from "./utils";
