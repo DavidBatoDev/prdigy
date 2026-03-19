@@ -5,7 +5,7 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { isInteractivePanTarget } from "./utils";
+import { isInteractivePanTarget } from "../model/utils";
 
 interface UseMilestonesPanParams {
 	timelineScrollRef: RefObject<HTMLDivElement | null>;

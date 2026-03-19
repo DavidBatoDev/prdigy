@@ -26,6 +26,7 @@ const RoadmapCanvas = ({
 	onDeleteTask: onDeleteTaskProp,
 	onShare: _onShare,
 	onExport: _onExport,
+	canEditTimelineDates = true,
 	focusNodeId: focusNodeIdProp,
 	focusNodeOffsetX: focusNodeOffsetXProp,
 	onFocusComplete: onFocusCompleteProp,
@@ -265,6 +266,8 @@ const RoadmapCanvas = ({
 						onAddMilestone={onAddMilestone}
 						onUpdateMilestone={onUpdateMilestone}
 						onDeleteMilestone={onDeleteMilestone}
+						onUpdateFeature={onUpdateFeature}
+						canEditTimelineDates={canEditTimelineDates}
 						onNavigateToEpic={handleNavigateToEpicTab}
 					/>
 				)}

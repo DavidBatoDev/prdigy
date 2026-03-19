@@ -1,13 +1,13 @@
 import { useMemo } from "react";
 import type { RoadmapEpic, RoadmapMilestone } from "@/types/roadmap";
-import { COL_WIDTH } from "./constants";
-import type { Granularity, MilestoneMarker } from "./types";
+import { COL_WIDTH } from "../model/constants";
+import type { Granularity, MilestoneMarker } from "../model/types";
 import {
 	getColumns,
 	getSuperGroups,
 	getTimelineRange,
 	toTimelinePx,
-} from "./utils";
+} from "../model/utils";
 
 interface UseMilestonesTimelineParams {
 	sortedEpics: RoadmapEpic[];

@@ -1,7 +1,11 @@
 import type { CSSProperties } from "react";
-import { DATE_HEADER_HEIGHT, SUB_ROW_H, SUPER_ROW_H } from "./constants";
-import type { Granularity, MilestoneMarker, SuperGroup } from "./types";
-import { fmtShort, subLabel } from "./utils";
+import { DATE_HEADER_HEIGHT, SUB_ROW_H, SUPER_ROW_H } from "../model/constants";
+import type {
+	Granularity,
+	MilestoneMarker,
+	SuperGroup,
+} from "../model/types";
+import { fmtShort, subLabel } from "../model/utils";
 
 interface MilestonesTimelineHeaderProps {
 	totalWidth: number;

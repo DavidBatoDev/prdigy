@@ -9,8 +9,12 @@ import type { RoadmapEpic } from "@/types/roadmap";
 import {
 	type ExplorerSearchResult,
 	RoadmapStructureHeader,
-} from "../../panels/explorer/RoadmapStructureHeader";
-import { FIRST_EPIC_EXTRA_HEIGHT, LEFT_WIDTH, ROW_HEIGHT } from "./constants";
+} from "../../../panels/explorer/RoadmapStructureHeader";
+import {
+	FIRST_EPIC_EXTRA_HEIGHT,
+	LEFT_WIDTH,
+	ROW_HEIGHT,
+} from "../model/constants";
 
 interface MilestonesLeftPanelProps {
 	leftHeaderRef: RefObject<HTMLDivElement | null>;

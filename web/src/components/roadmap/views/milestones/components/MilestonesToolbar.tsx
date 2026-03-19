@@ -1,5 +1,5 @@
-import { G_LABELS, GRANULARITIES } from "./constants";
-import type { Granularity } from "./types";
+import { G_LABELS, GRANULARITIES } from "../model/constants";
+import type { Granularity } from "../model/types";
 
 interface MilestonesToolbarProps {
 	granularity: Granularity;

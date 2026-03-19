@@ -254,6 +254,77 @@ export function getInclusiveDays(start: Date, end: Date): number {
 	return Math.max(1, Math.round(daysBetween(s, e)) + 1);
 }
 
+export function addDays(date: Date, days: number): Date {
+	const next = new Date(date);
+	next.setDate(next.getDate() + days);
+	return floorToUnit(next, "day");
+}
+
+export function clampDate(
+	date: Date,
+	minDate?: Date,
+	maxDate?: Date,
+): Date {
+	const ts = floorToUnit(date, "day").getTime();
+	const minTs =
+		minDate !== undefined ? floorToUnit(minDate, "day").getTime() : undefined;
+	const maxTs =
+		maxDate !== undefined ? floorToUnit(maxDate, "day").getTime() : undefined;
+
+	if (minTs !== undefined && ts < minTs) return new Date(minTs);
+	if (maxTs !== undefined && ts > maxTs) return new Date(maxTs);
+	return new Date(ts);
+}
+
+export function toISODateString(date: Date): string {
+	const y = date.getFullYear();
+	const m = String(date.getMonth() + 1).padStart(2, "0");
+	const d = String(date.getDate()).padStart(2, "0");
+	return `${y}-${m}-${d}`;
+}
+
+export function dateFromTimelinePx(
+	px: number,
+	timelineStart: Date,
+	g: Granularity,
+	colWidth: number,
+): Date {
+	const s = floorToUnit(timelineStart, "day");
+	switch (g) {
+		case "day": {
+			return floorToUnit(addDays(s, Math.round(px / colWidth)), "day");
+		}
+		case "week": {
+			const days = Math.round((px / colWidth) * 7);
+			return floorToUnit(addDays(s, days), "day");
+		}
+		case "month": {
+			const monthStart = new Date(s.getFullYear(), s.getMonth(), 1);
+			const monthsFloat = px / colWidth;
+			const monthOffset = Math.floor(monthsFloat);
+			const monthDate = new Date(
+				monthStart.getFullYear(),
+				monthStart.getMonth() + monthOffset,
+				1,
+			);
+			const monthProgress = monthsFloat - monthOffset;
+			const day = 1 + Math.round(monthProgress * (getDaysInMonth(monthDate) - 1));
+			return floorToUnit(
+				new Date(monthDate.getFullYear(), monthDate.getMonth(), day),
+				"day",
+			);
+		}
+		case "year": {
+			const yearsFloat = px / colWidth;
+			const yearOffset = Math.floor(yearsFloat);
+			const year = s.getFullYear() + yearOffset;
+			const yearProgress = yearsFloat - yearOffset;
+			const dayOfYear = 1 + Math.round(yearProgress * (getDaysInYear(year) - 1));
+			return floorToUnit(new Date(year, 0, dayOfYear), "day");
+		}
+	}
+}
+
 export function isInteractivePanTarget(target: EventTarget | null): boolean {
 	if (!(target instanceof HTMLElement)) return false;
 	return Boolean(

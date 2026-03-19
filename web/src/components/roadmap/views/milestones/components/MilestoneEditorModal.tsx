@@ -1,7 +1,7 @@
 import { X } from "lucide-react";
 import { useId } from "react";
 import type { RoadmapMilestone } from "@/types/roadmap";
-import type { MilestoneModalMode } from "./useMilestoneEditor";
+import type { MilestoneModalMode } from "../hooks/useMilestoneEditor";
 
 interface MilestoneEditorModalProps {
 	isOpen: boolean;

@@ -1,6 +1,11 @@
 import { BarChart2, Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Roadmap, RoadmapEpic, RoadmapMilestone } from "@/types/roadmap";
+import type {
+	Roadmap,
+	RoadmapEpic,
+	RoadmapFeature,
+	RoadmapMilestone,
+} from "@/types/roadmap";
 import {
 	type ExplorerSearchResult,
 	getSortedEpics,
@@ -9,17 +14,19 @@ import {
 import {
 	DATE_HEADER_HEIGHT,
 	DEFAULT_EXPLORER_HEADER_HEIGHT,
+	FeatureDateChangeConfirmModal,
+	type FeatureDateDraftCommit,
+	type Granularity,
+	MilestoneEditorModal,
+	MilestonesLeftPanel,
+	MilestonesTimelineHeader,
+	MilestonesTimelineRows,
+	MilestonesToolbar,
 	RIGHT_HEADER_HEIGHT,
-} from "./milestones/constants";
-import { MilestoneEditorModal } from "./milestones/MilestoneEditorModal";
-import { MilestonesLeftPanel } from "./milestones/MilestonesLeftPanel";
-import { MilestonesTimelineHeader } from "./milestones/MilestonesTimelineHeader";
-import { MilestonesTimelineRows } from "./milestones/MilestonesTimelineRows";
-import { MilestonesToolbar } from "./milestones/MilestonesToolbar";
-import type { Granularity } from "./milestones/types";
-import { useMilestoneEditor } from "./milestones/useMilestoneEditor";
-import { useMilestonesPan } from "./milestones/useMilestonesPan";
-import { useMilestonesTimeline } from "./milestones/useMilestonesTimeline";
+	useMilestoneEditor,
+	useMilestonesPan,
+	useMilestonesTimeline,
+} from "./milestones";
 
 export interface MilestonesViewProps {
 	roadmap: Roadmap;
@@ -34,8 +41,12 @@ export interface MilestonesViewProps {
 	}) => Promise<void> | void;
 	onUpdateMilestone: (milestone: RoadmapMilestone) => Promise<void> | void;
 	onDeleteMilestone: (id: string) => Promise<void> | void;
+	onUpdateFeature: (feature: RoadmapFeature) => Promise<void> | void;
+	canEditTimelineDates?: boolean;
 	onNavigateToEpic?: (epicId: string) => void;
 }
+
+const FEATURE_DATE_CONFIRM_SKIP_KEY = "roadmap.timeline.skipDragDateConfirm";
 
 export const MilestonesView = ({
 	roadmap: _roadmap,
@@ -44,6 +55,8 @@ export const MilestonesView = ({
 	onAddMilestone,
 	onUpdateMilestone,
 	onDeleteMilestone: _onDeleteMilestone,
+	onUpdateFeature,
+	canEditTimelineDates = true,
 	onNavigateToEpic,
 }: MilestonesViewProps) => {
 	const [granularity, setGranularity] = useState<Granularity>("month");
@@ -51,6 +64,11 @@ export const MilestonesView = ({
 	const [leftHeaderHeight, setLeftHeaderHeight] = useState(
 		DEFAULT_EXPLORER_HEADER_HEIGHT,
 	);
+	const [pendingFeatureDateChange, setPendingFeatureDateChange] =
+		useState<FeatureDateDraftCommit | null>(null);
+	const [isConfirmingFeatureDateChange, setIsConfirmingFeatureDateChange] =
+		useState(false);
+	const [dontAskAgainInSession, setDontAskAgainInSession] = useState(false);
 	const verticalScrollRef = useRef<HTMLDivElement>(null);
 	const timelineScrollRef = useRef<HTMLDivElement>(null);
 	const leftHeaderRef = useRef<HTMLDivElement>(null);
@@ -266,6 +284,54 @@ export const MilestonesView = ({
 		return () => cancelAnimationFrame(raf);
 	}, [todayPx]);
 
+	const applyFeatureDateChange = useCallback(
+		async (change: FeatureDateDraftCommit) => {
+			setIsConfirmingFeatureDateChange(true);
+			try {
+				await onUpdateFeature({
+					...change.feature,
+					start_date: change.newStartDate,
+					end_date: change.newEndDate,
+					updated_at: new Date().toISOString(),
+				});
+				setPendingFeatureDateChange(null);
+			} finally {
+				setIsConfirmingFeatureDateChange(false);
+			}
+		},
+		[onUpdateFeature],
+	);
+
+	const handleFeatureDateDraftCommit = useCallback(
+		(change: FeatureDateDraftCommit) => {
+			if (!canEditTimelineDates) return;
+			const shouldSkipConfirm =
+				typeof window !== "undefined" &&
+				window.sessionStorage.getItem(FEATURE_DATE_CONFIRM_SKIP_KEY) === "1";
+			if (shouldSkipConfirm) {
+				void applyFeatureDateChange(change);
+				return;
+			}
+
+			setDontAskAgainInSession(false);
+			setPendingFeatureDateChange(change);
+		},
+		[applyFeatureDateChange, canEditTimelineDates],
+	);
+
+	const handleConfirmFeatureDateChange = useCallback(async () => {
+		if (!pendingFeatureDateChange) return;
+		if (dontAskAgainInSession && typeof window !== "undefined") {
+			window.sessionStorage.setItem(FEATURE_DATE_CONFIRM_SKIP_KEY, "1");
+		}
+		await applyFeatureDateChange(pendingFeatureDateChange);
+	}, [applyFeatureDateChange, dontAskAgainInSession, pendingFeatureDateChange]);
+
+	const handleCancelFeatureDateChange = useCallback(() => {
+		setPendingFeatureDateChange(null);
+		setDontAskAgainInSession(false);
+	}, []);
+
 	return (
 		<div className="absolute inset-0 bg-white">
 			<MilestonesToolbar
@@ -342,6 +408,8 @@ export const MilestonesView = ({
 								cw={cw}
 								rangeStart={rangeStart}
 								granularity={granularity}
+								canEditDateRanges={canEditTimelineDates}
+								onFeatureDateDraftCommit={handleFeatureDateDraftCommit}
 							/>
 						</div>
 					</div>
@@ -370,6 +438,16 @@ export const MilestonesView = ({
 					onDraftColorChange={setDraftColor}
 					onCancel={cancelMilestoneEditor}
 					onSubmit={submitMilestone}
+				/>
+
+				<FeatureDateChangeConfirmModal
+					isOpen={pendingFeatureDateChange !== null}
+					change={pendingFeatureDateChange}
+					isSaving={isConfirmingFeatureDateChange}
+					dontAskAgain={dontAskAgainInSession}
+					onDontAskAgainChange={setDontAskAgainInSession}
+					onCancel={handleCancelFeatureDateChange}
+					onConfirm={handleConfirmFeatureDateChange}
 				/>
 			</div>
 		</div>

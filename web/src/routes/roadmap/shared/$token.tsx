@@ -230,6 +230,7 @@ function SharedRoadmapPage() {
               roadmap={roadmap}
               milestones={milestones}
               epics={epics}
+              canEditTimelineDates={canEdit}
               onUpdateRoadmap={canEdit ? () => {} : noOpHandler}
               onAddMilestone={canEdit ? () => {} : noOpHandler}
               onUpdateMilestone={canEdit ? () => {} : noOpHandler}
