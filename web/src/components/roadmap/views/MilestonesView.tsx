@@ -1,321 +1,25 @@
-import {
-	BarChart2,
-	ChevronDown,
-	ChevronRight,
-	ExternalLink,
-	Plus,
-	X,
-} from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { BarChart2, Plus } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Roadmap, RoadmapEpic, RoadmapMilestone } from "@/types/roadmap";
 import {
-	getSortedEpics,
 	type ExplorerSearchResult,
+	getSortedEpics,
 	ROADMAP_STRUCTURE_EXPLORER_CONFIG,
-	RoadmapStructureHeader,
 } from "../panels/explorer/RoadmapStructureHeader";
-import { calculateFeatureProgressFromTasks } from "../shared/featureProgress";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type Granularity = "day" | "week" | "month" | "year";
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const COL_WIDTH: Record<Granularity, number> = {
-	day: 40,
-	week: 100,
-	month: 96,
-	year: 160,
-};
-
-const MS_PER_DAY = 86_400_000;
-const LEFT_WIDTH = 320;
-const ROW_HEIGHT = 44;
-const FIRST_EPIC_EXTRA_HEIGHT = 8;
-const SUPER_ROW_H = 28;
-const SUB_ROW_H = 40;
-const DATE_HEADER_HEIGHT = SUPER_ROW_H + SUB_ROW_H;
-const RIGHT_HEADER_HEIGHT = DATE_HEADER_HEIGHT;
-const DEFAULT_EXPLORER_HEADER_HEIGHT = 140;
-const FEATURE_BAR_HEIGHT = 28;
-const FEATURE_BAR_ROUNDED_CLASS = "rounded-sm";
-const FEATURE_BAR_TRACK_COLOR = "#cbd5e1";
-const FEATURE_BAR_FILL_COLOR = "#2563eb";
-const FEATURE_BAR_BORDER_COLOR = "#94a3b8";
-const FEATURE_LABEL_CHAR_PX = 6;
-const FEATURE_LABEL_HORIZONTAL_PADDING = 16;
-const FEATURE_LABEL_MIN_INSIDE_WIDTH = 52;
-const FEATURE_LABEL_OUTSIDE_GAP = 8;
-const EPIC_LINE_HEIGHT = 4;
-const EPIC_LINE_OPACITY = 0.4;
-
-// ─── Date helpers ─────────────────────────────────────────────────────────────
-
-function floorToUnit(d: Date, g: Granularity): Date {
-	switch (g) {
-		case "day":
-			return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-		case "week": {
-			const diff = d.getDay() === 0 ? -6 : 1 - d.getDay();
-			return new Date(d.getFullYear(), d.getMonth(), d.getDate() + diff);
-		}
-		case "month":
-			return new Date(d.getFullYear(), d.getMonth(), 1);
-		case "year":
-			return new Date(d.getFullYear(), 0, 1);
-	}
-}
-
-function addInterval(d: Date, g: Granularity, n = 1): Date {
-	const r = new Date(d);
-	switch (g) {
-		case "day":
-			r.setDate(r.getDate() + n);
-			break;
-		case "week":
-			r.setDate(r.getDate() + n * 7);
-			break;
-		case "month":
-			r.setMonth(r.getMonth() + n);
-			break;
-		case "year":
-			r.setFullYear(r.getFullYear() + n);
-			break;
-	}
-	return r;
-}
-
-function getColumns(start: Date, end: Date, g: Granularity): Date[] {
-	const cols: Date[] = [];
-	let cur = floorToUnit(start, g);
-	while (cur.getTime() <= end.getTime()) {
-		cols.push(new Date(cur));
-		cur = addInterval(cur, g);
-	}
-	return cols;
-}
-
-// ISO week number (Mon-based)
-function getISOWeek(d: Date): number {
-	const tmp = new Date(d);
-	tmp.setHours(0, 0, 0, 0);
-	tmp.setDate(tmp.getDate() + 3 - ((tmp.getDay() + 6) % 7));
-	const w1 = new Date(tmp.getFullYear(), 0, 4);
-	return (
-		1 +
-		Math.round(
-			((tmp.getTime() - w1.getTime()) / MS_PER_DAY -
-				3 +
-				((w1.getDay() + 6) % 7)) /
-				7,
-		)
-	);
-}
-
-// Sub-row label per column
-function subLabel(d: Date, g: Granularity): string {
-	switch (g) {
-		case "day":
-			return String(d.getDate());
-		case "week": {
-			const wn = getISOWeek(d);
-			return `W${String(wn).padStart(2, "0")}`;
-		}
-		case "month":
-			return d.toLocaleDateString("en-US", { month: "short" });
-		case "year":
-			return String(d.getFullYear());
-	}
-}
-
-// ISO week year — the year the ISO week logically belongs to (W01 of 2026 starts Dec 29 2025, so year = 2026)
-function getISOWeekYear(d: Date): number {
-	const tmp = new Date(d);
-	tmp.setDate(tmp.getDate() + 3 - ((tmp.getDay() + 6) % 7));
-	return tmp.getFullYear();
-}
-
-type SuperGroup = { label: string; colCount: number };
-
-// Super-row groups (null = no super row, i.e. year granularity)
-function getSuperGroups(columns: Date[], g: Granularity): SuperGroup[] | null {
-	if (g === "year") return null;
-
-	const groups: SuperGroup[] = [];
-	let cur = "";
-	let count = 0;
-
-	for (const col of columns) {
-		const label =
-			g === "month"
-				? String(col.getFullYear())
-				: g === "week"
-					? String(getISOWeekYear(col)) // group by ISO week year so W01 always sits under its own year
-					: col.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-
-		if (label !== cur) {
-			if (cur) groups.push({ label: cur, colCount: count });
-			cur = label;
-			count = 1;
-		} else {
-			count++;
-		}
-	}
-	if (cur) groups.push({ label: cur, colCount: count });
-	return groups;
-}
-
-function daysBetween(a: Date, b: Date): number {
-	return (b.getTime() - a.getTime()) / MS_PER_DAY;
-}
-
-function getDaysInMonth(d: Date): number {
-	return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-}
-
-function getDaysInYear(year: number): number {
-	return new Date(year, 1, 29).getMonth() === 1 ? 366 : 365;
-}
-
-function getDayOfYear(d: Date): number {
-	const start = new Date(d.getFullYear(), 0, 1);
-	return Math.floor(daysBetween(start, d)) + 1;
-}
-
-function toTimelinePx(
-	date: Date,
-	timelineStart: Date,
-	g: Granularity,
-	colWidth: number,
-): number {
-	const d = floorToUnit(date, "day");
-	const s = floorToUnit(timelineStart, "day");
-
-	switch (g) {
-		case "day":
-			return daysBetween(s, d) * colWidth;
-		case "week":
-			return (daysBetween(s, d) / 7) * colWidth;
-		case "month": {
-			const monthStart = new Date(s.getFullYear(), s.getMonth(), 1);
-			const monthsSinceStart =
-				(d.getFullYear() - monthStart.getFullYear()) * 12 +
-				(d.getMonth() - monthStart.getMonth());
-			const dayProgress = (d.getDate() - 1) / getDaysInMonth(d);
-			return (monthsSinceStart + dayProgress) * colWidth;
-		}
-		case "year": {
-			const yearsSinceStart = d.getFullYear() - s.getFullYear();
-			const dayProgress = (getDayOfYear(d) - 1) / getDaysInYear(d.getFullYear());
-			return (yearsSinceStart + dayProgress) * colWidth;
-		}
-	}
-}
-
-function computeEpicRange(
-	epic: RoadmapEpic,
-): { start: Date; end: Date } | null {
-	const ts: number[] = [];
-	for (const f of epic.features ?? []) {
-		if (f.start_date) ts.push(new Date(f.start_date).getTime());
-		if (f.end_date) ts.push(new Date(f.end_date).getTime());
-	}
-	if (ts.length === 0) return null;
-	return {
-		start: new Date(Math.min(...ts)),
-		end: new Date(Math.max(...ts)),
-	};
-}
-
-function getTimelineRange(
-	epics: RoadmapEpic[],
-	g: Granularity,
-): { start: Date; end: Date } {
-	const ts: number[] = [];
-	for (const e of epics) {
-		for (const f of e.features ?? []) {
-			if (f.start_date) ts.push(new Date(f.start_date).getTime());
-			if (f.end_date) ts.push(new Date(f.end_date).getTime());
-		}
-	}
-
-	const today = new Date();
-	const anchor =
-		ts.length === 0
-			? { min: today, max: today }
-			: { min: new Date(Math.min(...ts)), max: new Date(Math.max(...ts)) };
-
-	const { min, max } = anchor;
-
-	switch (g) {
-		case "day": {
-			const start = new Date(min);
-			start.setDate(start.getDate() - 28);
-			const end = new Date(max);
-			end.setDate(end.getDate() + 28);
-			return { start, end };
-		}
-		case "week": {
-			const start = new Date(min);
-			start.setDate(start.getDate() - 20 * 7);
-			const end = new Date(max);
-			end.setDate(end.getDate() + 20 * 7);
-			return { start, end };
-		}
-		case "month": {
-			return {
-				start: new Date(min.getFullYear(), min.getMonth() - 12, 1),
-				end: new Date(max.getFullYear(), max.getMonth() + 12, 1),
-			};
-		}
-		case "year": {
-			return {
-				start: new Date(min.getFullYear() - 4, 0, 1),
-				end: new Date(max.getFullYear() + 4, 0, 1),
-			};
-		}
-	}
-}
-
-function fmtShort(iso: string): string {
-	return new Date(iso).toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		year: "numeric",
-	});
-}
-
-function fmtMonthDay(d: Date): string {
-	return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-function fmtEpicDateRange(start: Date, end: Date): string {
-	const sameMonthYear =
-		start.getFullYear() === end.getFullYear() &&
-		start.getMonth() === end.getMonth();
-	if (sameMonthYear) {
-		return `${start.toLocaleDateString("en-US", { month: "short" })} ${start.getDate()} - ${end.getDate()}`;
-	}
-	return `${fmtMonthDay(start)} - ${fmtMonthDay(end)}`;
-}
-
-function getInclusiveDays(start: Date, end: Date): number {
-	const s = floorToUnit(start, "day");
-	const e = floorToUnit(end, "day");
-	return Math.max(1, Math.round(daysBetween(s, e)) + 1);
-}
-
-function isInteractivePanTarget(target: EventTarget | null): boolean {
-	if (!(target instanceof HTMLElement)) return false;
-	return Boolean(
-		target.closest(
-			'button, a, input, textarea, select, label, [role="button"], [data-no-pan="true"]',
-		),
-	);
-}
-
-// ─── Component ────────────────────────────────────────────────────────────────
+import {
+	DATE_HEADER_HEIGHT,
+	DEFAULT_EXPLORER_HEADER_HEIGHT,
+	RIGHT_HEADER_HEIGHT,
+} from "./milestones/constants";
+import { MilestoneEditorModal } from "./milestones/MilestoneEditorModal";
+import { MilestonesLeftPanel } from "./milestones/MilestonesLeftPanel";
+import { MilestonesTimelineHeader } from "./milestones/MilestonesTimelineHeader";
+import { MilestonesTimelineRows } from "./milestones/MilestonesTimelineRows";
+import { MilestonesToolbar } from "./milestones/MilestonesToolbar";
+import type { Granularity } from "./milestones/types";
+import { useMilestoneEditor } from "./milestones/useMilestoneEditor";
+import { useMilestonesPan } from "./milestones/useMilestonesPan";
+import { useMilestonesTimeline } from "./milestones/useMilestonesTimeline";
 
 export interface MilestonesViewProps {
 	roadmap: Roadmap;
@@ -330,60 +34,43 @@ export interface MilestonesViewProps {
 	}) => Promise<void> | void;
 	onUpdateMilestone: (milestone: RoadmapMilestone) => Promise<void> | void;
 	onDeleteMilestone: (id: string) => Promise<void> | void;
+	onNavigateToEpic?: (epicId: string) => void;
 }
 
 export const MilestonesView = ({
+	roadmap: _roadmap,
 	milestones,
 	epics,
 	onAddMilestone,
 	onUpdateMilestone,
 	onDeleteMilestone: _onDeleteMilestone,
+	onNavigateToEpic,
 }: MilestonesViewProps) => {
 	const [granularity, setGranularity] = useState<Granularity>("month");
 	const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-	const [milestoneModalMode, setMilestoneModalMode] = useState<
-		"create" | "edit" | null
-	>(null);
-	const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(
-		null,
+	const [leftHeaderHeight, setLeftHeaderHeight] = useState(
+		DEFAULT_EXPLORER_HEADER_HEIGHT,
 	);
-	const [isSavingMilestone, setIsSavingMilestone] = useState(false);
-	const [draftTitle, setDraftTitle] = useState("");
-	const [draftDate, setDraftDate] = useState(
-		new Date().toISOString().slice(0, 10),
-	);
-	const [draftStatus, setDraftStatus] =
-		useState<RoadmapMilestone["status"]>("not_started");
-	const [draftColor, setDraftColor] = useState("#f97316");
-	const [isPanningTimeline, setIsPanningTimeline] = useState(false);
 	const verticalScrollRef = useRef<HTMLDivElement>(null);
 	const timelineScrollRef = useRef<HTMLDivElement>(null);
 	const leftHeaderRef = useRef<HTMLDivElement>(null);
 	const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-	const panStateRef = useRef<{
-		startX: number;
-		startY: number;
-		startScrollLeft: number;
-		startScrollTop: number;
-	} | null>(null);
-	const [leftHeaderHeight, setLeftHeaderHeight] = useState(
-		DEFAULT_EXPLORER_HEADER_HEIGHT,
-	);
 	const timelineExplorerConfig = ROADMAP_STRUCTURE_EXPLORER_CONFIG.timeline;
 
 	const sortedMilestones = useMemo(
 		() => [...milestones].sort((a, b) => (a.position ?? 0) - (b.position ?? 0)),
 		[milestones],
 	);
-
-	const toggle = (id: string) =>
-		setCollapsed((s) => {
-			const n = new Set(s);
-			n.has(id) ? n.delete(id) : n.add(id);
-			return n;
-		});
-
 	const sortedEpics = useMemo(() => getSortedEpics(epics), [epics]);
+
+	const toggleEpic = useCallback((id: string) => {
+		setCollapsed((state) => {
+			const next = new Set(state);
+			next.has(id) ? next.delete(id) : next.add(id);
+			return next;
+		});
+	}, []);
+
 	const collapsableEpicIds = useMemo(
 		() =>
 			sortedEpics
@@ -395,180 +82,154 @@ export const MilestonesView = ({
 		() => collapsableEpicIds.some((id) => !collapsed.has(id)),
 		[collapsableEpicIds, collapsed],
 	);
+
 	const stickyHeaderHeight = Math.max(leftHeaderHeight, RIGHT_HEADER_HEIGHT);
 	const rightHeaderTopHeight = Math.max(
 		0,
 		leftHeaderHeight - DATE_HEADER_HEIGHT,
 	);
 
-	const getEpicRowKey = (epicId: string) => `epic:${epicId}`;
-	const getFeatureRowKey = (featureId: string) => `feature:${featureId}`;
+	const getEpicRowKey = useCallback((epicId: string) => `epic:${epicId}`, []);
+	const getFeatureRowKey = useCallback(
+		(featureId: string) => `feature:${featureId}`,
+		[],
+	);
 
-	const setRowRef = (key: string) => (node: HTMLDivElement | null) => {
+	const setRowRef = useCallback((key: string, node: HTMLDivElement | null) => {
 		if (node) {
 			rowRefs.current.set(key, node);
 			return;
 		}
 		rowRefs.current.delete(key);
-	};
+	}, []);
 
-	const scrollToRow = (rowKey: string) => {
-		const scrollContainer = verticalScrollRef.current;
-		const rowNode = rowRefs.current.get(rowKey);
-		if (!scrollContainer || !rowNode) return;
+	const setEpicRowRef = useCallback(
+		(epicId: string) => (node: HTMLDivElement | null) => {
+			setRowRef(getEpicRowKey(epicId), node);
+		},
+		[setRowRef, getEpicRowKey],
+	);
+	const setFeatureRowRef = useCallback(
+		(featureId: string) => (node: HTMLDivElement | null) => {
+			setRowRef(getFeatureRowKey(featureId), node);
+		},
+		[setRowRef, getFeatureRowKey],
+	);
 
-		const targetTop = Math.max(0, rowNode.offsetTop - stickyHeaderHeight - 8);
-		scrollContainer.scrollTo({ top: targetTop, behavior: "smooth" });
-	};
+	const scrollToRow = useCallback(
+		(rowKey: string) => {
+			const scrollContainer = verticalScrollRef.current;
+			const rowNode = rowRefs.current.get(rowKey);
+			if (!scrollContainer || !rowNode) return;
 
-	const scrollToRowAfterLayout = (rowKey: string) => {
-		requestAnimationFrame(() => {
+			const targetTop = Math.max(0, rowNode.offsetTop - stickyHeaderHeight - 8);
+			scrollContainer.scrollTo({ top: targetTop, behavior: "smooth" });
+		},
+		[stickyHeaderHeight],
+	);
+
+	const scrollToRowAfterLayout = useCallback(
+		(rowKey: string) => {
 			requestAnimationFrame(() => {
-				scrollToRow(rowKey);
+				requestAnimationFrame(() => {
+					scrollToRow(rowKey);
+				});
 			});
-		});
-	};
+		},
+		[scrollToRow],
+	);
 
-	const handleToggleCollapseAll = () => {
+	const handleToggleCollapseAll = useCallback(() => {
 		if (hasAnyExpanded) {
 			setCollapsed(new Set(collapsableEpicIds));
 			return;
 		}
 		setCollapsed(new Set());
-	};
+	}, [hasAnyExpanded, collapsableEpicIds]);
 
-	const handleTimelineSearchResultSelect = (result: ExplorerSearchResult) => {
-		if (result.type === "epic") {
-			setCollapsed((prev) => {
-				if (!prev.has(result.id)) return prev;
-				const next = new Set(prev);
-				next.delete(result.id);
-				return next;
-			});
-			scrollToRowAfterLayout(getEpicRowKey(result.id));
-			return;
-		}
+	const handleTimelineSearchResultSelect = useCallback(
+		(result: ExplorerSearchResult) => {
+			if (result.type === "epic") {
+				setCollapsed((prev) => {
+					if (!prev.has(result.id)) return prev;
+					const next = new Set(prev);
+					next.delete(result.id);
+					return next;
+				});
+				scrollToRowAfterLayout(getEpicRowKey(result.id));
+				return;
+			}
 
-		const targetEpicId = result.epicId;
-		const targetFeatureId =
-			result.type === "feature" ? result.id : (result.featureId ?? null);
+			const targetEpicId = result.epicId;
+			const targetFeatureId =
+				result.type === "feature" ? result.id : (result.featureId ?? null);
 
-		if (targetEpicId) {
-			setCollapsed((prev) => {
-				if (!prev.has(targetEpicId)) return prev;
-				const next = new Set(prev);
-				next.delete(targetEpicId);
-				return next;
-			});
-		}
+			if (targetEpicId) {
+				setCollapsed((prev) => {
+					if (!prev.has(targetEpicId)) return prev;
+					const next = new Set(prev);
+					next.delete(targetEpicId);
+					return next;
+				});
+			}
 
-		if (targetFeatureId) {
-			scrollToRowAfterLayout(getFeatureRowKey(targetFeatureId));
-			return;
-		}
+			if (targetFeatureId) {
+				scrollToRowAfterLayout(getFeatureRowKey(targetFeatureId));
+				return;
+			}
 
-		if (targetEpicId) {
-			scrollToRowAfterLayout(getEpicRowKey(targetEpicId));
-		}
-	};
-
-	const { rangeStart, columns, superGroups } = useMemo(() => {
-		const range = getTimelineRange(sortedEpics, granularity);
-		const cols = getColumns(range.start, range.end, granularity);
-		return {
-			rangeStart: cols[0] ?? range.start, // must match the first column — not the raw range start
-			columns: cols,
-			superGroups: getSuperGroups(cols, granularity),
-		};
-	}, [sortedEpics, granularity]);
-
-	const cw = COL_WIDTH[granularity];
-	const totalWidth = columns.length * cw;
-	const todayPx = toTimelinePx(new Date(), rangeStart, granularity, cw);
-	// Column highlight: find which column bucket today falls in
-	const todayColIndex = todayPx >= 0 ? Math.floor(todayPx / cw) : -1;
-	const todayColLeft = todayColIndex * cw;
-	const todayColInRange = todayColIndex >= 0 && todayColLeft < totalWidth;
-	const hasAnyDates = sortedEpics.some((e) =>
-		(e.features ?? []).some((f) => f.start_date || f.end_date),
+			if (targetEpicId) {
+				scrollToRowAfterLayout(getEpicRowKey(targetEpicId));
+			}
+		},
+		[scrollToRowAfterLayout, getEpicRowKey, getFeatureRowKey],
 	);
 
-	const milestoneMarkers = useMemo(() => {
-		return sortedMilestones
-			.map((milestone) => {
-				const parsed = new Date(milestone.target_date);
-				if (Number.isNaN(parsed.getTime())) return null;
-				const left = toTimelinePx(parsed, rangeStart, granularity, cw);
-				return { milestone, left };
-			})
-			.filter((item): item is { milestone: RoadmapMilestone; left: number } =>
-				Boolean(item),
-			);
-	}, [sortedMilestones, rangeStart, granularity, cw]);
+	const {
+		rangeStart,
+		columns,
+		superGroups,
+		cw,
+		totalWidth,
+		todayPx,
+		todayColIndex,
+		todayColLeft,
+		todayColInRange,
+		hasAnyDates,
+		milestoneMarkers,
+		gridBg,
+	} = useMilestonesTimeline({
+		sortedEpics,
+		sortedMilestones,
+		granularity,
+	});
 
-	const resetMilestoneDraft = () => {
-		setDraftTitle("");
-		setDraftDate(new Date().toISOString().slice(0, 10));
-		setDraftStatus("not_started");
-		setDraftColor("#f97316");
-	};
+	const {
+		milestoneModalMode,
+		isMilestoneModalOpen,
+		isSavingMilestone,
+		draftTitle,
+		draftDate,
+		draftStatus,
+		draftColor,
+		setDraftTitle,
+		setDraftDate,
+		setDraftStatus,
+		setDraftColor,
+		startCreateMilestone,
+		startEditMilestone,
+		cancelMilestoneEditor,
+		submitMilestone,
+	} = useMilestoneEditor({
+		sortedMilestones,
+		onAddMilestone,
+		onUpdateMilestone,
+	});
 
-	const startCreateMilestone = () => {
-		resetMilestoneDraft();
-		setEditingMilestoneId(null);
-		setMilestoneModalMode("create");
-	};
-
-	const startEditMilestone = (milestone: RoadmapMilestone) => {
-		setDraftTitle(milestone.title);
-		setDraftDate(new Date(milestone.target_date).toISOString().slice(0, 10));
-		setDraftStatus(milestone.status);
-		setDraftColor(milestone.color ?? "#f97316");
-		setMilestoneModalMode("edit");
-		setEditingMilestoneId(milestone.id);
-	};
-
-	const cancelMilestoneEditor = () => {
-		setMilestoneModalMode(null);
-		setEditingMilestoneId(null);
-		resetMilestoneDraft();
-	};
-
-	const isMilestoneModalOpen = milestoneModalMode !== null;
-
-	const saveNewMilestone = async () => {
-		if (!draftTitle.trim() || !draftDate) return;
-		setIsSavingMilestone(true);
-		try {
-			await onAddMilestone({
-				title: draftTitle.trim(),
-				target_date: new Date(`${draftDate}T00:00:00.000Z`).toISOString(),
-				status: draftStatus,
-				color: draftColor,
-			});
-			cancelMilestoneEditor();
-		} finally {
-			setIsSavingMilestone(false);
-		}
-	};
-
-	const saveEditedMilestone = async (milestone: RoadmapMilestone) => {
-		if (!draftTitle.trim() || !draftDate) return;
-		setIsSavingMilestone(true);
-		try {
-			await onUpdateMilestone({
-				...milestone,
-				title: draftTitle.trim(),
-				target_date: new Date(`${draftDate}T00:00:00.000Z`).toISOString(),
-				status: draftStatus,
-				color: draftColor,
-				updated_at: new Date().toISOString(),
-			});
-			cancelMilestoneEditor();
-		} finally {
-			setIsSavingMilestone(false);
-		}
-	};
+	const { isPanningTimeline } = useMilestonesPan({
+		timelineScrollRef,
+		verticalScrollRef,
+	});
 
 	useEffect(() => {
 		const node = leftHeaderRef.current;
@@ -583,7 +244,6 @@ export const MilestonesView = ({
 		};
 
 		updateHeight();
-
 		if (typeof ResizeObserver === "undefined") {
 			return;
 		}
@@ -593,353 +253,69 @@ export const MilestonesView = ({
 		return () => observer.disconnect();
 	}, []);
 
-	// Scroll to center today whenever granularity changes or on first mount.
-	// Use rAF so the browser has painted the new column layout before we measure clientWidth.
 	useEffect(() => {
 		let raf: number;
 		const run = () => {
-			const el = timelineScrollRef.current;
-			if (!el) return;
-			const visibleWidth = el.clientWidth;
+			const timelineElement = timelineScrollRef.current;
+			if (!timelineElement) return;
+			const visibleWidth = timelineElement.clientWidth;
 			const target = todayPx - visibleWidth / 2;
-			el.scrollLeft = Math.max(0, target);
+			timelineElement.scrollLeft = Math.max(0, target);
 		};
 		raf = requestAnimationFrame(run);
 		return () => cancelAnimationFrame(raf);
 	}, [todayPx]);
 
-	useEffect(() => {
-		if (!isPanningTimeline) return;
-
-		const handleMouseMove = (event: MouseEvent) => {
-			const panState = panStateRef.current;
-			const timelineEl = timelineScrollRef.current;
-			const verticalEl = verticalScrollRef.current;
-			if (!panState || !timelineEl || !verticalEl) return;
-
-			const dx = event.clientX - panState.startX;
-			const dy = event.clientY - panState.startY;
-			timelineEl.scrollLeft = panState.startScrollLeft - dx;
-			verticalEl.scrollTop = panState.startScrollTop - dy;
-		};
-
-		const stopPanning = () => {
-			panStateRef.current = null;
-			setIsPanningTimeline(false);
-		};
-
-		window.addEventListener("mousemove", handleMouseMove);
-		window.addEventListener("mouseup", stopPanning);
-		return () => {
-			window.removeEventListener("mousemove", handleMouseMove);
-			window.removeEventListener("mouseup", stopPanning);
-		};
-	}, [isPanningTimeline]);
-
-	const handleTimelineMouseDown = (event: ReactMouseEvent<HTMLDivElement>) => {
-		if (event.button !== 0) return;
-		if (isInteractivePanTarget(event.target)) return;
-
-		const timelineEl = timelineScrollRef.current;
-		const verticalEl = verticalScrollRef.current;
-		if (!timelineEl || !verticalEl) return;
-
-		panStateRef.current = {
-			startX: event.clientX,
-			startY: event.clientY,
-			startScrollLeft: timelineEl.scrollLeft,
-			startScrollTop: verticalEl.scrollTop,
-		};
-		setIsPanningTimeline(true);
-		event.preventDefault();
-	};
-
-	// Repeating grid-line background aligned to columns
-	const gridBg = {
-		backgroundImage: `repeating-linear-gradient(90deg, transparent 0px, transparent ${cw - 1}px, #e5e7eb ${cw - 1}px, #e5e7eb ${cw}px)`,
-	};
-
-	const renderMilestoneLines = (showTooltip: boolean) =>
-		milestoneMarkers.map(({ milestone, left }) => (
-			<div
-				key={milestone.id}
-				className="absolute top-0 bottom-0 -translate-x-1/2 group/milestone"
-				style={{ left: Math.max(0, left) }}
-			>
-				<div
-					className="absolute top-0 bottom-0 w-0.5"
-					style={{
-						backgroundImage: `repeating-linear-gradient(to bottom, ${milestone.color ?? "#f97316"} 0px, ${milestone.color ?? "#f97316"} 7px, transparent 7px, transparent 12px)`,
-						opacity: 0.95,
-					}}
-				/>
-				{showTooltip && (
-					<div className="absolute top-2 left-2 z-50 hidden whitespace-nowrap rounded-md bg-gray-900 px-2 py-1 text-[11px] text-white shadow-lg group-hover/milestone:block">
-						{milestone.title} • {fmtShort(milestone.target_date)}
-					</div>
-				)}
-			</div>
-		));
-
-	const renderMilestoneBanner = () =>
-		milestoneMarkers.map(({ milestone, left }) => {
-			const clampedLeft = Math.max(0, Math.min(totalWidth, left));
-			return (
-				<div
-					key={`banner-${milestone.id}`}
-					className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2"
-					style={{ left: clampedLeft }}
-				>
-					<button
-						type="button"
-						onClick={() => startEditMilestone(milestone)}
-						className="flex flex-col items-center gap-1 pointer-events-auto"
-					>
-						<span
-							className="text-[11px] font-semibold whitespace-nowrap px-2 py-0.5 rounded bg-white/80"
-							style={{ color: milestone.color ?? "#f97316" }}
-						>
-							{milestone.title}
-						</span>
-						<span
-							className="h-3 w-3 rotate-45 rounded-[2px]"
-							style={{ backgroundColor: milestone.color ?? "#f97316" }}
-						/>
-					</button>
-				</div>
-			);
-		});
-
-	const GRANULARITIES: Granularity[] = ["day", "week", "month", "year"];
-	const G_LABELS: Record<Granularity, string> = {
-		day: "Day",
-		week: "Week",
-		month: "Month",
-		year: "Year",
-	};
-
 	return (
 		<div className="absolute inset-0 bg-white">
-			<div
-				className="absolute z-50 pointer-events-none"
-				style={{ top: 8, right: 16 }}
-			>
-				<div className="pointer-events-auto inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-white/95 p-2 shadow-sm backdrop-blur">
-					{GRANULARITIES.map((g) => (
-						<button
-							type="button"
-							key={g}
-							onClick={() => setGranularity(g)}
-							className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
-								granularity === g
-									? "bg-orange-500 text-white shadow-sm"
-									: "text-gray-400 hover:text-gray-600 hover:bg-gray-100 border border-gray-200 bg-white"
-							}`}
-						>
-							{G_LABELS[g]}
-						</button>
-					))}
-				</div>
-			</div>
+			<MilestonesToolbar
+				granularity={granularity}
+				onGranularityChange={setGranularity}
+			/>
 
 			<div
 				ref={verticalScrollRef}
 				className="absolute inset-0 overflow-y-auto overflow-x-hidden bg-white hide-scrollbar"
 			>
 				<div className="flex min-w-0">
-					<div
-						className="shrink-0 border-r border-gray-200 bg-white"
-						style={{ width: LEFT_WIDTH }}
-					>
-						<div className="sticky top-0 z-40 border-b border-gray-200 bg-white">
-							<div ref={leftHeaderRef}>
-								<RoadmapStructureHeader
-									epics={sortedEpics}
-									hasAnyExpanded={hasAnyExpanded}
-									onToggleCollapseAll={handleToggleCollapseAll}
-									onSearchResultSelect={handleTimelineSearchResultSelect}
-									showCollapseToggle={
-										timelineExplorerConfig.allowFeatureCollapse === false
-									}
-									className="px-4 py-4 bg-white min-w-0"
-								/>
-							</div>
-						</div>
-
-						{!hasAnyDates && (
-							<div className="py-24 text-center opacity-0">
-								<div>
-									<BarChart2 className="w-12 h-12 mx-auto mb-4" />
-									<p className="font-medium text-base">No dates set yet</p>
-									<p className="text-sm mt-1 max-w-xs mx-auto">
-										Add start and end dates to features to see them on the
-										timeline
-									</p>
-								</div>
-							</div>
-						)}
-
-						{sortedEpics.map((epic, epicIndex) => {
-							const isCollapsed = collapsed.has(epic.id);
-							const features = epic.features ?? [];
-							const epicRowHeight =
-								ROW_HEIGHT + (epicIndex === 0 ? FIRST_EPIC_EXTRA_HEIGHT : 0);
-
-							return (
-								<div key={`left-${epic.id}`}>
-									<div
-										ref={setRowRef(getEpicRowKey(epic.id))}
-										style={{ height: epicRowHeight }}
-										className="group/epic bg-white px-4"
-									>
-										<div className="flex h-full min-w-0 items-center gap-1">
-											<div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2 py-2 pr-10 text-sm font-medium text-gray-900 transition-all hover:bg-white hover:shadow-sm">
-												<button
-													type="button"
-													onClick={() => toggle(epic.id)}
-													className="cursor-pointer rounded p-0.5 hover:bg-black/5"
-													aria-label={
-														isCollapsed ? "Expand epic" : "Collapse epic"
-													}
-												>
-													{isCollapsed ? (
-														<ChevronRight className="h-4 w-4 text-gray-500" />
-													) : (
-														<ChevronDown className="h-4 w-4 text-gray-500" />
-													)}
-												</button>
-												<button
-													type="button"
-													onClick={() => toggle(epic.id)}
-													className="min-w-0 flex-1 truncate text-left text-sm text-gray-900"
-													title={epic.title}
-												>
-													{epic.title}
-												</button>
-												{features.length > 0 && (
-													<span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-normal text-gray-500">
-														{features.length}
-													</span>
-												)}
-											</div>
-											<button
-												type="button"
-												className="shrink-0 rounded-lg border border-gray-200 bg-white p-2 text-blue-700 transition-all hover:bg-blue-50"
-												title="Navigate to epic"
-												aria-label={`Navigate to ${epic.title}`}
-											>
-												<ExternalLink className="h-3 w-3" />
-											</button>
-										</div>
-									</div>
-
-									{!isCollapsed &&
-										features.map((feature) => (
-											<div
-												key={`left-feature-${feature.id}`}
-												ref={setRowRef(getFeatureRowKey(feature.id))}
-												className="relative bg-white pr-4 pl-10"
-												style={{ height: ROW_HEIGHT }}
-											>
-												<div className="flex h-full w-full min-w-0 items-center gap-1.5 rounded-md border border-transparent px-2.5 pl-6 py-1.5 text-sm text-gray-700 transition-all hover:border-gray-200 hover:bg-white hover:shadow-sm">
-													<ChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-													<span className="min-w-0 flex-1 truncate text-left">
-														{feature.title}
-													</span>
-													{(feature.tasks?.length ?? 0) > 0 && (
-														<span className="pr-7 text-xs font-normal text-gray-500">
-															{feature.tasks?.length}
-														</span>
-													)}
-												</div>
-											</div>
-										))}
-								</div>
-							);
-						})}
-					</div>
+					<MilestonesLeftPanel
+						leftHeaderRef={leftHeaderRef}
+						sortedEpics={sortedEpics}
+						collapsed={collapsed}
+						hasAnyDates={hasAnyDates}
+						hasAnyExpanded={hasAnyExpanded}
+						showCollapseToggle={
+							timelineExplorerConfig.allowFeatureCollapse === false
+						}
+						onToggleEpic={toggleEpic}
+						onToggleCollapseAll={handleToggleCollapseAll}
+						onSearchResultSelect={handleTimelineSearchResultSelect}
+						setEpicRowRef={setEpicRowRef}
+						setFeatureRowRef={setFeatureRowRef}
+						onNavigateToEpic={onNavigateToEpic}
+					/>
 
 					<div
 						ref={timelineScrollRef}
-						onMouseDown={handleTimelineMouseDown}
 						className={`min-w-0 flex-1 overflow-x-auto overflow-y-visible hide-scrollbar ${
 							isPanningTimeline ? "cursor-grabbing select-none" : "cursor-grab"
 						}`}
 					>
 						<div className="relative" style={{ width: totalWidth }}>
-							<div
-								className="absolute left-0 right-0 bottom-0 z-20 pointer-events-none"
-								style={{
-									top: rightHeaderTopHeight + DATE_HEADER_HEIGHT - 1,
-									width: totalWidth,
-								}}
-							>
-								{renderMilestoneLines(false)}
-							</div>
-
-							<div className="sticky top-0 z-30 bg-white border-b border-gray-200">
-								{rightHeaderTopHeight > 0 && (
-									<div
-										className="relative border-b border-gray-100 bg-white"
-										style={{ height: rightHeaderTopHeight, width: totalWidth }}
-									>
-										{renderMilestoneBanner()}
-									</div>
-								)}
-
-								<div
-									className="absolute left-0 right-0 z-0 pointer-events-none"
-									style={{ top: rightHeaderTopHeight, height: DATE_HEADER_HEIGHT }}
-								>
-									{renderMilestoneLines(false)}
-								</div>
-
-								<div
-									className="flex"
-									style={{ height: SUPER_ROW_H, width: totalWidth }}
-								>
-									{superGroups
-										? superGroups.map((grp, i) => (
-												<div
-													key={i}
-													className="shrink-0 flex items-center justify-center border-r border-gray-200 overflow-hidden"
-													style={{ width: grp.colCount * cw }}
-												>
-													<span className="text-[11px] font-semibold text-blue-500 truncate">
-														{grp.label}
-													</span>
-												</div>
-											))
-										: null}
-								</div>
-
-								<div
-									className="flex border-t border-gray-100"
-									style={{ height: SUB_ROW_H, width: totalWidth, ...gridBg }}
-								>
-									{columns.map((col, i) => (
-										<div
-											key={i}
-											className="shrink-0 flex items-center justify-center select-none"
-											style={{
-												width: cw,
-												backgroundColor:
-													i === todayColIndex ? "#fff7ed" : undefined,
-											}}
-										>
-											<span
-												className={`text-[11px] font-medium ${
-													i === todayColIndex
-														? "text-orange-500 font-semibold"
-														: "text-gray-500"
-												}`}
-											>
-												{subLabel(col, granularity)}
-											</span>
-										</div>
-									))}
-								</div>
-							</div>
+							<MilestonesTimelineHeader
+								totalWidth={totalWidth}
+								rightHeaderTopHeight={rightHeaderTopHeight}
+								cw={cw}
+								columns={columns}
+								superGroups={superGroups}
+								todayColIndex={todayColIndex}
+								granularity={granularity}
+								gridBg={gridBg}
+								milestoneMarkers={milestoneMarkers}
+								onMilestoneSelect={(marker) =>
+									startEditMilestone(marker.milestone)
+								}
+							/>
 
 							{!hasAnyDates && (
 								<div className="flex items-center justify-center py-24 text-center">
@@ -956,204 +332,17 @@ export const MilestonesView = ({
 								</div>
 							)}
 
-							{sortedEpics.map((epic, epicIndex) => {
-								const isCollapsed = collapsed.has(epic.id);
-								const epicColor = epic.color ?? "#6366f1";
-								const epicRange = computeEpicRange(epic);
-								const features = epic.features ?? [];
-								const epicRowHeight =
-									ROW_HEIGHT + (epicIndex === 0 ? FIRST_EPIC_EXTRA_HEIGHT : 0);
-
-								return (
-									<div key={`right-${epic.id}`}>
-										<div
-											className="relative border-b border-gray-200"
-											style={{
-												height: epicRowHeight,
-												width: totalWidth,
-												...gridBg,
-											}}
-										>
-											{todayColInRange && (
-												<div
-													className="absolute top-0 bottom-0 pointer-events-none"
-													style={{
-														left: todayColLeft,
-														width: cw,
-														backgroundColor: "#f97316",
-														opacity: 0.07,
-													}}
-												/>
-											)}
-											{epicRange &&
-												(() => {
-													const left = toTimelinePx(
-														epicRange.start,
-														rangeStart,
-														granularity,
-														cw,
-													);
-													const right = toTimelinePx(
-														epicRange.end,
-														rangeStart,
-														granularity,
-														cw,
-													);
-													const lineLeft = Math.max(0, left);
-													const lineWidth = Math.max(6, right - left);
-													const durationDays = getInclusiveDays(
-														epicRange.start,
-														epicRange.end,
-													);
-													const epicLabel = `${epic.title} • ${fmtEpicDateRange(epicRange.start, epicRange.end)} • (${durationDays} day${durationDays > 1 ? "s" : ""})`;
-													return (
-														<div
-															className="absolute top-1/2 -translate-y-1/2 pointer-events-none"
-															style={{ left: lineLeft }}
-														>
-															<div className="text-[11px] text-gray-700 font-medium whitespace-nowrap truncate max-w-[420px]">
-																{epicLabel}
-															</div>
-															<div
-																className="mt-1 rounded-sm"
-																style={{
-																	width: lineWidth,
-																	height: EPIC_LINE_HEIGHT,
-																	backgroundColor: epicColor,
-																	opacity: EPIC_LINE_OPACITY,
-																}}
-															/>
-														</div>
-													);
-												})()}
-										</div>
-
-										{!isCollapsed &&
-											features.map((feature) => {
-												const hasDates = !!(
-													feature.start_date && feature.end_date
-												);
-												const taskProgress = calculateFeatureProgressFromTasks(
-													feature.tasks,
-												);
-												const clampedProgress = Math.max(
-													0,
-													Math.min(100, taskProgress),
-												);
-												const barLeft = hasDates
-													? toTimelinePx(
-															new Date(feature.start_date!),
-															rangeStart,
-															granularity,
-															cw,
-														)
-													: 0;
-												const barRight = hasDates
-													? toTimelinePx(
-															new Date(feature.end_date!),
-															rangeStart,
-															granularity,
-															cw,
-														)
-													: 0;
-												const barWidth = Math.max(6, barRight - barLeft);
-												const rawFillWidth = (barWidth * clampedProgress) / 100;
-												const fillWidth =
-													clampedProgress > 0 ? Math.max(3, rawFillWidth) : 0;
-												const estimatedLabelWidth =
-													feature.title.length * FEATURE_LABEL_CHAR_PX +
-													FEATURE_LABEL_HORIZONTAL_PADDING;
-												const labelFitsInside =
-													barWidth >=
-													Math.max(
-														FEATURE_LABEL_MIN_INSIDE_WIDTH,
-														estimatedLabelWidth,
-													);
-												const tooltip = hasDates
-													? `${fmtShort(feature.start_date!)} → ${fmtShort(feature.end_date!)} • ${clampedProgress}%`
-													: "No dates set";
-
-												return (
-													<div
-														key={`right-feature-${feature.id}`}
-														className="relative border-b border-gray-100"
-														style={{
-															height: ROW_HEIGHT,
-															width: totalWidth,
-															...gridBg,
-														}}
-													>
-														{todayColInRange && (
-															<div
-																className="absolute top-0 bottom-0 pointer-events-none"
-																style={{
-																	left: todayColLeft,
-																	width: cw,
-																	backgroundColor: "#f97316",
-																	opacity: 0.07,
-																}}
-															/>
-														)}
-														{hasDates && (
-															<>
-																<div
-																	className={`absolute top-1/2 -translate-y-1/2 ${FEATURE_BAR_ROUNDED_CLASS} group cursor-default`}
-																	style={{
-																		left: Math.max(0, barLeft),
-																		width: barWidth,
-																		height: FEATURE_BAR_HEIGHT,
-																		backgroundColor: FEATURE_BAR_TRACK_COLOR,
-																		borderColor: FEATURE_BAR_BORDER_COLOR,
-																		borderWidth: 1,
-																	}}
-																>
-																	<div
-																		className={`absolute left-0 top-0 bottom-0 ${FEATURE_BAR_ROUNDED_CLASS}`}
-																		style={{
-																			width: fillWidth,
-																			backgroundColor: FEATURE_BAR_FILL_COLOR,
-																		}}
-																	/>
-
-																	<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
-																		<div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-1.5 whitespace-nowrap shadow-xl">
-																			<div className="font-semibold mb-0.5">
-																				{feature.title}
-																			</div>
-																			<div className="text-gray-300 text-[11px]">
-																				{tooltip}
-																			</div>
-																		</div>
-																	</div>
-
-																	{labelFitsInside && (
-																		<span className="absolute inset-0 flex items-center px-2 text-[10px] text-gray-800 font-medium truncate select-none">
-																			{feature.title}
-																		</span>
-																	)}
-																</div>
-
-																{!labelFitsInside && (
-																	<span
-																		className="absolute top-1/2 -translate-y-1/2 text-[11px] text-gray-700 font-medium whitespace-nowrap select-none pointer-events-none"
-																		style={{
-																			left:
-																				Math.max(0, barLeft) +
-																				barWidth +
-																				FEATURE_LABEL_OUTSIDE_GAP,
-																		}}
-																	>
-																		{feature.title}
-																	</span>
-																)}
-															</>
-														)}
-													</div>
-												);
-											})}
-									</div>
-								);
-							})}
+							<MilestonesTimelineRows
+								sortedEpics={sortedEpics}
+								collapsed={collapsed}
+								totalWidth={totalWidth}
+								gridBg={gridBg}
+								todayColInRange={todayColInRange}
+								todayColLeft={todayColLeft}
+								cw={cw}
+								rangeStart={rangeStart}
+								granularity={granularity}
+							/>
 						</div>
 					</div>
 				</div>
@@ -1167,145 +356,21 @@ export const MilestonesView = ({
 					Add Milestone
 				</button>
 
-				{isMilestoneModalOpen && (
-					<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-[2px]">
-						<div className="w-full max-w-sm overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-2xl">
-							<div className="flex items-center justify-between border-b border-orange-100 bg-linear-to-r from-orange-50 to-amber-50 px-4 py-3">
-								<h3 className="text-base font-semibold text-gray-900">
-									{milestoneModalMode === "edit"
-										? "Edit Milestone"
-										: "Add Milestone"}
-								</h3>
-								<button
-									type="button"
-									onClick={cancelMilestoneEditor}
-									className="rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
-									aria-label="Close milestone modal"
-								>
-									<X size={16} />
-								</button>
-							</div>
-							<div className="space-y-3 px-4 py-3.5">
-								<div className="rounded-lg border border-orange-100 bg-orange-50/60 px-2.5 py-2">
-									<div className="flex items-center gap-2">
-										<span
-											className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white"
-											style={{ backgroundColor: draftColor }}
-										/>
-										<p className="truncate text-[13px] font-medium text-gray-700">
-											{draftTitle.trim() || "Milestone preview"}
-										</p>
-									</div>
-								</div>
-								<div className="space-y-1">
-									<label
-										htmlFor="milestone-title"
-										className="text-xs font-medium uppercase tracking-wide text-gray-500"
-									>
-										Title
-									</label>
-									<input
-										id="milestone-title"
-										type="text"
-										value={draftTitle}
-										onChange={(e) => setDraftTitle(e.target.value)}
-										placeholder="Milestone title"
-										className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 outline-none transition-colors focus:border-orange-400"
-									/>
-								</div>
-								<div className="grid grid-cols-[1.2fr_1fr_auto] gap-2">
-									<div className="space-y-1">
-										<label
-											htmlFor="milestone-date"
-											className="text-xs font-medium uppercase tracking-wide text-gray-500"
-										>
-											Target date
-										</label>
-										<input
-											id="milestone-date"
-											type="date"
-											value={draftDate}
-											onChange={(e) => setDraftDate(e.target.value)}
-											className="w-full rounded-lg border border-gray-300 px-2.5 py-2 text-sm text-gray-700 outline-none transition-colors focus:border-orange-400"
-										/>
-									</div>
-									<div className="space-y-1">
-										<label
-											htmlFor="milestone-status"
-											className="text-xs font-medium uppercase tracking-wide text-gray-500"
-										>
-											Status
-										</label>
-										<select
-											id="milestone-status"
-											value={draftStatus}
-											onChange={(e) =>
-												setDraftStatus(
-													e.target.value as RoadmapMilestone["status"],
-												)
-											}
-											className="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm text-gray-700 outline-none transition-colors focus:border-orange-400"
-										>
-											<option value="not_started">Not Started</option>
-											<option value="in_progress">In Progress</option>
-											<option value="at_risk">At Risk</option>
-											<option value="completed">Completed</option>
-											<option value="missed">Missed</option>
-										</select>
-									</div>
-									<div className="space-y-1">
-										<label
-											htmlFor="milestone-color"
-											className="text-xs font-medium uppercase tracking-wide text-gray-500"
-										>
-											Color
-										</label>
-										<input
-											id="milestone-color"
-											type="color"
-											value={draftColor}
-											onChange={(e) => setDraftColor(e.target.value)}
-											className="h-9 w-11 rounded-lg border border-gray-300 bg-white p-1"
-										/>
-									</div>
-								</div>
-							</div>
-							<div className="flex justify-end gap-2 border-t border-gray-200 px-4 py-3">
-								<button
-									type="button"
-									onClick={cancelMilestoneEditor}
-									disabled={isSavingMilestone}
-									className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100"
-								>
-									Cancel
-								</button>
-								<button
-									type="button"
-									disabled={
-										isSavingMilestone || !draftTitle.trim() || !draftDate
-									}
-									onClick={() => {
-										if (milestoneModalMode === "edit" && editingMilestoneId) {
-											const milestone = sortedMilestones.find(
-												(item) => item.id === editingMilestoneId,
-											);
-											if (milestone) {
-												void saveEditedMilestone(milestone);
-											}
-											return;
-										}
-										void saveNewMilestone();
-									}}
-									className="rounded-lg bg-orange-500 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
-								>
-									{milestoneModalMode === "edit"
-										? "Save Changes"
-										: "Create Milestone"}
-								</button>
-							</div>
-						</div>
-					</div>
-				)}
+				<MilestoneEditorModal
+					isOpen={isMilestoneModalOpen}
+					mode={milestoneModalMode}
+					isSaving={isSavingMilestone}
+					draftTitle={draftTitle}
+					draftDate={draftDate}
+					draftStatus={draftStatus}
+					draftColor={draftColor}
+					onDraftTitleChange={setDraftTitle}
+					onDraftDateChange={setDraftDate}
+					onDraftStatusChange={setDraftStatus}
+					onDraftColorChange={setDraftColor}
+					onCancel={cancelMilestoneEditor}
+					onSubmit={submitMilestone}
+				/>
 			</div>
 		</div>
 	);

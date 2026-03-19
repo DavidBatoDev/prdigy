@@ -145,6 +145,14 @@ const RoadmapCanvas = ({
 		return null;
 	}
 
+	const handleNavigateToEpicTab = (epicId: string) => {
+		setSelectedEpic(epicId);
+		setViewMode("epic");
+		if (!openEpicTabs.includes(epicId)) {
+			setOpenEpicTabs([...openEpicTabs, epicId]);
+		}
+	};
+
 	return (
 		<div className="relative h-full bg-white flex flex-col">
 			{/* View Content */}
@@ -201,14 +209,7 @@ const RoadmapCanvas = ({
 							setSidePanelOpen(true);
 						}}
 						onEditFeature={handleOpenEditFeatureModal}
-						onNavigateToEpic={(epicId) => {
-							setSelectedEpic(epicId);
-							setViewMode("epic");
-							// Add to tabs if not already present
-							if (!openEpicTabs.includes(epicId)) {
-								setOpenEpicTabs([...openEpicTabs, epicId]);
-							}
-						}}
+						onNavigateToEpic={handleNavigateToEpicTab}
 						onUpdateTask={onUpdateTask}
 						focusNodeId={focusNodeId}
 						focusNodeOffsetX={focusNodeOffsetX}
@@ -264,6 +265,7 @@ const RoadmapCanvas = ({
 						onAddMilestone={onAddMilestone}
 						onUpdateMilestone={onUpdateMilestone}
 						onDeleteMilestone={onDeleteMilestone}
+						onNavigateToEpic={handleNavigateToEpicTab}
 					/>
 				)}
 
