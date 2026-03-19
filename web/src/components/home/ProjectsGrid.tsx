@@ -1,4 +1,4 @@
-import { Calendar, Clock } from "lucide-react";
+﻿import { Calendar, Clock } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useState, useEffect, useCallback } from "react";
 import { projectService, type Project } from "@/services/project.service";
@@ -136,12 +136,10 @@ export function ProjectsGrid() {
   }, [user?.id, fetchProjects]);
 
   return (
-    <div data-tutorial="projects-grid">
+    <div id="my-project-visions" data-tutorial="projects-grid" className="scroll-mt-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <div className="w-[18px] h-[18px] rounded-full bg-[#333438] flex items-center justify-center">
-            <div className="w-2 h-2 rounded-full bg-white" />
-          </div>
+          <div className="w-[18px] h-[18px] rounded-full" style={{ backgroundColor: "var(--secondary)" }} />
           <h2 className="text-[20px] font-semibold text-[#333438]">
             {persona === "freelancer" ? "MATCHES" : "MY PROJECT VISIONS"}
           </h2>
@@ -151,7 +149,7 @@ export function ProjectsGrid() {
             {stage === "assigned" ? "Assignment pipeline active" : "Matching engine active"}
           </span>
         ) : (
-          <button className="text-[20px] font-semibold text-[#333438] hover:text-[#ff9933]">
+          <button className="text-[20px] font-semibold text-[#333438] hover:text-[var(--secondary)]">
             View All →
           </button>
         )}
@@ -229,16 +227,11 @@ export function ProjectsGrid() {
               <Calendar className="w-8 h-8 text-[#ff9933]" />
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              {persona === "freelancer" ? "No matched projects yet" : "No project visions yet"}
+              No project visions yet
             </h3>
-            <p className="text-gray-500 max-w-sm">
-              {persona === "freelancer"
-                ? "You're in matching now. Consultants are reviewing specialist needs, and your first matched project workspace will appear here automatically."
-                : "Post your first project vision to begin consultant matching and move into roadmap execution."}
+            <p className="text-[#61636c] max-w-sm">
+              Post your first project vision to begin consultant matching and move into roadmap execution.
             </p>
-            {persona === "freelancer" ? (
-              <p className="text-xs text-gray-500 mt-2">Profiles are being reviewed. New opportunities are opening soon.</p>
-            ) : null}
           </div>
         ) : (
           projects.slice(0, 2).map((project, index) => {
@@ -301,9 +294,11 @@ function ProjectCard({
   nextUp: string;
   dueDate: string | null;
 }) {
+  const isDraft = status.toLowerCase() === "draft";
+
   return (
     <div
-      className="bg-linear-to-b from-white from-98% to-transparent rounded-xl shadow-sm p-4 h-[385px] flex flex-col"
+      className="group bg-linear-to-b from-white from-98% to-transparent rounded-xl shadow-sm p-4 h-[385px] flex flex-col border border-gray-200 transition-all hover:border-[var(--secondary)] hover:shadow-xl"
       style={{
         backgroundImage: `linear-gradient(to bottom, white 98%, ${statusColor}20)`,
       }}
@@ -317,12 +312,14 @@ function ProjectCard({
             </span>
             <div className="w-px h-[25px] bg-[#92969f]" />
             <div className="flex items-center gap-2">
-              <div
-                className="w-3 h-3 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: statusColor }}
-              >
-                <div className="w-1.5 h-1.5 rounded-full bg-white" />
-              </div>
+              {!isDraft ? (
+                <div
+                  className="w-3 h-3 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: statusColor }}
+                >
+                  <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                </div>
+              ) : null}
               <span
                 className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${statusBadgeClass}`}
               >
@@ -344,7 +341,7 @@ function ProjectCard({
             <span>Progress</span>
             <span>{progress === null ? "Not tracked yet" : `${progress}%`}</span>
           </div>
-          <div className="w-full h-2 bg-[#c4c7cc] rounded-full overflow-hidden">
+          <div className="w-full h-2 bg-[#e3e5e8] rounded-full overflow-hidden">
             <div
               className="h-full rounded-full transition-all"
               style={{
@@ -363,12 +360,12 @@ function ProjectCard({
               <p className="text-[14px] font-semibold text-[#61636c]">
                 NEXT UP
               </p>
-              <p className="text-[14px] text-black">• {nextUp}</p>
+              <p className="text-[14px] text-[#333438]">• {nextUp}</p>
             </div>
             {dueDate && (
-              <div className="bg-[#f6f7f8] border border-[#92969f] rounded-[5px] px-2 py-0.5 inline-flex items-center gap-1">
-                <Calendar className="w-[18px] h-[18px] text-[#92969f]" />
-                <span className="text-[12px] text-[#92969f]">{dueDate}</span>
+              <div className="bg-[#f6f7f8] border border-[#e3e5e8] rounded-[5px] px-2 py-0.5 inline-flex items-center gap-1">
+                <Calendar className="w-[18px] h-[18px] text-[#61636c]" />
+                <span className="text-[12px] text-[#61636c]">{dueDate}</span>
               </div>
             )}
           </div>
@@ -376,17 +373,14 @@ function ProjectCard({
       </div>
 
       {/* Footer */}
-      <div className="pt-4 border-t border-[#92969f]">
-        <div className="flex items-center justify-between">
-          <div className="text-[12px] text-[#92969f]">
-            Open project for matching and execution details
-          </div>
+      <div className="pt-4 border-t border-[#e3e5e8]">
+        <div className="flex flex-col items-end gap-1">
           <Link
             to="/project/$projectId/overview"
             params={{ projectId }}
-            className="text-[14px] font-semibold text-[#333438] hover:text-[#ff9933] uppercase transition-colors"
+            className="text-[14px] font-semibold text-[#333438] uppercase transition-colors whitespace-nowrap group-hover:text-[var(--secondary)]"
           >
-            View Project →
+            VIEW PROJECT →
           </Link>
         </div>
       </div>
@@ -435,7 +429,7 @@ function ProjectCardSkeleton() {
       </div>
 
       {/* Footer */}
-      <div className="pt-4 border-t border-[#92969f]/30">
+      <div className="pt-4 border-t border-[#e3e5e8]/30">
         <div className="flex items-center justify-between">
           <div className="flex -space-x-2">
             <div className="w-10 h-10 rounded-full bg-gray-200 border-2 border-white animate-pulse" />
@@ -447,3 +441,4 @@ function ProjectCardSkeleton() {
     </div>
   );
 }
+
