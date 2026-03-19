@@ -226,8 +226,6 @@ export const FeatureModal = ({
   const autoProgress = calculateFeatureProgressFromTasks(tasks);
   const completedTasks = getCompletedTaskCount(tasks);
 
-  if (!isOpen) return null;
-
   const renderAssigneeAvatar = (
     assignee: NonNullable<RoadmapTask["assignee"]>,
   ) => {

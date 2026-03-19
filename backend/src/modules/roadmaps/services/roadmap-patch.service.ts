@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ForbiddenException,
+  InternalServerErrorException,
   Inject,
   Injectable,
   NotFoundException,
@@ -35,6 +36,8 @@ export class RoadmapPatchService {
 
   async createFull(dto: CreateFullRoadmapDto, userId: string) {
     const roadmapId = dto.id ?? randomUUID();
+    let upsertOwnerId = userId;
+    let resolvedProjectId = dto.project_id;
 
     if (dto.id) {
       const existing = await this.roadmapsRepo.findById(dto.id);
@@ -46,6 +49,24 @@ export class RoadmapPatchService {
         );
       } else if (existing && existing.owner_id !== userId) {
         throw new ForbiddenException('Not the owner');
+      }
+
+      if (existing) {
+        if (!existing.owner_id) {
+          throw new InternalServerErrorException(
+            'Roadmap owner is missing for an existing roadmap',
+          );
+        }
+
+        upsertOwnerId = existing.owner_id;
+
+        const hasExplicitProjectId = Object.prototype.hasOwnProperty.call(
+          dto,
+          'project_id',
+        );
+        if (!hasExplicitProjectId) {
+          resolvedProjectId = existing.project_id;
+        }
       }
     }
 
@@ -60,11 +81,12 @@ export class RoadmapPatchService {
     const normalizedState = this.normalizeFullRoadmapState({
       ...dto,
       id: roadmapId,
+      project_id: resolvedProjectId,
     });
 
     await this.patchRepo.upsertFullRoadmap({
       roadmapId,
-      ownerId: userId,
+      ownerId: upsertOwnerId,
       fullState: normalizedState,
       createIfMissing: true,
     });
@@ -85,6 +107,12 @@ export class RoadmapPatchService {
 
     const existing = await this.roadmapsRepo.findById(roadmapId);
     if (!existing) throw new NotFoundException('Roadmap not found');
+    if (!existing.owner_id) {
+      throw new InternalServerErrorException(
+        'Roadmap owner is missing for an existing roadmap',
+      );
+    }
+    const upsertOwnerId = existing.owner_id;
 
     if (existing.project_id) {
       await this.roadmapAuthz.assertRoadmapPermission(
@@ -110,7 +138,7 @@ export class RoadmapPatchService {
 
     await this.patchRepo.upsertFullRoadmap({
       roadmapId,
-      ownerId: userId,
+      ownerId: upsertOwnerId,
       fullState: normalizedPatchedState,
       createIfMissing: false,
     });

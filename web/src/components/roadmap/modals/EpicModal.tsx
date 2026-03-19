@@ -235,8 +235,6 @@ export const EpicModal = ({
     setIsDateMenuOpen(false);
   };
 
-  if (!isOpen) return null;
-
   const body = (
     <>
       {/* Labels and Priority Row */}

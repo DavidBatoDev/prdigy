@@ -205,6 +205,7 @@ export const RoadmapView = ({
 }: RoadmapViewProps) => {
   const DEFAULT_ZOOM = 0.67;
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
+  const [isPanningCanvas, setIsPanningCanvas] = useState(false);
   const [reactFlowInstance, setReactFlowInstance] =
     useState<ReactFlowInstance | null>(null);
 
@@ -414,7 +415,11 @@ export const RoadmapView = ({
   }, []);
 
   return (
-    <div className="w-full h-full bg-[#F5F5F5] relative">
+    <div
+      className={`w-full h-full bg-[#F5F5F5] relative ${
+        isPanningCanvas ? "cursor-grabbing" : "cursor-grab"
+      }`}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -422,8 +427,12 @@ export const RoadmapView = ({
         onlyRenderVisibleElements
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        onMoveStart={() => {
+          setIsPanningCanvas(true);
+        }}
         onMoveEnd={(_, viewport) => {
           setZoom(viewport.zoom);
+          setIsPanningCanvas(false);
         }}
         onInit={(instance: ReactFlowInstance) => {
           setReactFlowInstance(instance);
@@ -437,11 +446,12 @@ export const RoadmapView = ({
         minZoom={MIN_ZOOM}
         maxZoom={MAX_ZOOM}
         translateExtent={translateExtent}
-        panOnDrag={[1, 2]}
+        panOnDrag={[0, 1, 2]}
         panOnScroll
         zoomOnScroll
         zoomOnPinch
         zoomOnDoubleClick={false}
+        nodesDraggable={false}
         defaultEdgeOptions={{
           type: "simplebezier",
         }}
