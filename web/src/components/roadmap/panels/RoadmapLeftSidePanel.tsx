@@ -318,7 +318,7 @@ function ExplorerPanel({
 
 									{/* Features */}
 									{isEpicExpanded && features.length > 0 && (
-										<div className="ml-6 space-y-1 mt-1.5 border-l-2 border-gray-200 pl-3">
+										<div className="ml-6 mt-1.5 space-y-1 pl-3">
 											{features.map((feature) => {
 												const isFeatureExpanded = expandedFeatures.has(feature.id);
 												const tasks = (feature.tasks || []).sort(
@@ -391,7 +391,7 @@ function ExplorerPanel({
 														{explorerConfig.showTaskRows &&
 															isFeatureExpanded &&
 															tasks.length > 0 && (
-																<div className="ml-5 space-y-0.5 mt-1 border-l border-gray-200 pl-2">
+																<div className="ml-5 mt-1 space-y-0.5 pl-2">
 																	{tasks.map((task) => (
 																		<button
 																			key={task.id}

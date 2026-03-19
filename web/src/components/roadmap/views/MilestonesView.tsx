@@ -6,7 +6,7 @@ import {
 	Plus,
 	X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import type { Roadmap, RoadmapEpic, RoadmapMilestone } from "@/types/roadmap";
 import {
 	getSortedEpics,
@@ -306,6 +306,15 @@ function getInclusiveDays(start: Date, end: Date): number {
 	return Math.max(1, Math.round(daysBetween(s, e)) + 1);
 }
 
+function isInteractivePanTarget(target: EventTarget | null): boolean {
+	if (!(target instanceof HTMLElement)) return false;
+	return Boolean(
+		target.closest(
+			'button, a, input, textarea, select, label, [role="button"], [data-no-pan="true"]',
+		),
+	);
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export interface MilestonesViewProps {
@@ -346,10 +355,17 @@ export const MilestonesView = ({
 	const [draftStatus, setDraftStatus] =
 		useState<RoadmapMilestone["status"]>("not_started");
 	const [draftColor, setDraftColor] = useState("#f97316");
+	const [isPanningTimeline, setIsPanningTimeline] = useState(false);
 	const verticalScrollRef = useRef<HTMLDivElement>(null);
 	const timelineScrollRef = useRef<HTMLDivElement>(null);
 	const leftHeaderRef = useRef<HTMLDivElement>(null);
 	const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+	const panStateRef = useRef<{
+		startX: number;
+		startY: number;
+		startScrollLeft: number;
+		startScrollTop: number;
+	} | null>(null);
 	const [leftHeaderHeight, setLeftHeaderHeight] = useState(
 		DEFAULT_EXPLORER_HEADER_HEIGHT,
 	);
@@ -592,6 +608,52 @@ export const MilestonesView = ({
 		return () => cancelAnimationFrame(raf);
 	}, [todayPx]);
 
+	useEffect(() => {
+		if (!isPanningTimeline) return;
+
+		const handleMouseMove = (event: MouseEvent) => {
+			const panState = panStateRef.current;
+			const timelineEl = timelineScrollRef.current;
+			const verticalEl = verticalScrollRef.current;
+			if (!panState || !timelineEl || !verticalEl) return;
+
+			const dx = event.clientX - panState.startX;
+			const dy = event.clientY - panState.startY;
+			timelineEl.scrollLeft = panState.startScrollLeft - dx;
+			verticalEl.scrollTop = panState.startScrollTop - dy;
+		};
+
+		const stopPanning = () => {
+			panStateRef.current = null;
+			setIsPanningTimeline(false);
+		};
+
+		window.addEventListener("mousemove", handleMouseMove);
+		window.addEventListener("mouseup", stopPanning);
+		return () => {
+			window.removeEventListener("mousemove", handleMouseMove);
+			window.removeEventListener("mouseup", stopPanning);
+		};
+	}, [isPanningTimeline]);
+
+	const handleTimelineMouseDown = (event: ReactMouseEvent<HTMLDivElement>) => {
+		if (event.button !== 0) return;
+		if (isInteractivePanTarget(event.target)) return;
+
+		const timelineEl = timelineScrollRef.current;
+		const verticalEl = verticalScrollRef.current;
+		if (!timelineEl || !verticalEl) return;
+
+		panStateRef.current = {
+			startX: event.clientX,
+			startY: event.clientY,
+			startScrollLeft: timelineEl.scrollLeft,
+			startScrollTop: verticalEl.scrollTop,
+		};
+		setIsPanningTimeline(true);
+		event.preventDefault();
+	};
+
 	// Repeating grid-line background aligned to columns
 	const gridBg = {
 		backgroundImage: `repeating-linear-gradient(90deg, transparent 0px, transparent ${cw - 1}px, #e5e7eb ${cw - 1}px, #e5e7eb ${cw}px)`,
@@ -682,7 +744,7 @@ export const MilestonesView = ({
 
 			<div
 				ref={verticalScrollRef}
-				className="absolute inset-0 overflow-y-auto overflow-x-hidden bg-white"
+				className="absolute inset-0 overflow-y-auto overflow-x-hidden bg-white hide-scrollbar"
 			>
 				<div className="flex min-w-0">
 					<div
@@ -728,7 +790,7 @@ export const MilestonesView = ({
 									<div
 										ref={setRowRef(getEpicRowKey(epic.id))}
 										style={{ height: epicRowHeight }}
-										className="group/epic bg-white px-4 border-b border-gray-200"
+										className="group/epic bg-white px-4"
 									>
 										<div className="flex h-full min-w-0 items-center gap-1">
 											<div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2 py-2 pr-10 text-sm font-medium text-gray-900 transition-all hover:bg-white hover:shadow-sm">
@@ -776,13 +838,9 @@ export const MilestonesView = ({
 											<div
 												key={`left-feature-${feature.id}`}
 												ref={setRowRef(getFeatureRowKey(feature.id))}
-												className="relative bg-white pr-4 pl-10 border-b border-gray-100"
+												className="relative bg-white pr-4 pl-10"
 												style={{ height: ROW_HEIGHT }}
 											>
-												<div
-													className="absolute left-10 top-0 bottom-0 w-[1.5px] bg-gray-200"
-													aria-hidden
-												/>
 												<div className="flex h-full w-full min-w-0 items-center gap-1.5 rounded-md border border-transparent px-2.5 pl-6 py-1.5 text-sm text-gray-700 transition-all hover:border-gray-200 hover:bg-white hover:shadow-sm">
 													<ChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-400" />
 													<span className="min-w-0 flex-1 truncate text-left">
@@ -803,7 +861,10 @@ export const MilestonesView = ({
 
 					<div
 						ref={timelineScrollRef}
-						className="min-w-0 flex-1 overflow-x-auto overflow-y-visible"
+						onMouseDown={handleTimelineMouseDown}
+						className={`min-w-0 flex-1 overflow-x-auto overflow-y-visible hide-scrollbar ${
+							isPanningTimeline ? "cursor-grabbing select-none" : "cursor-grab"
+						}`}
 					>
 						<div className="relative" style={{ width: totalWidth }}>
 							<div
