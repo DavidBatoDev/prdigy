@@ -1,13 +1,15 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useAuthStore } from "@/stores/authStore";
-import { projectService, type Project } from "@/services/project.service";
 import { ProjectSidebar } from "@/components/project/ProjectSidebar";
 import { useProjectSettingsStore } from "@/stores/projectSettingsStore";
-import { roadmapService } from "@/services/roadmap.service";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ArrowRight, ListChecks, Loader2, Map, UserCheck } from "lucide-react";
 import Logo from "/prodigylogos/light/logovector.svg";
+import {
+  useLinkedRoadmapQuery,
+  useProjectDetailQuery,
+} from "@/hooks/useProjectQueries";
 
 export const Route = createFileRoute("/project/$projectId")({
   beforeLoad: () => {
@@ -23,39 +25,23 @@ function ProjectLayout() {
   const { projectId } = Route.useParams();
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
-  const [project, setProject] = useState<Project | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [linkedRoadmapId, setLinkedRoadmapId] = useState<string | null>(null);
   const setSidebarExpanded = useProjectSettingsStore(
     (state) => state.setSidebarExpanded,
   );
+  const isRoadmapOnly = projectId === "n";
+  const projectQuery = useProjectDetailQuery(isRoadmapOnly ? "" : projectId);
+  const linkedRoadmapQuery = useLinkedRoadmapQuery(
+    isRoadmapOnly ? "" : projectId,
+  );
+  const project = isRoadmapOnly ? null : (projectQuery.data ?? null);
+  const linkedRoadmapId = linkedRoadmapQuery.data?.id ?? null;
+  const isLoading =
+    !isRoadmapOnly && (projectQuery.isPending || linkedRoadmapQuery.isPending);
 
   // Auto-open project sidebar when navigating to project pages (non-roadmap)
   useEffect(() => {
     setSidebarExpanded(true);
   }, [setSidebarExpanded]);
-
-  useEffect(() => {
-    if (projectId === "n") {
-      setIsLoading(false);
-      return;
-    }
-    const loadProject = async () => {
-      try {
-        setIsLoading(true);
-        const data = await projectService.get(projectId);
-        setProject(data);
-        // Look up the roadmap linked to this project
-        const roadmap = await roadmapService.getByProjectId(projectId);
-        if (roadmap) setLinkedRoadmapId(roadmap.id);
-      } catch (err) {
-        console.error("Failed to load project:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadProject();
-  }, [projectId]);
 
   if (isLoading) {
     return (
@@ -65,7 +51,6 @@ function ProjectLayout() {
     );
   }
 
-  const isRoadmapOnly = projectId === "n";
   const hasConsultant = Boolean(project?.consultant_id);
 
   // Allow only roadmap/work-items detail pages before consultant assignment.

@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import type { ProjectMember, ProjectPermissions } from "@/services/project.service";
 import { projectService } from "@/services/project.service";
 import { memberDisplayName } from "./utils";
+import { useInvalidateProjectQueries } from "@/hooks/useProjectQueries";
 
 const permissionSections: Array<{
   key: keyof ProjectPermissions;
@@ -91,6 +92,8 @@ export function PermissionsDrawer({
   onMemberUpdated,
   onClose,
 }: PermissionsDrawerProps) {
+  const { invalidateMembers, invalidateProject } =
+    useInvalidateProjectQueries(projectId);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -189,6 +192,8 @@ export function PermissionsDrawer({
         permissions,
       );
       setPermissions(updatedPermissions);
+      await invalidateMembers();
+      await invalidateProject();
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save permissions.");

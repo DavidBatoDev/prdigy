@@ -1,11 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import {
-  projectService,
-  type Project,
-  type ProjectMember,
-} from "@/services/project.service";
-import { roadmapService } from "@/services/roadmap.service";
 import { uploadService } from "@/services/upload.service";
 import { useUser } from "@/stores/authStore";
 import { supabase } from "@/lib/supabase";
@@ -16,11 +10,18 @@ import {
   OverviewSidebar,
   type ProjectBrief,
   type BriefStorageMode,
-  type OverviewTimelineItem,
   toRichHtml,
   toItems,
   deriveTimelineItems,
 } from "@/components/project/overview";
+import {
+  useInvalidateProjectQueries,
+  useLinkedRoadmapQuery,
+  useProjectBriefQuery,
+  useProjectDetailQuery,
+  useProjectMembersQuery,
+  useRoadmapFullQuery,
+} from "@/hooks/useProjectQueries";
 
 export const Route = createFileRoute("/project/$projectId/overview")({
   component: OverviewPage,
@@ -29,13 +30,17 @@ export const Route = createFileRoute("/project/$projectId/overview")({
 function OverviewPage() {
   const { projectId } = Route.useParams();
   const user = useUser();
+  const projectQuery = useProjectDetailQuery(projectId);
+  const membersQuery = useProjectMembersQuery(projectId);
+  const briefQuery = useProjectBriefQuery(projectId);
+  const linkedRoadmapQuery = useLinkedRoadmapQuery(projectId);
+  const roadmapFullQuery = useRoadmapFullQuery(linkedRoadmapQuery.data?.id ?? "");
+  const { invalidateProject, invalidateBrief } = useInvalidateProjectQueries(projectId);
 
-  const [project, setProject] = useState<Project | null>(null);
+  const project = projectQuery.data ?? null;
+  const members = membersQuery.data ?? [];
+
   const [projectBrief, setProjectBrief] = useState<ProjectBrief | null>(null);
-  const [members, setMembers] = useState<ProjectMember[]>([]);
-  const [timelineItems, setTimelineItems] = useState<OverviewTimelineItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [savingSection, setSavingSection] = useState<
     "summary" | "scope" | "constraints" | "requirements" | "notes" | null
   >(null);
@@ -63,150 +68,16 @@ function OverviewPage() {
     return text.includes(column.toLowerCase());
   };
 
-  const fetchProjectBrief = async (): Promise<{
-    brief: ProjectBrief | null;
-    mode: BriefStorageMode;
-  }> => {
-    const withVisibility = await supabase
-      .from("project_briefs")
-      .select(`${briefSelectBase}, visibility_mask`)
-      .eq("project_id", projectId)
-      .maybeSingle();
-
-    if (!withVisibility.error) {
-      return {
-        brief: (withVisibility.data as ProjectBrief | null) ?? null,
-        mode: "visibility_mask",
-      };
-    }
-
-    if (!isMissingColumnError(withVisibility.error, "visibility_mask")) {
-      throw withVisibility.error;
-    }
-
-    const withNotes = await supabase
-      .from("project_briefs")
-      .select(`${briefSelectBase}, notes`)
-      .eq("project_id", projectId)
-      .maybeSingle();
-
-    if (!withNotes.error) {
-      return {
-        brief: (withNotes.data as ProjectBrief | null) ?? null,
-        mode: "notes",
-      };
-    }
-
-    if (!isMissingColumnError(withNotes.error, "notes")) {
-      throw withNotes.error;
-    }
-
-    const baseOnly = await supabase
-      .from("project_briefs")
-      .select(briefSelectBase)
-      .eq("project_id", projectId)
-      .maybeSingle();
-
-    if (baseOnly.error) {
-      throw baseOnly.error;
-    }
-
-    return {
-      brief: (baseOnly.data as ProjectBrief | null) ?? null,
-      mode: "none",
-    };
-  };
-
-  const fetchProjectFallback = async (): Promise<Project> => {
-    const { data, error: projectError } = await supabase
-      .from("projects")
-      .select(
-        "id, title, description, status, banner_url, client_id, consultant_id, created_at, updated_at, client:profiles!projects_client_id_fkey(id, display_name, avatar_url, email), consultant:profiles!projects_consultant_id_fkey(id, display_name, avatar_url, email)",
-      )
-      .eq("id", projectId)
-      .single();
-
-    if (projectError || !data) {
-      throw projectError ?? new Error("Project not found");
-    }
-
-    return data as unknown as Project;
-  };
-
-  const fetchProjectMembersFallback = async (): Promise<ProjectMember[]> => {
-    const { data, error: membersError } = await supabase
-      .from("project_members")
-      .select(
-        "id, project_id, user_id, role, joined_at, user:profiles(id, display_name, avatar_url, email, first_name, last_name)",
-      )
-      .eq("project_id", projectId);
-
-    if (membersError) return [];
-    return (data as unknown as ProjectMember[]) ?? [];
-  };
-
   useEffect(() => {
-    let cancelled = false;
+    const data = briefQuery.data;
+    if (!data) return;
+    setProjectBrief(data.brief);
+    setBriefStorageMode(data.mode);
+  }, [briefQuery.data]);
 
-    const load = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const projectData = await projectService
-          .get(projectId)
-          .catch(() => fetchProjectFallback());
-        const projectMembers = await projectService
-          .getMembers(projectId)
-          .catch(() => fetchProjectMembersFallback());
-
-        const [briefResultSettled, roadmapSettled] = await Promise.allSettled([
-          fetchProjectBrief(),
-          roadmapService.getByProjectId(projectId),
-        ]);
-
-        const briefResult =
-          briefResultSettled.status === "fulfilled"
-            ? briefResultSettled.value
-            : { brief: null, mode: "none" as BriefStorageMode };
-
-        const roadmap =
-          roadmapSettled.status === "fulfilled" ? roadmapSettled.value : null;
-
-        let derivedTimeline: OverviewTimelineItem[] = [];
-        if (roadmap) {
-          try {
-            const full = await roadmapService.getFull(roadmap.id);
-            derivedTimeline = deriveTimelineItems(full);
-          } catch {
-            derivedTimeline = [];
-          }
-        }
-
-        if (cancelled) return;
-        setProject(projectData);
-        setMembers(projectMembers);
-        setProjectBrief(briefResult.brief);
-        setBriefStorageMode(briefResult.mode);
-        setTimelineItems(derivedTimeline);
-      } catch {
-        if (!cancelled) setError("Failed to load overview data.");
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    };
-
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [projectId]);
-
-  // Sync projectBannerUrl from loaded project
   useEffect(() => {
     if (project) {
-      setProjectBannerUrl(
-        (project as Project & { banner_url?: string }).banner_url ?? null,
-      );
+      setProjectBannerUrl(project.banner_url ?? null);
     }
   }, [project]);
 
@@ -217,6 +88,7 @@ function OverviewPage() {
       const url = await uploadService.uploadProjectBanner(projectId, files[0]);
       setProjectBannerUrl(url);
       setBannerModalOpen(false);
+      await invalidateProject();
     } catch (e) {
       console.error("Project banner upload failed", e);
       alert("Failed to upload banner. Please try again.");
@@ -230,22 +102,11 @@ function OverviewPage() {
     [projectBrief?.risk_register],
   );
 
-  const populatedClient = (
-    project as
-      | (Project & {
-          client?: { display_name?: string };
-          consultant?: { display_name?: string };
-        })
-      | null
-  )?.client;
-  const populatedConsultant = (
-    project as
-      | (Project & {
-          client?: { display_name?: string };
-          consultant?: { display_name?: string };
-        })
-      | null
-  )?.consultant;
+  const timelineItems = useMemo(
+    () =>
+      roadmapFullQuery.data ? deriveTimelineItems(roadmapFullQuery.data) : [],
+    [roadmapFullQuery.data],
+  );
 
   const memberRole =
     members.find((member) => member.user_id === user?.id)?.role?.toLowerCase() ?? "";
@@ -345,12 +206,21 @@ function OverviewPage() {
       }
 
       setProjectBrief((data as ProjectBrief | null) ?? null);
+      await invalidateBrief();
     } catch {
       alert("Failed to save changes. Please try again.");
     } finally {
       setSavingSection(null);
     }
   };
+
+  const isLoading = projectQuery.isPending || membersQuery.isPending;
+  const error =
+    projectQuery.error instanceof Error
+      ? projectQuery.error.message
+      : membersQuery.error instanceof Error
+        ? membersQuery.error.message
+        : null;
 
   if (isLoading) {
     return <OverviewLoadingSkeleton />;
@@ -383,8 +253,8 @@ function OverviewPage() {
 
             <OverviewContent
               projectTitle={project.title}
-              clientName={populatedClient?.display_name}
-              consultantName={populatedConsultant?.display_name}
+              clientName={project.client?.display_name}
+              consultantName={project.consultant?.display_name}
               summaryHtml={summaryHtml}
               scopeHtml={scopeHtml}
               constraintsHtml={constraintsHtml}
@@ -431,12 +301,10 @@ function OverviewPage() {
             />
           </div>
 
-          <OverviewSidebar
-            timelineItems={timelineItems}
-            members={members}
-          />
+          <OverviewSidebar timelineItems={timelineItems} members={members} />
         </div>
       </div>
     </div>
   );
 }
+

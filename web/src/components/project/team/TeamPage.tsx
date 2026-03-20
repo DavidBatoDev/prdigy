@@ -11,12 +11,16 @@ import {
   Clock,
 } from "lucide-react";
 import type { Project, ProjectMember } from "@/services/project.service";
-import { projectService } from "@/services/project.service";
 import { useUser } from "@/stores/authStore";
 import { TeamSkeleton } from "./TeamSkeleton";
 import { AddMemberModal } from "./AddMemberModal";
 import { PermissionsDrawer } from "./PermissionsDrawer";
 import { memberDisplayName } from "./utils";
+import {
+  useProjectDetailQuery,
+  useProjectMembersQuery,
+  useProjectRemoveMemberMutation,
+} from "@/hooks/useProjectQueries";
 
 // ─── Permission System ────────────────────────────────────────────────────────
 
@@ -451,45 +455,28 @@ export function TeamPage({ projectId }: TeamPageProps) {
   const [pendingInvites, setPendingInvites] =
     useState<PendingInvite[]>(MOCK_PENDING_INVITES);
 
-  const [project, setProject] = useState<Project | null>(null);
+  const projectQuery = useProjectDetailQuery(projectId);
+  const membersQuery = useProjectMembersQuery(projectId);
+  const removeMemberMutation = useProjectRemoveMemberMutation(projectId);
+  const project = (projectQuery.data as Project | undefined) ?? null;
   const [members, setMembers] = useState<ProjectMember[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [permissionMember, setPermissionMember] = useState<ProjectMember | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const p = await projectService.get(projectId);
-        if (cancelled) return;
-        setProject(p);
-        const principalIds = new Set(
-          [p.client_id, p.consultant_id].filter(Boolean),
-        );
-        const PRINCIPAL_ROLES = new Set(["client", "consultant"]);
-        setMembers(
-          ((p.members as ProjectMember[]) ?? []).filter(
-            (m) =>
-              (!m.user_id || !principalIds.has(m.user_id)) &&
-              !PRINCIPAL_ROLES.has((m.role ?? "").toLowerCase()),
-          ),
-        );
-      } catch {
-        if (!cancelled) setError("Failed to load team data.");
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    };
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [projectId]);
+    const sourceMembers = membersQuery.data ?? [];
+    const principalIds = new Set(
+      [project?.client_id, project?.consultant_id].filter(Boolean),
+    );
+    const principalRoles = new Set(["client", "consultant"]);
+    const filteredMembers = sourceMembers.filter(
+      (member) =>
+        (!member.user_id || !principalIds.has(member.user_id)) &&
+        !principalRoles.has((member.role ?? "").toLowerCase()),
+    );
+    setMembers(filteredMembers);
+  }, [membersQuery.data, project?.client_id, project?.consultant_id]);
 
   const handleUpdate = useCallback((updated: ProjectMember) => {
     setMembers((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
@@ -501,13 +488,13 @@ export function TeamPage({ projectId }: TeamPageProps) {
         return;
       setRemovingId(member.id);
       try {
-        await projectService.removeMember(projectId, member.id);
+        await removeMemberMutation.mutateAsync(member.id);
         setMembers((prev) => prev.filter((m) => m.id !== member.id));
       } finally {
         setRemovingId(null);
       }
     },
-    [projectId],
+    [removeMemberMutation],
   );
 
   const handleResendInvite = async (id: string) => {
@@ -530,6 +517,14 @@ export function TeamPage({ projectId }: TeamPageProps) {
       return s;
     });
   };
+
+  const isLoading = projectQuery.isPending || membersQuery.isPending;
+  const error =
+    projectQuery.error instanceof Error
+      ? projectQuery.error.message
+      : membersQuery.error instanceof Error
+        ? membersQuery.error.message
+        : null;
 
   if (isLoading) return <TeamSkeleton />;
 

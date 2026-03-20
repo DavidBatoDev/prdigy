@@ -22,6 +22,10 @@ import {
   type ProjectResourcesPayload,
 } from "@/services/project.service";
 import { useToast } from "@/hooks/useToast";
+import {
+  useInvalidateProjectQueries,
+  useProjectResourcesQuery,
+} from "@/hooks/useProjectQueries";
 
 export const Route = createFileRoute("/project/$projectId/resources")({
   component: ResourcesPage,
@@ -128,9 +132,10 @@ function ResourcesSkeleton() {
 function ResourcesPage() {
   const { projectId } = Route.useParams();
   const toast = useToast();
+  const resourcesQuery = useProjectResourcesQuery(projectId);
+  const { invalidateResources } = useInvalidateProjectQueries(projectId);
 
   const [resources, setResources] = useState<ProjectResourcesPayload>(initialPayload);
-  const [isLoading, setIsLoading] = useState(true);
   const [isBusy, setIsBusy] = useState(false);
 
   const [folderForm, setFolderForm] = useState<FolderFormState | null>(null);
@@ -190,23 +195,20 @@ function ResourcesPage() {
   const uncategorizedDisplayedLinks = (resources.uncategorized_links ?? []).filter(linkMatchesSearch);
   const showUncategorizedCard = uncategorizedDisplayedLinks.length > 0;
 
-  const loadResources = async () => {
-    setIsLoading(true);
-    try {
-      const data = await projectService.getResources(projectId);
-      setResources(data);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to load resources",
-      );
-    } finally {
-      setIsLoading(false);
+  useEffect(() => {
+    if (resourcesQuery.data) {
+      setResources(resourcesQuery.data);
     }
-  };
+  }, [resourcesQuery.data]);
 
   useEffect(() => {
-    void loadResources();
-  }, [projectId]);
+    if (!resourcesQuery.error) return;
+    toast.error(
+      resourcesQuery.error instanceof Error
+        ? resourcesQuery.error.message
+        : "Failed to load resources",
+    );
+  }, [resourcesQuery.error, toast]);
 
   const runWithBusy = async (action: () => Promise<void>) => {
     if (isBusy) return;
@@ -236,7 +238,7 @@ function ResourcesPage() {
           toast.success("Folder created");
         }
         setFolderForm(null);
-        await loadResources();
+        await invalidateResources();
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Failed to save folder");
       }
@@ -252,7 +254,7 @@ function ResourcesPage() {
       try {
         await projectService.deleteResourceFolder(projectId, folder.id);
         toast.success("Folder deleted");
-        await loadResources();
+        await invalidateResources();
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Failed to delete folder");
       }
@@ -269,7 +271,7 @@ function ResourcesPage() {
         );
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Failed to reorder folders");
-        await loadResources();
+        await invalidateResources();
       }
     });
   };
@@ -294,7 +296,7 @@ function ResourcesPage() {
         });
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Failed to reorder links");
-        await loadResources();
+        await invalidateResources();
       }
     });
   };
@@ -551,7 +553,7 @@ function ResourcesPage() {
           </div>
         </div>
 
-        {isLoading ? (
+        {resourcesQuery.isPending ? (
           <ResourcesSkeleton />
         ) : (
           <div className="mt-8 space-y-6">

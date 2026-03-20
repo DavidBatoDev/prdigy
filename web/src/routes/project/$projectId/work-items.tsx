@@ -1,15 +1,18 @@
-﻿import {
+import {
   createFileRoute,
   Outlet,
   useNavigate,
   useChildMatches,
   Link,
 } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { ListChecks, ExternalLink } from "lucide-react";
-import { roadmapService } from "@/services/roadmap.service";
 import { RoadmapPageSkeleton } from "@/components/roadmap/views/RoadmapPageSkeleton";
 import { LinkRoadmapModal } from "@/components/roadmap/modals/LinkRoadmapModal";
+import {
+  useInvalidateProjectQueries,
+  useLinkedRoadmapQuery,
+} from "@/hooks/useProjectQueries";
 
 export const Route = createFileRoute("/project/$projectId/work-items")({
   component: WorkItemsLayout,
@@ -19,69 +22,31 @@ function WorkItemsLayout() {
   const childMatches = useChildMatches();
   const { projectId } = Route.useParams();
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(true);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
-
-  // Guard: only fire once per projectId mount, never re-fire when childMatches changes
-  const fetchedRef = useRef(false);
+  const linkedRoadmapQuery = useLinkedRoadmapQuery(projectId);
+  const { invalidateLinkedRoadmap } = useInvalidateProjectQueries(projectId);
 
   useEffect(() => {
-    // If a child route is already active (e.g. navigated directly to /$roadmapId),
-    // skip the lookup â€” the child handles rendering.
-    if (childMatches.length > 0) {
-      setIsLoading(false);
-      return;
-    }
-
-    // Already fetched for this projectId â€” don't re-fetch
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
-
-    let cancelled = false;
-
-    const load = async () => {
-      try {
-        const roadmap = await roadmapService.getByProjectId(projectId);
-        if (cancelled) return;
-
-        if (roadmap?.id) {
-          navigate({
-            to: "/project/$projectId/work-items/$roadmapId",
-            params: { projectId, roadmapId: roadmap.id },
-            replace: true,
-          });
-          // Don't setIsLoading(false) â€” component is transitioning away
-          return;
-        }
-      } catch {
-        // silently handled
-      }
-
-      if (!cancelled) {
-        setIsLoading(false);
-      }
-    };
-
-    load();
-
-    return () => {
-      cancelled = true;
-    };
-    // NOTE: intentionally only depend on projectId â€” childMatches must NOT be a dep
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId]);
+    if (childMatches.length > 0) return;
+    const linkedRoadmapId = linkedRoadmapQuery.data?.id;
+    if (!linkedRoadmapId) return;
+    void navigate({
+      to: "/project/$projectId/work-items/$roadmapId",
+      params: { projectId, roadmapId: linkedRoadmapId },
+      replace: true,
+    });
+  }, [childMatches.length, linkedRoadmapQuery.data?.id, navigate, projectId]);
 
   if (childMatches.length > 0) {
     return <Outlet />;
   }
 
-  if (isLoading) {
+  if (linkedRoadmapQuery.isPending) {
     return <RoadmapPageSkeleton />;
   }
 
   return (
     <div className="p-8 max-w-3xl mx-auto w-full">
-      {/* Page Header */}
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-1">
           <ListChecks className="w-5 h-5 text-[#ff9933]" />
@@ -92,7 +57,6 @@ function WorkItemsLayout() {
         </p>
       </div>
 
-      {/* No roadmap state */}
       <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-16 text-center">
         <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#ff9933]/10 flex items-center justify-center">
           <ListChecks className="w-8 h-8 text-[#ff9933]" />
@@ -128,9 +92,10 @@ function WorkItemsLayout() {
         projectId={projectId}
         onLinked={() => {
           setIsLinkModalOpen(false);
-          window.location.reload();
+          void invalidateLinkedRoadmap();
         }}
       />
     </div>
   );
 }
+

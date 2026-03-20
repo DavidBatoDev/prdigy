@@ -17,12 +17,11 @@ import {
   Users,
 } from "lucide-react";
 import {
-  roadmapService,
   epicService,
   featureService,
   taskService,
 } from "@/services/roadmap.service";
-import { projectService, type ProjectMember } from "@/services/project.service";
+import { type ProjectMember } from "@/services/project.service";
 import { useUser } from "@/stores/authStore";
 import { EpicModal } from "@/components/roadmap/modals/EpicModal";
 import { FeatureModal } from "@/components/roadmap/modals/FeatureModal";
@@ -36,6 +35,10 @@ import type {
   TaskStatus,
   EpicPriority,
 } from "@/types/roadmap";
+import {
+  useProjectMembersQuery,
+  useRoadmapFullQuery,
+} from "@/hooks/useProjectQueries";
 
 export const Route = createFileRoute(
   "/project/$projectId/work-items/$roadmapId",
@@ -979,6 +982,8 @@ function EpicCard({
 function WorkItemsViewPage() {
   const { projectId, roadmapId } = Route.useParams();
   const user = useUser();
+  const roadmapFullQuery = useRoadmapFullQuery(roadmapId);
+  const membersQuery = useProjectMembersQuery(projectId);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   const [epics, setEpics] = useState<RoadmapEpic[]>([]);
@@ -1015,13 +1020,30 @@ function WorkItemsViewPage() {
 
   // ── Data loading — roadmapId comes from the URL param ────────────────────────
   useEffect(() => {
+    if (roadmapFullQuery.isPending) {
+      setIsLoading(true);
+      setError(null);
+      return;
+    }
+
+    if (roadmapFullQuery.error) {
+      setError("Failed to load work items. Please try again.");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!roadmapFullQuery.data) {
+      setIsLoading(false);
+      return;
+    }
+
     let cancelled = false;
-    const load = async () => {
+
+    const hydrate = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        const full = await roadmapService.getFull(roadmapId);
-        const baseEpics = (full.epics ?? []).sort(
+        const baseEpics = (roadmapFullQuery.data?.epics ?? []).sort(
           (a, b) => a.position - b.position,
         );
 
@@ -1064,11 +1086,17 @@ function WorkItemsViewPage() {
         if (!cancelled) setIsLoading(false);
       }
     };
-    load();
+
+    void hydrate();
+
     return () => {
       cancelled = true;
     };
-  }, [roadmapId]);
+  }, [
+    roadmapFullQuery.data,
+    roadmapFullQuery.error,
+    roadmapFullQuery.isPending,
+  ]);
 
   useEffect(() => {
     if (!isAssigneeFilterMenuOpen) return;
@@ -1085,22 +1113,12 @@ function WorkItemsViewPage() {
   }, [isAssigneeFilterMenuOpen]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    const loadMembers = async () => {
-      try {
-        const members = await projectService.getMembers(projectId);
-        if (!cancelled) setProjectMembers(members);
-      } catch {
-        if (!cancelled) setProjectMembers([]);
-      }
-    };
-
-    loadMembers();
-    return () => {
-      cancelled = true;
-    };
-  }, [projectId]);
+    if (membersQuery.error) {
+      setProjectMembers([]);
+      return;
+    }
+    setProjectMembers(membersQuery.data ?? []);
+  }, [membersQuery.data, membersQuery.error]);
 
   // ── Helper: patch a single epic in local state ─────────────────────────────
   const patchEpic = useCallback((updated: RoadmapEpic) => {

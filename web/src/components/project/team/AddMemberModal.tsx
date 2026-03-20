@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Users, X, Plus } from "lucide-react";
-import { projectService } from "@/services/project.service";
+import { useProjectInviteMemberMutation } from "@/hooks/useProjectQueries";
 
 interface AddMemberModalProps {
   projectId: string;
@@ -10,8 +10,9 @@ interface AddMemberModalProps {
 export function AddMemberModal({ projectId, onClose }: AddMemberModalProps) {
   const [email, setEmail] = useState("");
   const [position, setPosition] = useState("");
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const inviteMemberMutation = useProjectInviteMemberMutation(projectId);
+  const saving = inviteMemberMutation.isPending;
 
   const submit = async () => {
     const positionVal = position.trim();
@@ -24,17 +25,14 @@ export function AddMemberModal({ projectId, onClose }: AddMemberModalProps) {
       return;
     }
     setError(null);
-    setSaving(true);
     try {
-      await projectService.inviteByEmail(projectId, {
+      await inviteMemberMutation.mutateAsync({
         email: email.trim(),
         position: positionVal,
       });
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to send invite.");
-    } finally {
-      setSaving(false);
     }
   };
 

@@ -7,18 +7,11 @@ import {
   ChevronsUpDown,
   Boxes,
 } from "lucide-react";
-import {
-  Link,
-  useParams,
-  useChildMatches,
-  useNavigate,
-  useLocation,
-} from "@tanstack/react-router";
-import { useState, useEffect } from "react";
-import { projectService, type Project } from "@/services/project.service";
+import { Link, useParams, useChildMatches, useNavigate, useLocation } from "@tanstack/react-router";
 import { useUser } from "@/stores/authStore";
 import Logo from "/prodigylogos/light/logovector.svg";
 import ProjectUserMenu from "./ProjectUserMenu";
+import { useProjectDetailQuery } from "@/hooks/useProjectQueries";
 
 const roleBadgeColor: Record<string, string> = {
   CONSULTANT: "bg-emerald-100 text-emerald-700 border-emerald-200",
@@ -33,28 +26,18 @@ export function ProjectHeader() {
   const projectId = params.projectId;
   const navigate = useNavigate();
   const location = useLocation();
-
   const user = useUser();
-  const [project, setProject] = useState<Project | null>(null);
+  const isRoadmapOnly = projectId === "n";
+  const projectQuery = useProjectDetailQuery(
+    !projectId || isRoadmapOnly ? "" : projectId,
+  );
+  const project = projectId === "n" ? null : (projectQuery.data ?? null);
 
   // For the 'n' (roadmap-only) case
   const childMatches = useChildMatches();
   const childRoadmapId = (childMatches[0]?.params as any)?.roadmapId as
     | string
     | undefined;
-
-  const isRoadmapOnly = projectId === "n";
-
-  useEffect(() => {
-    if (!projectId || isRoadmapOnly) return;
-    const loadProject = async () => {
-      try {
-        const data = await projectService.get(projectId);
-        setProject(data);
-      } catch (err) {}
-    };
-    loadProject();
-  }, [projectId, isRoadmapOnly]);
 
   const handleMakeProject = () => {
     if (!childRoadmapId) return;
