@@ -10,6 +10,7 @@ import {
 	milestoneService,
 	roadmapService,
 	taskService,
+	type FullRoadmap,
 } from "@/services/roadmap.service";
 import type {
 	FeatureStatus,
@@ -65,7 +66,11 @@ interface FeatureData {
 
 interface RoadmapActions {
 	// Initialize & Reset
-	loadRoadmap: (roadmapId: string) => Promise<void>;
+	loadRoadmap: (
+		roadmapId: string,
+		options?: { force?: boolean },
+	) => Promise<void>;
+	applyRoadmapSnapshot: (fullRoadmap: FullRoadmap) => void;
 	resetRoadmap: () => void;
 	updateRoadmapMetadata: (roadmap: Partial<Roadmap>) => Promise<void>;
 
@@ -159,7 +164,12 @@ export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
 	canvasOpenEpicTabs: [],
 
 	// Initialize - Load full roadmap data
-	loadRoadmap: async (roadmapId: string) => {
+	loadRoadmap: async (roadmapId: string, options?: { force?: boolean }) => {
+		const currentRoadmap = get().roadmap;
+		const shouldUseCache =
+			!options?.force && currentRoadmap?.id === roadmapId;
+		if (shouldUseCache) return;
+
 		try {
 			set({ isLoadingRoadmap: true });
 			const fullRoadmap = await roadmapService.getFull(roadmapId);
@@ -174,6 +184,15 @@ export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
 			set({ isLoadingRoadmap: false });
 			throw error;
 		}
+	},
+
+	// Reset - Clear all roadmap data
+	applyRoadmapSnapshot: (fullRoadmap: FullRoadmap) => {
+		set({
+			roadmap: fullRoadmap,
+			epics: fullRoadmap.epics || [],
+			milestones: fullRoadmap.milestones || [],
+		});
 	},
 
 	// Reset - Clear all roadmap data

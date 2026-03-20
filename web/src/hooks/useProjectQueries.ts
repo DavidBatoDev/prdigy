@@ -79,6 +79,19 @@ export function useRoadmapFullQuery(roadmapId: string) {
   });
 }
 
+export function useRoadmapFullLiveQuery(roadmapId: string) {
+  return useQuery({
+    queryKey: projectKeys.roadmapFull(roadmapId),
+    queryFn: () => fetchRoadmapFull(roadmapId),
+    enabled: Boolean(roadmapId),
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    retry: 1,
+  });
+}
+
 export function useProjectInviteMemberMutation(projectId: string) {
   const queryClient = useQueryClient();
 

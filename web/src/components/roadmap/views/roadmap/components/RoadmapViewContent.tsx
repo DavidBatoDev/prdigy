@@ -22,6 +22,7 @@ import {
 } from "@/services/roadmap.service";
 import type { Roadmap } from "@/types/roadmap";
 import { useToast } from "@/contexts/ToastContext";
+import { useRoadmapFullLiveQuery } from "@/hooks/useProjectQueries";
 
 interface RoadmapViewContentProps {
   roadmapId: string;
@@ -76,8 +77,9 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
   const roadmap = useRoadmapStore((state) => state.roadmap);
   const isLoadingRoadmap = useRoadmapStore((state) => state.isLoadingRoadmap);
   const activeEpicId = useRoadmapStore((state) => state.activeEpicId);
-  const loadRoadmap = useRoadmapStore((state) => state.loadRoadmap);
-  const resetRoadmap = useRoadmapStore((state) => state.resetRoadmap);
+  const applyRoadmapSnapshot = useRoadmapStore(
+    (state) => state.applyRoadmapSnapshot,
+  );
   const updateRoadmapMetadata = useRoadmapStore(
     (state) => state.updateRoadmapMetadata,
   );
@@ -95,6 +97,7 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
   const [roadmapError, setRoadmapError] = useState<string | null>(null);
   const [isJsonPanelOpen, setIsJsonPanelOpen] = useState(false);
   const [isSavingRoadmapJson, setIsSavingRoadmapJson] = useState(false);
+  const roadmapLiveQuery = useRoadmapFullLiveQuery(roadmapId);
 
   const setSidebarExpanded = useProjectSettingsStore(
     (state) => state.setSidebarExpanded,
@@ -105,48 +108,44 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
     setSidebarExpanded(false);
   }, [setSidebarExpanded]);
 
-  // Fetch roadmap data
+  // Keep chat reset scoped to the current roadmap id
   useEffect(() => {
-    const fetchRoadmap = async () => {
-      if (!roadmapId) return;
+    setMessages([]);
+  }, [roadmapId]);
 
-      try {
-        setRoadmapError(null);
+  // Fetch roadmap data with stale-while-revalidate behavior.
+  useEffect(() => {
+    if (!roadmapLiveQuery.data) return;
+    const fullRoadmap = roadmapLiveQuery.data;
 
-        await loadRoadmap(roadmapId);
-        const fullRoadmap = useRoadmapStore.getState().roadmap;
-        if (!fullRoadmap) return;
+    setRoadmapError(null);
+    applyRoadmapSnapshot(fullRoadmap);
 
-        setFormData({
-          title: fullRoadmap.name || "",
-          category: fullRoadmap.category || "",
-          description: fullRoadmap.description || "",
-        });
+    setFormData({
+      title: fullRoadmap.name || "",
+      category: fullRoadmap.category || "",
+      description: fullRoadmap.description || "",
+    });
 
-        // Add initial welcome message
-        const welcomeMessage: Message = {
-          id: "1",
-          role: "assistant",
-          content: `Welcome back to your roadmap "${fullRoadmap.name}"! I'm here to help you manage milestones, epics, and features. What would you like to work on?`,
-          timestamp: new Date(),
-        };
-        setMessages([welcomeMessage]);
-      } catch (error: any) {
-        console.error("Error fetching roadmap:", error);
-        setRoadmapError(
-          error.response?.data?.error?.message || "Failed to load roadmap",
-        );
-      }
-    };
-
-    fetchRoadmap();
-  }, [loadRoadmap, roadmapId]);
+    setMessages((prev) => {
+      if (prev.length > 0) return prev;
+      const welcomeMessage: Message = {
+        id: "1",
+        role: "assistant",
+        content: `Welcome back to your roadmap "${fullRoadmap.name}"! I'm here to help you manage milestones, epics, and features. What would you like to work on?`,
+        timestamp: new Date(),
+      };
+      return [welcomeMessage];
+    });
+  }, [applyRoadmapSnapshot, roadmapLiveQuery.data]);
 
   useEffect(() => {
-    return () => {
-      resetRoadmap();
-    };
-  }, [resetRoadmap]);
+    if (!roadmapLiveQuery.error) return;
+    const error = roadmapLiveQuery.error as any;
+    setRoadmapError(
+      error?.response?.data?.error?.message || "Failed to load roadmap",
+    );
+  }, [roadmapLiveQuery.error]);
 
   // Edit Roadmap modal state
   const [isBriefOpen, setIsBriefOpen] = useState(false);
@@ -263,7 +262,7 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
         ...payload,
         id: roadmapId,
       });
-      await loadRoadmap(roadmapId);
+      await roadmapLiveQuery.refetch();
       setIsJsonPanelOpen(false);
       toast.success("Roadmap JSON saved successfully");
     } catch (error) {
@@ -312,12 +311,15 @@ export function RoadmapViewContent({ roadmapId }: RoadmapViewContentProps) {
   };
 
   // Loading roadmap data
-  if (isLoadingRoadmap && !roadmap) {
+  if (
+    (isLoadingRoadmap || roadmapLiveQuery.isPending) &&
+    (!roadmap || roadmap.id !== roadmapId)
+  ) {
     return <RoadmapPageSkeleton />;
   }
 
   // Error state
-  if (roadmapError || !roadmap) {
+  if (roadmapError || !roadmap || roadmap.id !== roadmapId) {
     return (
       <div className="flex-1 min-h-full bg-[#f6f7f8] flex items-center justify-center">
         <div className="text-center max-w-md">
