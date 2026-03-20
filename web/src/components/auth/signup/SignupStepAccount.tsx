@@ -76,12 +76,20 @@ export function SignupStepAccount({
   const toast = useToast();
 
   const handleGoogleSignIn = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) throw error;
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Google sign-in failed",
+      );
+    }
   };
 
   const handleNext = (e: React.FormEvent) => {

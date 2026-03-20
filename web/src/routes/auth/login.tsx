@@ -156,6 +156,24 @@ function RouteComponent() {
     }
   }
 
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (error) throw error;
+    } catch (error) {
+      setIsLoading(false);
+      toast.error(
+        error instanceof Error ? error.message : "Google sign-in failed",
+      );
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -481,6 +499,8 @@ function RouteComponent() {
         {/* Google Sign-In */}
         <button
           type="button"
+          onClick={handleGoogleSignIn}
+          disabled={isLoading}
           style={{
             width: "100%",
             height: "52px",
@@ -491,15 +511,18 @@ function RouteComponent() {
             alignItems: "center",
             justifyContent: "center",
             gap: "10px",
-            cursor: "pointer",
+            cursor: isLoading ? "not-allowed" : "pointer",
             fontSize: "0.95rem",
             fontWeight: 600,
             color: "#2E2E2E",
             fontFamily: "'Open Sans', sans-serif",
             transition: "box-shadow 0.2s",
+            opacity: isLoading ? 0.7 : 1,
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.10)";
+            if (!isLoading) {
+              e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.10)";
+            }
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.boxShadow = "none";
@@ -510,7 +533,7 @@ function RouteComponent() {
             alt="Google"
             style={{ width: "20px", height: "20px", objectFit: "contain" }}
           />
-          Continue with Google
+          {isLoading ? "Redirecting to Google..." : "Continue with Google"}
         </button>
 
         {/* OR divider */}
