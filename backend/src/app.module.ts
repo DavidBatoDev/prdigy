@@ -19,6 +19,7 @@ import { RoadmapsModule } from './modules/roadmaps/roadmaps.module';
 import { RoadmapSharesModule } from './modules/roadmap-shares/roadmap-shares.module';
 import { MarketplaceModule } from './modules/marketplace/marketplace.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { ProjectTimeModule } from './modules/project-time/project-time.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -44,6 +45,7 @@ import { AppController } from './app.controller';
     RoadmapSharesModule,
     MarketplaceModule,
     NotificationsModule,
+    ProjectTimeModule,
   ],
 })
 export class AppModule {}

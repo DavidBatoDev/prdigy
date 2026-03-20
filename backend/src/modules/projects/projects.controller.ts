@@ -243,6 +243,14 @@ export class ProjectsController {
     return this.projectsService.getMemberPermissions(id, memberId, user.id);
   }
 
+  @Get(':id/my-permissions')
+  getMyPermissions(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.projectsService.getMyPermissions(id, user.id);
+  }
+
   @Patch(':id/members/:memberId/permissions')
   updateMemberPermissions(
     @Param('id') id: string,

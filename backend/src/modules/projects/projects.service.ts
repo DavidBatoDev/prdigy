@@ -30,6 +30,7 @@ import {
   getTemplateByKey,
   hasPermission,
   isPermissionsEmpty,
+  normalizePermissions,
   type ProjectMemberLike,
   type ProjectPermissions,
   resolvePermissionTemplateKey,
@@ -85,20 +86,42 @@ export class ProjectsService {
     project: Project,
     member: ProjectMemberLike,
   ): Promise<ProjectPermissions> {
-    if (!isPermissionsEmpty(member.permissions_json ?? null)) {
-      return member.permissions_json as ProjectPermissions;
-    }
-
     const templateKey = resolvePermissionTemplateKey(project, member);
     const defaults = getTemplateByKey(templateKey);
+    const existing = (member.permissions_json ??
+      null) as Record<string, unknown> | null;
+    const normalized = normalizePermissions(existing, defaults);
+    if (templateKey === 'consultant' || templateKey === 'consultant_incubation') {
+      normalized.time = {
+        log: true,
+        edit_own: true,
+        edit_team: true,
+        approve: true,
+        manage_rates: true,
+        view: true,
+      };
+    }
+
+    if (!isPermissionsEmpty(existing)) {
+      const shouldPersist =
+        JSON.stringify(existing) !== JSON.stringify(normalized);
+      if (shouldPersist) {
+        await this.projectsRepo.updateMemberPermissions(
+          project.id,
+          member.id,
+          normalized,
+        );
+      }
+      return normalized;
+    }
 
     await this.projectsRepo.updateMemberPermissions(
       project.id,
       member.id,
-      defaults,
+      normalized,
     );
 
-    return defaults;
+    return normalized;
   }
 
   private async getCallerPermissions(
@@ -179,6 +202,10 @@ export class ProjectsService {
       | 'roadmap.view_internal'
       | 'roadmap.comment'
       | 'roadmap.promote'
+      | 'time.log'
+      | 'time.edit_own'
+      | 'time.edit_team'
+      | 'time.approve'
       | 'time.manage_rates'
       | 'time.view',
   ): Promise<void> {
@@ -214,6 +241,10 @@ export class ProjectsService {
       | 'roadmap.view_internal'
       | 'roadmap.comment'
       | 'roadmap.promote'
+      | 'time.log'
+      | 'time.edit_own'
+      | 'time.edit_team'
+      | 'time.approve'
       | 'time.manage_rates'
       | 'time.view'
     >,
@@ -639,6 +670,32 @@ export class ProjectsService {
     }
 
     return this.hydrateDefaultPermissionsIfEmpty(project, targetMember);
+  }
+
+  async getMyPermissions(
+    projectId: string,
+    userId: string,
+  ): Promise<ProjectPermissions> {
+    const project = await this.getProjectOrThrow(projectId);
+
+    const member = await this.projectsRepo.getMemberByProjectAndUserId(
+      projectId,
+      userId,
+    );
+
+    if (member) {
+      return this.hydrateDefaultPermissionsIfEmpty(project, member);
+    }
+
+    if (userId === project.consultant_id) {
+      return getTemplateByKey('consultant');
+    }
+
+    if (userId === project.client_id) {
+      return getTemplateByKey('client');
+    }
+
+    throw new ForbiddenException('You are not a member of this project.');
   }
 
   async updateMemberPermissions(

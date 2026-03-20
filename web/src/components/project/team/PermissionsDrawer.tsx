@@ -68,6 +68,26 @@ const permissionSections: Array<{
     title: "Time",
     items: [
       {
+        key: "log",
+        label: "Log Time",
+        hint: "Start and stop timers and create manual time entries.",
+      },
+      {
+        key: "edit_own",
+        label: "Edit Own Logs",
+        hint: "Edit your own time logs.",
+      },
+      {
+        key: "edit_team",
+        label: "Edit Team Logs",
+        hint: "Edit other members' time logs.",
+      },
+      {
+        key: "approve",
+        label: "Approve Logs",
+        hint: "Approve or reject submitted time entries.",
+      },
+      {
         key: "manage_rates",
         label: "Manage Rates",
         hint: "Configure billable rates and pricing.",
@@ -103,6 +123,7 @@ export function PermissionsDrawer({
   const [positionDraft, setPositionDraft] = useState("");
   const [entered, setEntered] = useState(false);
   const positionInputRef = useRef<HTMLInputElement>(null);
+  const isConsultantMember = member?.role === "consultant";
 
   useEffect(() => {
     if (!open) return;
@@ -318,23 +339,34 @@ export function PermissionsDrawer({
                       string,
                       boolean
                     >;
-                    const checked = group[item.key] === true;
+                    const isLockedConsultantTime =
+                      isConsultantMember && section.key === "time";
+                    const checked = isLockedConsultantTime
+                      ? true
+                      : group[item.key] === true;
                     return (
                       <label
                         key={item.key}
-                        className="flex items-start justify-between gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50"
+                        className={`flex items-start justify-between gap-3 px-4 py-3 ${
+                          isLockedConsultantTime
+                            ? "opacity-80 cursor-not-allowed bg-slate-50/50"
+                            : "cursor-pointer hover:bg-slate-50"
+                        }`}
                       >
                         <div className="min-w-0">
                           <p className="text-[12px] font-medium text-slate-800">
                             {item.label}
                           </p>
                           <p className="text-[11px] text-slate-500 mt-0.5">
-                            {item.hint}
+                            {isLockedConsultantTime
+                              ? "Consultant time permissions are always enabled."
+                              : item.hint}
                           </p>
                         </div>
                         <input
                           type="checkbox"
                           checked={checked}
+                          disabled={isLockedConsultantTime}
                           onChange={(e) =>
                             setPermission(
                               section.key,

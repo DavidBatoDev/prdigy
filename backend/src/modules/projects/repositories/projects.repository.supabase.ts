@@ -110,6 +110,27 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
     return getTemplateByKey(templateKey);
   }
 
+  private enforceConsultantTimePermissions(
+    permissions: ProjectPermissions,
+    role: string,
+  ): ProjectPermissions {
+    if (String(role).trim().toLowerCase() !== ProjectMemberRole.CONSULTANT) {
+      return permissions;
+    }
+
+    return {
+      ...permissions,
+      time: {
+        log: true,
+        edit_own: true,
+        edit_team: true,
+        approve: true,
+        manage_rates: true,
+        view: true,
+      },
+    };
+  }
+
   async findByUser(userId: string): Promise<Project[]> {
     const { data } = await this.supabase
       .from('project_members')
@@ -727,11 +748,43 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
       .eq('id', memberId)
       .eq('project_id', projectId)
       .select(
-        'id, project_id, user_id, role, position, joined_at, user:profiles(id, display_name, avatar_url, email, first_name, last_name)',
+        'id, project_id, user_id, role, position, permissions_json, joined_at, user:profiles(id, display_name, avatar_url, email, first_name, last_name)',
       )
       .single();
 
     if (error) throw new BadRequestException(error.message);
+
+    const role = String((data as Record<string, unknown>).role ?? '')
+      .trim()
+      .toLowerCase();
+
+    if (role === ProjectMemberRole.CONSULTANT) {
+      const currentPermissions =
+        ((data as { permissions_json?: Record<string, unknown> }).permissions_json as
+          | Record<string, unknown>
+          | undefined) ?? {};
+      const normalized = this.enforceConsultantTimePermissions(
+        currentPermissions as ProjectPermissions,
+        role,
+      );
+
+      const { data: updated, error: updatePermissionsError } = await this.supabase
+        .from('project_members')
+        .update({ permissions_json: normalized })
+        .eq('id', memberId)
+        .eq('project_id', projectId)
+        .select(
+          'id, project_id, user_id, role, position, permissions_json, joined_at, user:profiles(id, display_name, avatar_url, email, first_name, last_name)',
+        )
+        .single();
+
+      if (updatePermissionsError) {
+        throw new BadRequestException(updatePermissionsError.message);
+      }
+
+      return updated;
+    }
+
     return data;
   }
 
@@ -847,14 +900,23 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
     if (dto.time !== undefined) patch.time = dto.time;
 
     const existing = await this.getMemberPermissions(projectId, memberId);
+    const member = await this.getMemberById(projectId, memberId);
+    if (!member) {
+      throw new NotFoundException('Member not found');
+    }
+
     const merged: Record<string, unknown> = {
       ...(existing || {}),
       ...patch,
     };
+    const normalizedMerged = this.enforceConsultantTimePermissions(
+      merged as ProjectPermissions,
+      member.role,
+    );
 
     const { data, error } = await this.supabase
       .from('project_members')
-      .update({ permissions_json: merged })
+      .update({ permissions_json: normalizedMerged })
       .eq('id', memberId)
       .eq('project_id', projectId)
       .select(

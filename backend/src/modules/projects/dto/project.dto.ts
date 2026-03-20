@@ -41,6 +41,10 @@ class ProjectPermissionsDto {
 }
 
 class TimePermissionsDto {
+  @IsBoolean() log: boolean;
+  @IsBoolean() edit_own: boolean;
+  @IsBoolean() edit_team: boolean;
+  @IsBoolean() approve: boolean;
   @IsBoolean() manage_rates: boolean;
   @IsBoolean() view: boolean;
 }

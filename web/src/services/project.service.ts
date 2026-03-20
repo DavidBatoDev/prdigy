@@ -82,6 +82,10 @@ export interface ProjectPermissions {
     settings: boolean;
   };
   time: {
+    log: boolean;
+    edit_own: boolean;
+    edit_team: boolean;
+    approve: boolean;
     manage_rates: boolean;
     view: boolean;
   };
@@ -552,6 +556,35 @@ class ProjectService {
         err.message ||
           err.error?.message ||
           "Failed to fetch member permissions",
+      );
+    }
+
+    const result = await response.json();
+    return result.data ?? result;
+  }
+
+  async getMyPermissions(projectId: string): Promise<ProjectPermissions> {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("Authentication required");
+
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/api/projects/${projectId}/my-permissions`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      },
+    );
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(
+        err.message ||
+          err.error?.message ||
+          "Failed to fetch your permissions",
       );
     }
 
