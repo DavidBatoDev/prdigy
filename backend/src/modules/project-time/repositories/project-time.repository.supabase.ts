@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_ADMIN } from '../../../config/supabase.module';
 import type {
+  ProjectMemberTimeRateRecord,
   ProjectTimeRepository,
   TaskTimeLogRecord,
   TimeLogsListResult,
@@ -11,6 +12,12 @@ import type {
 @Injectable()
 export class ProjectTimeRepositorySupabase implements ProjectTimeRepository {
   constructor(@Inject(SUPABASE_ADMIN) private readonly db: SupabaseClient) {}
+
+  private readonly rateSelectClause = `
+    *,
+    member:profiles!project_member_time_rates_member_user_id_fkey(id, display_name, email, avatar_url, banner_url),
+    project_member:project_members!project_member_time_rates_project_member_id_fkey(id, role, position)
+  `;
 
   private readonly selectClause = `
     *,
@@ -23,6 +30,129 @@ export class ProjectTimeRepositorySupabase implements ProjectTimeRepository {
     const started = new Date(startedAtIso).getTime();
     const ended = new Date(endedAtIso).getTime();
     return Math.max(0, Math.floor((ended - started) / 1000));
+  }
+
+  async hasProjectMemberRate(
+    projectId: string,
+    memberUserId: string,
+  ): Promise<boolean> {
+    const { data, error } = await this.db
+      .from('project_member_time_rates')
+      .select('id')
+      .eq('project_id', projectId)
+      .eq('member_user_id', memberUserId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return Boolean(data?.id);
+  }
+
+  async findProjectMemberRateById(
+    projectId: string,
+    rateId: string,
+  ): Promise<ProjectMemberTimeRateRecord | null> {
+    const { data, error } = await this.db
+      .from('project_member_time_rates')
+      .select(this.rateSelectClause)
+      .eq('project_id', projectId)
+      .eq('id', rateId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return (data as ProjectMemberTimeRateRecord | null) ?? null;
+  }
+
+  async findProjectMemberRateByUser(
+    projectId: string,
+    memberUserId: string,
+  ): Promise<ProjectMemberTimeRateRecord | null> {
+    const { data, error } = await this.db
+      .from('project_member_time_rates')
+      .select(this.rateSelectClause)
+      .eq('project_id', projectId)
+      .eq('member_user_id', memberUserId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return (data as ProjectMemberTimeRateRecord | null) ?? null;
+  }
+
+  async listProjectMemberRates(
+    projectId: string,
+  ): Promise<ProjectMemberTimeRateRecord[]> {
+    const { data, error } = await this.db
+      .from('project_member_time_rates')
+      .select(this.rateSelectClause)
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data as ProjectMemberTimeRateRecord[] | null) ?? [];
+  }
+
+  async createProjectMemberRate(params: {
+    project_id: string;
+    project_member_id: string;
+    member_user_id: string;
+    hourly_rate: number;
+    currency: string;
+  }): Promise<ProjectMemberTimeRateRecord> {
+    const { data, error } = await this.db
+      .from('project_member_time_rates')
+      .insert(params)
+      .select(this.rateSelectClause)
+      .single();
+    if (error) throw new Error(error.message);
+    return data as ProjectMemberTimeRateRecord;
+  }
+
+  async updateProjectMemberRateById(
+    id: string,
+    patch: {
+      hourly_rate?: number;
+      currency?: string;
+    },
+  ): Promise<ProjectMemberTimeRateRecord> {
+    const { data, error } = await this.db
+      .from('project_member_time_rates')
+      .update(patch)
+      .eq('id', id)
+      .select(this.rateSelectClause)
+      .single();
+    if (error) throw new Error(error.message);
+    return data as ProjectMemberTimeRateRecord;
+  }
+
+  async getProjectMemberForUser(
+    projectId: string,
+    userId: string,
+  ): Promise<{ id: string; user_id: string | null } | null> {
+    const { data, error } = await this.db
+      .from('project_members')
+      .select('id, user_id')
+      .eq('project_id', projectId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) return null;
+    return {
+      id: data.id as string,
+      user_id: (data.user_id as string | null | undefined) ?? null,
+    };
+  }
+
+  async getProjectMemberById(
+    projectId: string,
+    projectMemberId: string,
+  ): Promise<{ id: string; user_id: string | null } | null> {
+    const { data, error } = await this.db
+      .from('project_members')
+      .select('id, user_id')
+      .eq('project_id', projectId)
+      .eq('id', projectMemberId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) return null;
+    return {
+      id: data.id as string,
+      user_id: (data.user_id as string | null | undefined) ?? null,
+    };
   }
 
   async getTaskProjectId(taskId: string): Promise<string | null> {

@@ -13,10 +13,12 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../common/interfaces/authenticated-request.interface';
 import { ProjectTimeService } from './project-time.service';
 import {
+  CreateProjectMemberTimeRateDto,
   ReviewTimeLogDto,
   StartTimeLogDto,
   StopTimeLogDto,
   TimeLogsQueryDto,
+  UpdateProjectMemberTimeRateDto,
   UpdateTimeLogDto,
 } from './dto/project-time.dto';
 
@@ -55,6 +57,42 @@ export class ProjectTimeController {
     @Body() dto: ReviewTimeLogDto,
   ) {
     return this.projectTimeService.review(user.id, id, dto);
+  }
+
+  @Get('projects/:projectId/rates')
+  listProjectMemberRates(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('projectId') projectId: string,
+  ) {
+    return this.projectTimeService.listProjectMemberRates(user.id, projectId);
+  }
+
+  @Post('projects/:projectId/rates')
+  createProjectMemberRate(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('projectId') projectId: string,
+    @Body() dto: CreateProjectMemberTimeRateDto,
+  ) {
+    return this.projectTimeService.createProjectMemberRate(
+      user.id,
+      projectId,
+      dto,
+    );
+  }
+
+  @Patch('projects/:projectId/rates/:rateId')
+  updateProjectMemberRate(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('projectId') projectId: string,
+    @Param('rateId') rateId: string,
+    @Body() dto: UpdateProjectMemberTimeRateDto,
+  ) {
+    return this.projectTimeService.updateProjectMemberRate(
+      user.id,
+      projectId,
+      rateId,
+      dto,
+    );
   }
 
   @Get('projects/:projectId/my')

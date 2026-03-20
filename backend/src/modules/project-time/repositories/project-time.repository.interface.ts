@@ -1,6 +1,29 @@
 export type TimeLogStatus = 'pending' | 'approved' | 'rejected';
 export type TimeLogSource = 'timer' | 'manual';
 
+export type ProjectMemberTimeRateRecord = {
+  id: string;
+  project_id: string;
+  project_member_id: string;
+  member_user_id: string;
+  hourly_rate: number;
+  currency: string;
+  created_at: string;
+  updated_at: string;
+  member?: {
+    id: string;
+    display_name?: string;
+    email?: string;
+    avatar_url?: string;
+    banner_url?: string;
+  };
+  project_member?: {
+    id: string;
+    role?: string;
+    position?: string;
+  };
+};
+
 export type TaskTimeLogRecord = {
   id: string;
   project_id: string;
@@ -52,6 +75,40 @@ export type TimeLogsQueryFilters = {
 };
 
 export interface ProjectTimeRepository {
+  hasProjectMemberRate(projectId: string, memberUserId: string): Promise<boolean>;
+  findProjectMemberRateById(
+    projectId: string,
+    rateId: string,
+  ): Promise<ProjectMemberTimeRateRecord | null>;
+  findProjectMemberRateByUser(
+    projectId: string,
+    memberUserId: string,
+  ): Promise<ProjectMemberTimeRateRecord | null>;
+  listProjectMemberRates(
+    projectId: string,
+  ): Promise<ProjectMemberTimeRateRecord[]>;
+  createProjectMemberRate(params: {
+    project_id: string;
+    project_member_id: string;
+    member_user_id: string;
+    hourly_rate: number;
+    currency: string;
+  }): Promise<ProjectMemberTimeRateRecord>;
+  updateProjectMemberRateById(
+    id: string,
+    patch: {
+      hourly_rate?: number;
+      currency?: string;
+    },
+  ): Promise<ProjectMemberTimeRateRecord>;
+  getProjectMemberForUser(
+    projectId: string,
+    userId: string,
+  ): Promise<{ id: string; user_id: string | null } | null>;
+  getProjectMemberById(
+    projectId: string,
+    projectMemberId: string,
+  ): Promise<{ id: string; user_id: string | null } | null>;
   getTaskProjectId(taskId: string): Promise<string | null>;
   findById(id: string): Promise<TaskTimeLogRecord | null>;
   stopActiveForMember(
@@ -86,4 +143,3 @@ export interface ProjectTimeRepository {
     limit: number;
   }): Promise<TimeLogsListResult>;
 }
-

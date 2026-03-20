@@ -1,18 +1,23 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { ProjectsService } from '../projects/projects.service';
+import { hasPermission } from '../projects/permissions/project-permissions';
 import {
+  CreateProjectMemberTimeRateDto,
   ReviewTimeLogDto,
   StartTimeLogDto,
   StopTimeLogDto,
   TimeLogsQueryDto,
+  UpdateProjectMemberTimeRateDto,
   UpdateTimeLogDto,
 } from './dto/project-time.dto';
 import type {
+  ProjectMemberTimeRateRecord,
   ProjectTimeRepository,
   TaskTimeLogRecord,
   TimeLogsListResult,
@@ -22,6 +27,9 @@ export const PROJECT_TIME_REPOSITORY = Symbol('PROJECT_TIME_REPOSITORY');
 
 @Injectable()
 export class ProjectTimeService {
+  private static readonly RATE_REQUIRED_MESSAGE =
+    'You are not enabled for time tracking in this project. Ask a manager to add your time rate.';
+
   constructor(
     @Inject(PROJECT_TIME_REPOSITORY)
     private readonly repo: ProjectTimeRepository,
@@ -77,12 +85,158 @@ export class ProjectTimeService {
     };
   }
 
+  private normalizeCurrency(value: string | undefined): string {
+    const normalized = (value ?? '').trim().toUpperCase();
+    if (!normalized) {
+      throw new BadRequestException('Currency is required.');
+    }
+    return normalized;
+  }
+
+  private async assertTimeRateEnabled(
+    projectId: string,
+    userId: string,
+  ): Promise<void> {
+    const hasRate = await this.repo.hasProjectMemberRate(projectId, userId);
+    if (!hasRate) {
+      throw new ForbiddenException(ProjectTimeService.RATE_REQUIRED_MESSAGE);
+    }
+  }
+
+  private async getProjectMemberTargetOrThrow(
+    projectId: string,
+    dto: CreateProjectMemberTimeRateDto,
+  ): Promise<{ id: string; user_id: string | null }> {
+    if (dto.project_member_id) {
+      const member = await this.repo.getProjectMemberById(
+        projectId,
+        dto.project_member_id,
+      );
+      if (!member) {
+        throw new NotFoundException('Project member not found.');
+      }
+      return member;
+    }
+
+    if (!dto.member_user_id) {
+      throw new BadRequestException(
+        'Either project_member_id or member_user_id is required.',
+      );
+    }
+
+    const member = await this.repo.getProjectMemberForUser(
+      projectId,
+      dto.member_user_id,
+    );
+    if (!member) {
+      throw new NotFoundException('Project member not found.');
+    }
+    return member;
+  }
+
+  async listProjectMemberRates(
+    userId: string,
+    projectId: string,
+  ): Promise<ProjectMemberTimeRateRecord[]> {
+    const permissions = await this.projectsService.getMyPermissions(
+      projectId,
+      userId,
+    );
+    const canManageRates = hasPermission(permissions, 'time.manage_rates');
+    const canViewTeamRates =
+      hasPermission(permissions, 'time.edit_team') || canManageRates;
+
+    if (!canViewTeamRates) {
+      throw new ForbiddenException(
+        'You do not have permission to view team time rates.',
+      );
+    }
+
+    if (!canManageRates) {
+      await this.assertTimeRateEnabled(projectId, userId);
+    }
+
+    return this.repo.listProjectMemberRates(projectId);
+  }
+
+  async createProjectMemberRate(
+    userId: string,
+    projectId: string,
+    dto: CreateProjectMemberTimeRateDto,
+  ): Promise<ProjectMemberTimeRateRecord> {
+    await this.projectsService.assertProjectPermission(
+      projectId,
+      userId,
+      'time.manage_rates',
+    );
+
+    const targetMember = await this.getProjectMemberTargetOrThrow(projectId, dto);
+    if (!targetMember.user_id) {
+      throw new BadRequestException(
+        'Cannot configure rate for a member without a linked user.',
+      );
+    }
+
+    const existing = await this.repo.findProjectMemberRateByUser(
+      projectId,
+      targetMember.user_id,
+    );
+    if (existing) {
+      throw new BadRequestException('Time rate already exists for this member.');
+    }
+
+    return this.repo.createProjectMemberRate({
+      project_id: projectId,
+      project_member_id: targetMember.id,
+      member_user_id: targetMember.user_id,
+      hourly_rate: dto.hourly_rate,
+      currency: this.normalizeCurrency(dto.currency),
+    });
+  }
+
+  async updateProjectMemberRate(
+    userId: string,
+    projectId: string,
+    rateId: string,
+    dto: UpdateProjectMemberTimeRateDto,
+  ): Promise<ProjectMemberTimeRateRecord> {
+    await this.projectsService.assertProjectPermission(
+      projectId,
+      userId,
+      'time.manage_rates',
+    );
+
+    const existing = await this.repo.findProjectMemberRateById(projectId, rateId);
+    if (!existing) {
+      throw new NotFoundException('Project member time rate not found.');
+    }
+
+    const patch: {
+      hourly_rate?: number;
+      currency?: string;
+    } = {};
+
+    if (dto.hourly_rate !== undefined) {
+      patch.hourly_rate = dto.hourly_rate;
+    }
+    if (dto.currency !== undefined) {
+      patch.currency = this.normalizeCurrency(dto.currency);
+    }
+
+    if (Object.keys(patch).length === 0) {
+      return existing;
+    }
+
+    return this.repo.updateProjectMemberRateById(existing.id, patch);
+  }
+
   async start(userId: string, dto: StartTimeLogDto): Promise<TaskTimeLogRecord> {
     await this.projectsService.assertProjectPermission(
       dto.project_id,
       userId,
       'time.log',
     );
+    await this.assertTimeRateEnabled(dto.project_id, userId);
     await this.assertTaskBelongsToProject(dto.task_id, dto.project_id);
 
     const nowIso = new Date().toISOString();
@@ -117,6 +271,7 @@ export class ProjectTimeService {
         'time.edit_team',
       );
     }
+    await this.assertTimeRateEnabled(existing.project_id, userId);
 
     const endedAtIso = this.asIso(dto.ended_at);
     this.validateTimeWindow(existing.started_at, endedAtIso);
@@ -144,6 +299,7 @@ export class ProjectTimeService {
         'time.edit_team',
       );
     }
+    await this.assertTimeRateEnabled(existing.project_id, userId);
 
     const nextStartedAt = dto.started_at
       ? this.asIso(dto.started_at)
@@ -190,6 +346,7 @@ export class ProjectTimeService {
       userId,
       'time.approve',
     );
+    await this.assertTimeRateEnabled(existing.project_id, userId);
 
     const nowIso = new Date().toISOString();
     return this.repo.updateLogById(logId, {
@@ -206,6 +363,7 @@ export class ProjectTimeService {
     query: TimeLogsQueryDto,
   ): Promise<TimeLogsListResult> {
     await this.projectsService.assertProjectPermission(projectId, userId, 'time.view');
+    await this.assertTimeRateEnabled(projectId, userId);
     const { page, limit } = this.normalizePaging(query);
     return this.repo.listProjectLogs(projectId, {
       page,
@@ -228,6 +386,7 @@ export class ProjectTimeService {
       userId,
       'time.approve',
     );
+    await this.assertTimeRateEnabled(projectId, userId);
     const { page, limit } = this.normalizePaging(query);
     return this.repo.listProjectLogs(projectId, {
       page,
@@ -250,6 +409,7 @@ export class ProjectTimeService {
       userId,
       'time.edit_team',
     );
+    await this.assertTimeRateEnabled(projectId, userId);
     const { page, limit } = this.normalizePaging(query);
     return this.repo.listProjectLogs(projectId, {
       page,
@@ -269,6 +429,7 @@ export class ProjectTimeService {
     query: TimeLogsQueryDto,
   ): Promise<TimeLogsListResult> {
     await this.projectsService.assertProjectPermission(projectId, userId, 'time.view');
+    await this.assertTimeRateEnabled(projectId, userId);
     await this.assertTaskBelongsToProject(taskId, projectId);
     const { page, limit } = this.normalizePaging(query);
     return this.repo.listTaskLogsForMember({

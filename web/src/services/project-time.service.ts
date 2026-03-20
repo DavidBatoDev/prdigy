@@ -26,6 +26,7 @@ export interface TaskTimeLog {
     display_name?: string;
     email?: string;
     avatar_url?: string;
+    banner_url?: string;
   };
   reviewer?: {
     id: string;
@@ -40,6 +41,29 @@ export interface TimeLogListResult {
   total: number;
   page: number;
   limit: number;
+}
+
+export interface ProjectMemberTimeRate {
+  id: string;
+  project_id: string;
+  project_member_id: string;
+  member_user_id: string;
+  hourly_rate: number;
+  currency: string;
+  created_at: string;
+  updated_at: string;
+  member?: {
+    id: string;
+    display_name?: string;
+    email?: string;
+    avatar_url?: string;
+    banner_url?: string;
+  };
+  project_member?: {
+    id: string;
+    role?: string;
+    position?: string;
+  };
 }
 
 type ApiResponse<T> = {
@@ -206,6 +230,58 @@ export const projectTimeService = {
       return response.data.data;
     } catch (error) {
       throw extractError(error, "Failed to fetch task time logs");
+    }
+  },
+
+  async listProjectMemberRates(
+    projectId: string,
+  ): Promise<ProjectMemberTimeRate[]> {
+    try {
+      const response = await apiClient.get<ApiResponse<ProjectMemberTimeRate[]>>(
+        `/api/project-time/projects/${projectId}/rates`,
+      );
+      return response.data.data;
+    } catch (error) {
+      throw extractError(error, "Failed to fetch project member time rates");
+    }
+  },
+
+  async createProjectMemberRate(
+    projectId: string,
+    payload: {
+      project_member_id?: string;
+      member_user_id?: string;
+      hourly_rate: number;
+      currency: string;
+    },
+  ): Promise<ProjectMemberTimeRate> {
+    try {
+      const response = await apiClient.post<ApiResponse<ProjectMemberTimeRate>>(
+        `/api/project-time/projects/${projectId}/rates`,
+        payload,
+      );
+      return response.data.data;
+    } catch (error) {
+      throw extractError(error, "Failed to create project member time rate");
+    }
+  },
+
+  async updateProjectMemberRate(
+    projectId: string,
+    rateId: string,
+    payload: {
+      hourly_rate?: number;
+      currency?: string;
+    },
+  ): Promise<ProjectMemberTimeRate> {
+    try {
+      const response = await apiClient.patch<ApiResponse<ProjectMemberTimeRate>>(
+        `/api/project-time/projects/${projectId}/rates/${rateId}`,
+        payload,
+      );
+      return response.data.data;
+    } catch (error) {
+      throw extractError(error, "Failed to update project member time rate");
     }
   },
 };

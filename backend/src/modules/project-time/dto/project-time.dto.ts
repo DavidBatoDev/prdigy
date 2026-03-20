@@ -2,12 +2,14 @@ import {
   IsDateString,
   IsEnum,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
   Max,
   MaxLength,
   Min,
+  ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -85,3 +87,35 @@ export class TimeLogsQueryDto {
   limit?: number = 20;
 }
 
+export class CreateProjectMemberTimeRateDto {
+  @IsUUID()
+  @IsOptional()
+  project_member_id?: string;
+
+  @ValidateIf((o: CreateProjectMemberTimeRateDto) => !o.project_member_id)
+  @IsUUID()
+  @IsOptional()
+  member_user_id?: string;
+
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  hourly_rate: number;
+
+  @IsString()
+  @MaxLength(8)
+  currency: string;
+}
+
+export class UpdateProjectMemberTimeRateDto {
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @IsOptional()
+  hourly_rate?: number;
+
+  @IsString()
+  @MaxLength(8)
+  @IsOptional()
+  currency?: string;
+}
