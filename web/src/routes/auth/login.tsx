@@ -27,6 +27,7 @@ export const Route = createFileRoute("/auth/login")({
 
 function RouteComponent() {
   const signIn = useAuthStore((state) => state.signIn);
+  const signOut = useAuthStore((state) => state.signOut);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isAuthLoading = useAuthStore((state) => state.isLoading);
   const navigate = useNavigate();
@@ -181,11 +182,10 @@ function RouteComponent() {
     try {
       // Ensure any previous session is cleared before attempting login
       try {
-        await supabase.auth.signOut();
-      } catch (e) {
+        await signOut();
+      } catch {
         // ignore sign out errors
       }
-      // localStorage.removeItem("sb-ftuiloyegcipkupbtias-auth-token");
 
       await signIn(email, password);
 
@@ -207,9 +207,8 @@ function RouteComponent() {
           setFirstName(profile.first_name || "");
           setLastName(profile.last_name || "");
 
-          // Force sign out and clear local storage
-          await supabase.auth.signOut();
-          localStorage.removeItem("sb-ftuiloyegcipkupbtias-auth-token");
+          // Force local sign out before verification flow.
+          await signOut();
 
           // Send verification code and show verification UI
           const generatedCode = Math.floor(

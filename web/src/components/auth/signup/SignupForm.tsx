@@ -32,6 +32,7 @@ const slideInReverse = {
 
 export function SignupForm(_props: SignupFormProps) {
   const signUp = useAuthStore((state) => state.signUp);
+  const signOut = useAuthStore((state) => state.signOut);
   const navigate = useNavigate();
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -186,8 +187,6 @@ export function SignupForm(_props: SignupFormProps) {
       setSentVerificationCode(generatedCode);
       sessionStorage.setItem("signup_sentCode", generatedCode);
 
-      localStorage.removeItem("sb-ftuiloyegcipkupbtias-auth-token");
-
       // 1. Create the Supabase auth user
       await signUp(email, password);
 
@@ -218,7 +217,7 @@ export function SignupForm(_props: SignupFormProps) {
       }
 
       // 3. Sign out so the session is clean before the user verifies their email
-      await supabase.auth.signOut();
+      await signOut();
 
       // 4. Advance to email verification step (only after account is created)
       setStep(3);

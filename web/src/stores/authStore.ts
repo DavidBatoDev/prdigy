@@ -108,11 +108,44 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
   // Sign out
   signOut: async () => {
+    const clearAuthState = () => {
+      set({
+        session: null,
+        user: null,
+        profile: null,
+        isAuthenticated: false,
+        isLoading: false,
+      });
+    };
+
+    const isSessionMissingError = (error: unknown) => {
+      if (!(error instanceof Error)) return false;
+      return (
+        error.name === "AuthSessionMissingError" ||
+        /auth session missing/i.test(error.message)
+      );
+    };
+
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      // Auth state will be cleared by onAuthStateChange listener
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        clearAuthState();
+        return;
+      }
+
+      const { error } = await supabase.auth.signOut({ scope: "local" });
+      if (error && !isSessionMissingError(error)) throw error;
+
+      // Keep logout UX idempotent even if auth listener is delayed.
+      clearAuthState();
     } catch (error) {
+      if (isSessionMissingError(error)) {
+        clearAuthState();
+        return;
+      }
       throw error;
     }
   },
