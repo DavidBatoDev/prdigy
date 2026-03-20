@@ -226,16 +226,18 @@ export function MyLogsGrid({
             ) : null
           ) : (
             <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => void onStopLog(row.id)}
-                disabled={!row.is_running || rowActionLoadingById[row.id]}
-                title="Stop Timer"
-                aria-label="Stop Timer"
-                className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-rose-200 bg-rose-50 text-rose-700 disabled:opacity-50"
-              >
-                <Square className="h-3.5 w-3.5" />
-              </button>
+              {row.is_running && (
+                <button
+                  type="button"
+                  onClick={() => void onStopLog(row.id)}
+                  disabled={rowActionLoadingById[row.id]}
+                  title="Stop Timer"
+                  aria-label="Stop Timer"
+                  className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-rose-200 bg-rose-50 text-rose-700 disabled:opacity-50"
+                >
+                  <Square className="h-3.5 w-3.5" />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => onEditLog(row.log)}

@@ -1,16 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Clock } from "lucide-react";
 import {
   projectTimeService,
-  type ProjectTaskOption,
   type ProjectMemberTimeRate,
   type TaskTimeLog,
 } from "@/services/project-time.service";
 import {
   projectService,
   type ProjectMember,
-  type ProjectPermissions,
 } from "@/services/project.service";
 import { MyLogsGrid } from "@/components/project/time/MyLogsGrid";
 import { TeamRatesSection } from "@/components/project/time/TeamRatesSection";
@@ -25,10 +24,18 @@ import {
   fromLocalDateTimeInput,
   toLocalDateTimeInput,
 } from "@/components/project/time/time-utils";
+import {
+  getErrorMessage,
+  isForbiddenError,
+  isRateRequiredError,
+  projectTimeKeys,
+} from "@/queries/project-time";
+import { useAuth } from "@/hooks/useAuth";
 
 type TimeTab = "my_logs" | "team_logs";
 
-const RATE_REQUIRED_HINT = "not enabled for time tracking";
+const MY_LOGS_PAGE = 1;
+const MY_LOGS_LIMIT = 100;
 
 export const Route = createFileRoute("/project/$projectId/time")({
   component: TimePage,
@@ -36,23 +43,12 @@ export const Route = createFileRoute("/project/$projectId/time")({
 
 function TimePage() {
   const { projectId } = Route.useParams();
-
-  const [permissions, setPermissions] = useState<ProjectPermissions | null>(null);
-  const [loadingPermissions, setLoadingPermissions] = useState(true);
-  const [permissionsError, setPermissionsError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const { user, guestUserId, isLoading: authLoading } = useAuth();
+  const actorKey = user?.id ?? guestUserId ?? "anonymous";
+  const canRunQueries = Boolean(projectId) && !authLoading;
 
   const [activeTab, setActiveTab] = useState<TimeTab>("my_logs");
-  const [myLogs, setMyLogs] = useState<TaskTimeLog[]>([]);
-  const [projectTasks, setProjectTasks] = useState<ProjectTaskOption[]>([]);
-  const [rates, setRates] = useState<ProjectMemberTimeRate[]>([]);
-  const [ownRate, setOwnRate] = useState<ProjectMemberTimeRate | null>(null);
-  const [teamMembers, setTeamMembers] = useState<ProjectMember[]>([]);
-
-  const [loadingMyLogs, setLoadingMyLogs] = useState(false);
-  const [loadingProjectTasks, setLoadingProjectTasks] = useState(false);
-  const [loadingRates, setLoadingRates] = useState(false);
-  const [loadingOwnRate, setLoadingOwnRate] = useState(false);
-  const [loadingMembers, setLoadingMembers] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [timerNowMs, setTimerNowMs] = useState(Date.now());
@@ -63,15 +59,12 @@ function TimePage() {
     {},
   );
 
-  const [isTimeBlocked, setIsTimeBlocked] = useState(false);
   const [isAddRateModalOpen, setIsAddRateModalOpen] = useState(false);
   const [isAddLogModalOpen, setIsAddLogModalOpen] = useState(false);
   const [newLogTaskId, setNewLogTaskId] = useState("");
-  const [savingAddLog, setSavingAddLog] = useState(false);
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
   const [editStartedAt, setEditStartedAt] = useState("");
   const [editEndedAt, setEditEndedAt] = useState("");
-  const [savingLogEdit, setSavingLogEdit] = useState(false);
 
   const [newRateMemberId, setNewRateMemberId] = useState("");
   const [newRateCustomId, setNewRateCustomId] = useState("");
@@ -79,8 +72,6 @@ function TimePage() {
   const [newRateCurrency, setNewRateCurrency] = useState("USD");
   const [newRateStartDate, setNewRateStartDate] = useState("");
   const [newRateEndDate, setNewRateEndDate] = useState("");
-  const [savingRate, setSavingRate] = useState(false);
-  const [deletingRate, setDeletingRate] = useState(false);
 
   const [isEditRateModalOpen, setIsEditRateModalOpen] = useState(false);
   const [isDeleteRateModalOpen, setIsDeleteRateModalOpen] = useState(false);
@@ -92,142 +83,301 @@ function TimePage() {
   const [editingRateStartDate, setEditingRateStartDate] = useState("");
   const [editingRateEndDate, setEditingRateEndDate] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
-    const loadPermissions = async () => {
-      try {
-        if (!cancelled) setLoadingPermissions(true);
-        const value = await projectService.getMyPermissions(projectId);
-        if (!cancelled) {
-          setPermissions(value);
-          setPermissionsError(null);
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setPermissionsError(
-            e instanceof Error ? e.message : "Failed to load permissions.",
-          );
-        }
-      } finally {
-        if (!cancelled) setLoadingPermissions(false);
-      }
-    };
-    void loadPermissions();
-    return () => {
-      cancelled = true;
-    };
-  }, [projectId]);
+  const permissionsQuery = useQuery({
+    queryKey: projectTimeKeys.permissions(projectId, actorKey),
+    queryFn: () => projectService.getMyPermissions(projectId),
+    enabled: canRunQueries,
+    retry: false,
+  });
 
+  const permissions = permissionsQuery.data ?? null;
   const canManageRates = permissions?.time?.manage_rates === true;
   const canViewTeamRates =
     (permissions?.time?.edit_team === true) || canManageRates;
+  const canViewTime = permissions?.time?.view === true;
 
-  const loadMyLogs = async () => {
-    try {
-      setLoadingMyLogs(true);
-      setError(null);
+  const ownRateQuery = useQuery({
+    queryKey: projectTimeKeys.myRate(projectId, actorKey),
+    queryFn: () => projectTimeService.getMyProjectMemberRate(projectId),
+    enabled: canRunQueries && canViewTime,
+    retry: false,
+  });
+
+  const myLogsQuery = useQuery({
+    queryKey: projectTimeKeys.myLogs(
+      projectId,
+      actorKey,
+      MY_LOGS_PAGE,
+      MY_LOGS_LIMIT,
+    ),
+    queryFn: async () => {
       const result = await projectTimeService.listMyLogs(projectId, {
-        page: 1,
-        limit: 100,
+        page: MY_LOGS_PAGE,
+        limit: MY_LOGS_LIMIT,
       });
-      setMyLogs(result.items);
-      setIsTimeBlocked(false);
-    } catch (e) {
-      const message =
-        e instanceof Error ? e.message : "Failed to load your logs.";
-      if (message.toLowerCase().includes(RATE_REQUIRED_HINT)) {
-        setIsTimeBlocked(true);
-      } else {
-        setError(message);
+      return result.items;
+    },
+    enabled: canRunQueries && canViewTime,
+    retry: false,
+  });
+
+  const projectTasksQuery = useQuery({
+    queryKey: projectTimeKeys.tasks(projectId, actorKey),
+    queryFn: () => projectTimeService.listProjectTasks(projectId),
+    enabled: canRunQueries && canViewTime,
+    retry: false,
+  });
+
+  const ratesQuery = useQuery({
+    queryKey: projectTimeKeys.rates(projectId, actorKey),
+    queryFn: () => projectTimeService.listProjectMemberRates(projectId),
+    enabled: canRunQueries && canViewTeamRates,
+    retry: false,
+  });
+
+  const teamMembersQuery = useQuery({
+    queryKey: projectTimeKeys.teamMembers(projectId, actorKey),
+    queryFn: () => projectService.getMembers(projectId),
+    enabled: canRunQueries && canManageRates,
+    retry: false,
+  });
+
+  const ownRate = ownRateQuery.data ?? null;
+  const myLogs = myLogsQuery.data ?? [];
+  const projectTasks = projectTasksQuery.data ?? [];
+  const rates = ratesQuery.data ?? [];
+  const teamMembers = teamMembersQuery.data ?? [];
+
+  const loadingPermissions = authLoading || permissionsQuery.isPending;
+  const loadingMyLogs = myLogsQuery.isPending;
+  const loadingProjectTasks = projectTasksQuery.isPending;
+  const loadingRates = ratesQuery.isPending;
+  const loadingOwnRate = ownRateQuery.isPending;
+  const loadingMembers = teamMembersQuery.isPending;
+
+  const taskTitleById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const task of projectTasks) map.set(task.id, task.title);
+    return map;
+  }, [projectTasks]);
+
+  const invalidateMyLogs = () =>
+    queryClient.invalidateQueries({
+      queryKey: projectTimeKeys.myLogs(
+        projectId,
+        actorKey,
+        MY_LOGS_PAGE,
+        MY_LOGS_LIMIT,
+      ),
+    });
+
+  const invalidateRates = () =>
+    queryClient.invalidateQueries({
+      queryKey: projectTimeKeys.rates(projectId, actorKey),
+    });
+
+  const invalidateOwnRate = () =>
+    queryClient.invalidateQueries({
+      queryKey: projectTimeKeys.myRate(projectId, actorKey),
+    });
+
+  const invalidateTeamMembers = () =>
+    queryClient.invalidateQueries({
+      queryKey: projectTimeKeys.teamMembers(projectId, actorKey),
+    });
+
+  const invalidateTasks = () =>
+    queryClient.invalidateQueries({
+      queryKey: projectTimeKeys.tasks(projectId, actorKey),
+    });
+
+  const updateTaskMutation = useMutation({
+    mutationFn: ({ logId, taskId }: { logId: string; taskId: string }) =>
+      projectTimeService.update(logId, { task_id: taskId }),
+    onMutate: async ({ logId, taskId }) => {
+      const queryKey = projectTimeKeys.myLogs(
+        projectId,
+        actorKey,
+        MY_LOGS_PAGE,
+        MY_LOGS_LIMIT,
+      );
+      await queryClient.cancelQueries({ queryKey });
+      const previousLogs = queryClient.getQueryData<TaskTimeLog[]>(queryKey);
+
+      queryClient.setQueryData<TaskTimeLog[]>(queryKey, (current) => {
+        if (!current) return current;
+        return current.map((entry) =>
+          entry.id === logId
+            ? {
+                ...entry,
+                task_id: taskId,
+                task: {
+                  id: taskId,
+                  title: taskTitleById.get(taskId) ?? entry.task?.title ?? "Task",
+                },
+              }
+            : entry,
+        );
+      });
+
+      return { previousLogs, queryKey };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousLogs && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousLogs);
       }
-      setMyLogs([]);
-    } finally {
-      setLoadingMyLogs(false);
-    }
-  };
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData<TaskTimeLog[]>(
+        projectTimeKeys.myLogs(projectId, actorKey, MY_LOGS_PAGE, MY_LOGS_LIMIT),
+        (current) => {
+          if (!current) return [updated];
+          return current.map((entry) => (entry.id === updated.id ? updated : entry));
+        },
+      );
+    },
+    onSettled: () => {
+      void invalidateMyLogs();
+    },
+  });
 
-  const loadRates = async () => {
-    if (!canViewTeamRates) {
-      setRates([]);
-      return;
-    }
-    try {
-      setLoadingRates(true);
-      setError(null);
-      const result = await projectTimeService.listProjectMemberRates(projectId);
-      setRates(result);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load time rates.");
-      setRates([]);
-    } finally {
-      setLoadingRates(false);
-    }
-  };
+  const startLogMutation = useMutation({
+    mutationFn: (taskId: string) => projectTimeService.start(projectId, taskId),
+    onSuccess: async () => {
+      await Promise.all([invalidateMyLogs(), invalidateOwnRate()]);
+    },
+  });
 
-  const loadOwnRate = async () => {
-    try {
-      setLoadingOwnRate(true);
-      const rate = await projectTimeService.getMyProjectMemberRate(projectId);
-      setOwnRate(rate);
-      setIsTimeBlocked(false);
-    } catch (e) {
-      const message =
-        e instanceof Error ? e.message : "Failed to load your time rate.";
-      if (message.toLowerCase().includes(RATE_REQUIRED_HINT)) {
-        setIsTimeBlocked(true);
+  const stopLogMutation = useMutation({
+    mutationFn: (logId: string) => projectTimeService.stop(logId),
+    onSuccess: async () => {
+      await invalidateMyLogs();
+    },
+  });
+
+  const updateLogMutation = useMutation({
+    mutationFn: ({
+      logId,
+      startedAt,
+      endedAt,
+    }: {
+      logId: string;
+      startedAt: string;
+      endedAt?: string;
+    }) =>
+      projectTimeService.update(logId, {
+        started_at: startedAt,
+        ...(endedAt ? { ended_at: endedAt } : {}),
+      }),
+    onSuccess: async () => {
+      await invalidateMyLogs();
+    },
+  });
+
+  const deleteLogMutation = useMutation({
+    mutationFn: (logId: string) => projectTimeService.delete(logId),
+    onSuccess: async () => {
+      await invalidateMyLogs();
+    },
+  });
+
+  const createRateMutation = useMutation({
+    mutationFn: (payload: {
+      project_member_id: string;
+      hourly_rate: number;
+      currency: string;
+      custom_id: string;
+      start_date: string;
+      end_date?: string;
+    }) => projectTimeService.createProjectMemberRate(projectId, payload),
+    onSuccess: async () => {
+      await Promise.all([
+        invalidateRates(),
+        invalidateOwnRate(),
+        invalidateMyLogs(),
+        invalidateTeamMembers(),
+      ]);
+    },
+  });
+
+  const updateRateMutation = useMutation({
+    mutationFn: ({
+      rateId,
+      payload,
+    }: {
+      rateId: string;
+      payload: {
+        hourly_rate: number;
+        currency: string;
+        custom_id: string;
+        start_date: string;
+        end_date?: string;
+      };
+    }) => projectTimeService.updateProjectMemberRate(projectId, rateId, payload),
+    onSuccess: async () => {
+      await Promise.all([invalidateRates(), invalidateOwnRate(), invalidateMyLogs()]);
+    },
+  });
+
+  const deleteRateMutation = useMutation({
+    mutationFn: (rateId: string) =>
+      projectTimeService.deleteProjectMemberRate(projectId, rateId),
+    onSuccess: async () => {
+      await Promise.all([
+        invalidateRates(),
+        invalidateOwnRate(),
+        invalidateMyLogs(),
+        invalidateTeamMembers(),
+      ]);
+    },
+  });
+
+  const myRateForbidden = isForbiddenError(ownRateQuery.error);
+  const myLogsForbidden = isForbiddenError(myLogsQuery.error);
+  const tasksForbidden = isForbiddenError(projectTasksQuery.error);
+
+  const rateRequiredError =
+    isRateRequiredError(ownRateQuery.error) ||
+    isRateRequiredError(myLogsQuery.error) ||
+    isRateRequiredError(projectTasksQuery.error);
+
+  const isTimeBlocked =
+    canViewTime && (rateRequiredError || myRateForbidden || myLogsForbidden || tasksForbidden);
+  const isResolvingMyLogsAccess =
+    canViewTime &&
+    !canManageRates &&
+    (loadingOwnRate || loadingMyLogs || loadingProjectTasks);
+
+  const queryErrorMessage = useMemo(() => {
+    if (permissionsQuery.error) {
+      return getErrorMessage(permissionsQuery.error, "Failed to load permissions.");
+    }
+
+    const candidates: Array<{ error: unknown; fallback: string }> = [
+      { error: ownRateQuery.error, fallback: "Failed to load your time rate." },
+      { error: myLogsQuery.error, fallback: "Failed to load your logs." },
+      { error: projectTasksQuery.error, fallback: "Failed to load project tasks." },
+      { error: ratesQuery.error, fallback: "Failed to load time rates." },
+      { error: teamMembersQuery.error, fallback: "Failed to load project members." },
+    ];
+
+    for (const candidate of candidates) {
+      if (!candidate.error) continue;
+      if (isForbiddenError(candidate.error) || isRateRequiredError(candidate.error)) {
+        continue;
       }
-      setOwnRate(null);
-    } finally {
-      setLoadingOwnRate(false);
+      return getErrorMessage(candidate.error, candidate.fallback);
     }
-  };
 
-  const loadProjectTasks = async () => {
-    try {
-      setLoadingProjectTasks(true);
-      const tasks = await projectTimeService.listProjectTasks(projectId);
-      setProjectTasks(tasks);
-    } catch {
-      setProjectTasks([]);
-    } finally {
-      setLoadingProjectTasks(false);
-    }
-  };
-
-  const loadTeamMembers = async () => {
-    if (!canManageRates) {
-      setTeamMembers([]);
-      return;
-    }
-    try {
-      setLoadingMembers(true);
-      const members = await projectService.getMembers(projectId);
-      setTeamMembers(members);
-    } catch {
-      setTeamMembers([]);
-    } finally {
-      setLoadingMembers(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!permissions) return;
-    void loadOwnRate();
-    void loadMyLogs();
-    void loadProjectTasks();
-  }, [permissions, projectId]);
-
-  useEffect(() => {
-    if (!permissions) return;
-    if (!canViewTeamRates) return;
-    void loadRates();
-  }, [permissions, canViewTeamRates, projectId]);
-
-  useEffect(() => {
-    if (!permissions) return;
-    if (!canManageRates) return;
-    void loadTeamMembers();
-  }, [permissions, canManageRates, projectId]);
+    return null;
+  }, [
+    myLogsQuery.error,
+    ownRateQuery.error,
+    permissionsQuery.error,
+    projectTasksQuery.error,
+    ratesQuery.error,
+    teamMembersQuery.error,
+  ]);
 
   const hasActiveLog = useMemo(() => {
     return myLogs.some((log) => !log.ended_at);
@@ -240,11 +390,12 @@ function TimePage() {
   }, [hasActiveLog]);
 
   const canShowMyLogsTab = useMemo(() => {
-    if (ownRate) return true;
-    if (loadingOwnRate) return true;
-    if (loadingRates) return true;
-    return !isTimeBlocked;
-  }, [ownRate, loadingOwnRate, loadingRates, isTimeBlocked]);
+    if (!canViewTime) return false;
+    if (isResolvingMyLogsAccess) return false;
+    return Boolean(ownRate) && !isTimeBlocked;
+  }, [canViewTime, isResolvingMyLogsAccess, ownRate, isTimeBlocked]);
+  const showMyLogsTabSkeleton =
+    canViewTime && isResolvingMyLogsAccess && !canShowMyLogsTab;
 
   useEffect(() => {
     if (!canShowMyLogsTab && activeTab === "my_logs" && canViewTeamRates) {
@@ -253,6 +404,9 @@ function TimePage() {
   }, [canShowMyLogsTab, activeTab, canViewTeamRates]);
 
   const shouldBlockPage = !canManageRates && isTimeBlocked && !ownRate;
+  const shouldShowAccessDenied =
+    !loadingPermissions && !permissionsQuery.error && !canViewTime && !canViewTeamRates;
+
   const editingRateTarget = useMemo(
     () => rates.find((rate) => rate.id === editingRateId) ?? null,
     [rates, editingRateId],
@@ -306,21 +460,20 @@ function TimePage() {
     }
 
     try {
-      setSavingRate(true);
       setError(null);
-      await projectTimeService.updateProjectMemberRate(projectId, rateId, {
-        hourly_rate: hourly,
-        currency: editingRateCurrency.trim().toUpperCase() || "USD",
-        custom_id: editingRateCustomId.trim(),
-        start_date: editingRateStartDate,
-        ...(editingRateEndDate ? { end_date: editingRateEndDate } : {}),
+      await updateRateMutation.mutateAsync({
+        rateId,
+        payload: {
+          hourly_rate: hourly,
+          currency: editingRateCurrency.trim().toUpperCase() || "USD",
+          custom_id: editingRateCustomId.trim(),
+          start_date: editingRateStartDate,
+          ...(editingRateEndDate ? { end_date: editingRateEndDate } : {}),
+        },
       });
       closeEditRateModal();
-      await loadRates();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to update rate.");
-    } finally {
-      setSavingRate(false);
+      setError(getErrorMessage(e, "Failed to update rate."));
     }
   };
 
@@ -341,9 +494,8 @@ function TimePage() {
     }
 
     try {
-      setSavingRate(true);
       setError(null);
-      await projectTimeService.createProjectMemberRate(projectId, {
+      await createRateMutation.mutateAsync({
         project_member_id: newRateMemberId,
         hourly_rate: hourly,
         currency: newRateCurrency.trim().toUpperCase() || "USD",
@@ -358,26 +510,19 @@ function TimePage() {
       setNewRateCurrency("USD");
       setNewRateStartDate("");
       setNewRateEndDate("");
-      await loadRates();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create rate.");
-    } finally {
-      setSavingRate(false);
+      setError(getErrorMessage(e, "Failed to create rate."));
     }
   };
 
   const deleteEditedRate = async (rateId: string) => {
     if (deleteRateVerificationText.trim().toUpperCase() !== "DELETE") return;
     try {
-      setDeletingRate(true);
       setError(null);
-      await projectTimeService.deleteProjectMemberRate(projectId, rateId);
+      await deleteRateMutation.mutateAsync(rateId);
       closeEditRateModal();
-      await loadRates();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to delete rate.");
-    } finally {
-      setDeletingRate(false);
+      setError(getErrorMessage(e, "Failed to delete rate."));
     }
   };
 
@@ -401,19 +546,17 @@ function TimePage() {
       setError("Time-in is required.");
       return;
     }
+
     try {
-      setSavingLogEdit(true);
       setError(null);
-      await projectTimeService.update(editingLogId, {
-        started_at,
-        ...(ended_at ? { ended_at } : {}),
+      await updateLogMutation.mutateAsync({
+        logId: editingLogId,
+        startedAt: started_at,
+        ...(ended_at ? { endedAt: ended_at } : {}),
       });
       closeEditLogModal();
-      await loadMyLogs();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to update time log.");
-    } finally {
-      setSavingLogEdit(false);
+      setError(getErrorMessage(e, "Failed to update time log."));
     }
   };
 
@@ -421,10 +564,9 @@ function TimePage() {
     try {
       setRowActionLoadingById((prev) => ({ ...prev, [logId]: true }));
       setError(null);
-      await projectTimeService.stop(logId);
-      await loadMyLogs();
+      await stopLogMutation.mutateAsync(logId);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to stop timer.");
+      setError(getErrorMessage(e, "Failed to stop timer."));
     } finally {
       setRowActionLoadingById((prev) => ({ ...prev, [logId]: false }));
     }
@@ -433,66 +575,27 @@ function TimePage() {
   const deleteLog = async (logId: string) => {
     const confirmed = window.confirm("Delete this time log?");
     if (!confirmed) return;
+
     try {
       setRowActionLoadingById((prev) => ({ ...prev, [logId]: true }));
       setError(null);
-      await projectTimeService.delete(logId);
-      await loadMyLogs();
+      await deleteLogMutation.mutateAsync(logId);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to delete log.");
+      setError(getErrorMessage(e, "Failed to delete time log."));
     } finally {
       setRowActionLoadingById((prev) => ({ ...prev, [logId]: false }));
     }
   };
 
-  const taskTitleById = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const task of projectTasks) map.set(task.id, task.title);
-    return map;
-  }, [projectTasks]);
-
   const handleTaskChange = async (log: TaskTimeLog, nextTaskId: string) => {
     if (!nextTaskId || nextTaskId === log.task_id) return;
-    const previousTaskId = log.task_id;
-    const previousTitle = log.task?.title;
-
-    setTaskSavingById((prev) => ({ ...prev, [log.id]: true }));
-    setMyLogs((prev) =>
-      prev.map((entry) =>
-        entry.id === log.id
-          ? {
-              ...entry,
-              task_id: nextTaskId,
-              task: {
-                id: nextTaskId,
-                title: taskTitleById.get(nextTaskId) ?? previousTitle ?? "Task",
-              },
-            }
-          : entry,
-      ),
-    );
 
     try {
+      setTaskSavingById((prev) => ({ ...prev, [log.id]: true }));
       setError(null);
-      const updated = await projectTimeService.update(log.id, { task_id: nextTaskId });
-      setMyLogs((prev) =>
-        prev.map((entry) => (entry.id === updated.id ? updated : entry)),
-      );
+      await updateTaskMutation.mutateAsync({ logId: log.id, taskId: nextTaskId });
     } catch (e) {
-      setMyLogs((prev) =>
-        prev.map((entry) =>
-          entry.id === log.id
-            ? {
-                ...entry,
-                task_id: previousTaskId,
-                task: previousTitle
-                  ? { id: previousTaskId, title: previousTitle }
-                  : entry.task,
-              }
-            : entry,
-        ),
-      );
-      setError(e instanceof Error ? e.message : "Failed to update task.");
+      setError(getErrorMessage(e, "Failed to update task."));
     } finally {
       setTaskSavingById((prev) => ({ ...prev, [log.id]: false }));
     }
@@ -505,18 +608,20 @@ function TimePage() {
     }
 
     try {
-      setSavingAddLog(true);
       setError(null);
-      await projectTimeService.start(projectId, newLogTaskId);
+      await startLogMutation.mutateAsync(newLogTaskId);
       setIsAddLogModalOpen(false);
       setNewLogTaskId("");
-      await loadMyLogs();
+      void invalidateTasks();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to add log.");
-    } finally {
-      setSavingAddLog(false);
+      setError(getErrorMessage(e, "Failed to add log."));
     }
   };
+
+  const savingAddLog = startLogMutation.isPending;
+  const savingLogEdit = updateLogMutation.isPending;
+  const savingRate = createRateMutation.isPending || updateRateMutation.isPending;
+  const deletingRate = deleteRateMutation.isPending;
 
   return (
     <div className="h-full w-full overflow-y-auto p-8">
@@ -537,6 +642,9 @@ function TimePage() {
         </div>
       ) : (
         <div className="inline-flex items-center gap-1 bg-gray-100 rounded-full p-1 mb-5">
+          {showMyLogsTabSkeleton && (
+            <div className="h-8 w-24 rounded-full bg-gray-200 animate-pulse" />
+          )}
           {canShowMyLogsTab && (
             <button
               type="button"
@@ -566,13 +674,22 @@ function TimePage() {
         </div>
       )}
 
-      {(error || permissionsError) && (
+      {(error || queryErrorMessage) && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-          {error || permissionsError}
+          {error || queryErrorMessage}
         </div>
       )}
 
-      {shouldBlockPage ? (
+      {shouldShowAccessDenied ? (
+        <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-12 text-center">
+          <p className="text-sm text-gray-700 font-semibold">
+            You do not have permission to access Time tracking.
+          </p>
+          <p className="text-sm text-gray-500 mt-1">
+            Ask a manager to enable Time View permission.
+          </p>
+        </div>
+      ) : shouldBlockPage ? (
         <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-12 text-center">
           <p className="text-sm text-gray-700 font-semibold">Time tracking is not enabled.</p>
           <p className="text-sm text-gray-500 mt-1">
@@ -581,6 +698,16 @@ function TimePage() {
         </div>
       ) : (
         <>
+          {showMyLogsTabSkeleton && activeTab === "my_logs" && (
+            <div className="rounded-xl border border-gray-200 overflow-hidden bg-white animate-pulse">
+              <div className="h-10 border-b border-gray-200 bg-gray-100" />
+              <div className="p-3 space-y-2">
+                {Array.from({ length: 7 }).map((_, idx) => (
+                  <div key={idx} className="h-8 rounded bg-gray-100" />
+                ))}
+              </div>
+            </div>
+          )}
           {activeTab === "my_logs" && canShowMyLogsTab && (
             <div className="space-y-3">
               <MyLogsGrid

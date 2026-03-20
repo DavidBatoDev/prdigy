@@ -60,6 +60,19 @@ apiClient.interceptors.response.use(
           // Could trigger logout/redirect here
           break;
         case 403:
+          {
+            const url = String(error.config?.url ?? "");
+            const isExpectedProjectTimeForbidden =
+              url.includes("/api/project-time/projects/") &&
+              (url.includes("/my-rate") ||
+                url.includes("/my?") ||
+                url.endsWith("/my") ||
+                url.includes("/tasks") ||
+                url.includes("/rates"));
+            if (isExpectedProjectTimeForbidden) {
+              break;
+            }
+          }
           console.error("Forbidden - Insufficient permissions");
           break;
         case 404:
