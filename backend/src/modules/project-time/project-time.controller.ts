@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -50,6 +51,11 @@ export class ProjectTimeController {
     return this.projectTimeService.update(user.id, id, dto);
   }
 
+  @Delete('logs/:id')
+  delete(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.projectTimeService.delete(user.id, id);
+  }
+
   @Post('logs/:id/review')
   review(
     @CurrentUser() user: AuthenticatedUser,
@@ -65,6 +71,22 @@ export class ProjectTimeController {
     @Param('projectId') projectId: string,
   ) {
     return this.projectTimeService.listProjectMemberRates(user.id, projectId);
+  }
+
+  @Get('projects/:projectId/my-rate')
+  getMyProjectMemberRate(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('projectId') projectId: string,
+  ) {
+    return this.projectTimeService.getMyProjectMemberRate(user.id, projectId);
+  }
+
+  @Get('projects/:projectId/tasks')
+  listProjectTasks(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('projectId') projectId: string,
+  ) {
+    return this.projectTimeService.listProjectTasks(user.id, projectId);
   }
 
   @Post('projects/:projectId/rates')
@@ -92,6 +114,19 @@ export class ProjectTimeController {
       projectId,
       rateId,
       dto,
+    );
+  }
+
+  @Delete('projects/:projectId/rates/:rateId')
+  deleteProjectMemberRate(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('projectId') projectId: string,
+    @Param('rateId') rateId: string,
+  ) {
+    return this.projectTimeService.deleteProjectMemberRate(
+      user.id,
+      projectId,
+      rateId,
     );
   }
 

@@ -17,6 +17,7 @@ import {
   UpdateTimeLogDto,
 } from './dto/project-time.dto';
 import type {
+  ProjectTaskOption,
   ProjectMemberTimeRateRecord,
   ProjectTimeRepository,
   TaskTimeLogRecord,
@@ -159,6 +160,27 @@ export class ProjectTimeService {
     return this.repo.listProjectMemberRates(projectId);
   }
 
+  async getMyProjectMemberRate(
+    userId: string,
+    projectId: string,
+  ): Promise<ProjectMemberTimeRateRecord> {
+    await this.projectsService.assertProjectPermission(projectId, userId, 'time.view');
+    const rate = await this.repo.findProjectMemberRateByUser(projectId, userId);
+    if (!rate) {
+      throw new ForbiddenException(ProjectTimeService.RATE_REQUIRED_MESSAGE);
+    }
+    return rate;
+  }
+
+  async listProjectTasks(
+    userId: string,
+    projectId: string,
+  ): Promise<ProjectTaskOption[]> {
+    await this.projectsService.assertProjectPermission(projectId, userId, 'time.view');
+    await this.assertTimeRateEnabled(projectId, userId);
+    return this.repo.listProjectTasks(projectId);
+  }
+
   async createProjectMemberRate(
     userId: string,
     projectId: string,
@@ -191,6 +213,9 @@ export class ProjectTimeService {
       member_user_id: targetMember.user_id,
       hourly_rate: dto.hourly_rate,
       currency: this.normalizeCurrency(dto.currency),
+      custom_id: dto.custom_id?.trim() || null,
+      start_date: dto.start_date,
+      end_date: dto.end_date ?? null,
     });
   }
 
@@ -214,6 +239,9 @@ export class ProjectTimeService {
     const patch: {
       hourly_rate?: number;
       currency?: string;
+      custom_id?: string | null;
+      start_date?: string;
+      end_date?: string | null;
     } = {};
 
     if (dto.hourly_rate !== undefined) {
@@ -222,12 +250,40 @@ export class ProjectTimeService {
     if (dto.currency !== undefined) {
       patch.currency = this.normalizeCurrency(dto.currency);
     }
+    if (dto.custom_id !== undefined) {
+      patch.custom_id = dto.custom_id.trim() || null;
+    }
+    if (dto.start_date !== undefined) {
+      patch.start_date = dto.start_date;
+    }
+    if (dto.end_date !== undefined) {
+      patch.end_date = dto.end_date || null;
+    }
 
     if (Object.keys(patch).length === 0) {
       return existing;
     }
 
     return this.repo.updateProjectMemberRateById(existing.id, patch);
+  }
+
+  async deleteProjectMemberRate(
+    userId: string,
+    projectId: string,
+    rateId: string,
+  ): Promise<void> {
+    await this.projectsService.assertProjectPermission(
+      projectId,
+      userId,
+      'time.manage_rates',
+    );
+
+    const existing = await this.repo.findProjectMemberRateById(projectId, rateId);
+    if (!existing) {
+      throw new NotFoundException('Project member time rate not found.');
+    }
+
+    await this.repo.deleteProjectMemberRateById(existing.id);
   }
 
   async start(userId: string, dto: StartTimeLogDto): Promise<TaskTimeLogRecord> {
@@ -301,6 +357,11 @@ export class ProjectTimeService {
     }
     await this.assertTimeRateEnabled(existing.project_id, userId);
 
+    if (dto.task_id !== undefined) {
+      await this.assertTaskBelongsToProject(dto.task_id, existing.project_id);
+    }
+
+    const nextTaskId = dto.task_id ?? existing.task_id;
     const nextStartedAt = dto.started_at
       ? this.asIso(dto.started_at)
       : existing.started_at;
@@ -310,9 +371,11 @@ export class ProjectTimeService {
 
     const startedChanged = nextStartedAt !== existing.started_at;
     const endedChanged = (nextEndedAt ?? null) !== (existing.ended_at ?? null);
+    const taskChanged = nextTaskId !== existing.task_id;
     const hasTimeChanged = startedChanged || endedChanged;
 
     const patch: Record<string, unknown> = {
+      task_id: nextTaskId,
       started_at: nextStartedAt,
       ended_at: nextEndedAt,
       duration_seconds: this.computeDurationSeconds(nextStartedAt, nextEndedAt),
@@ -322,7 +385,7 @@ export class ProjectTimeService {
       patch.review_note = dto.review_note.trim() || null;
     }
 
-    if (existing.status === 'approved' && hasTimeChanged) {
+    if (existing.status === 'approved' && (hasTimeChanged || taskChanged)) {
       patch.status = 'pending';
       patch.reviewed_by = null;
       patch.reviewed_at = null;
@@ -333,6 +396,27 @@ export class ProjectTimeService {
     }
 
     return this.repo.updateLogById(logId, patch);
+  }
+
+  async delete(userId: string, logId: string): Promise<void> {
+    const existing = await this.getLogOrThrow(logId);
+    const isOwn = existing.member_user_id === userId;
+
+    if (isOwn) {
+      await this.projectsService.assertProjectPermission(
+        existing.project_id,
+        userId,
+        'time.edit_own',
+      );
+    } else {
+      await this.projectsService.assertProjectPermission(
+        existing.project_id,
+        userId,
+        'time.edit_team',
+      );
+    }
+    await this.assertTimeRateEnabled(existing.project_id, userId);
+    await this.repo.deleteLogById(logId);
   }
 
   async review(

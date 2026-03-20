@@ -28,6 +28,10 @@ export class StopTimeLogDto {
 }
 
 export class UpdateTimeLogDto {
+  @IsUUID()
+  @IsOptional()
+  task_id?: string;
+
   @IsDateString()
   @IsOptional()
   started_at?: string;
@@ -105,6 +109,18 @@ export class CreateProjectMemberTimeRateDto {
   @IsString()
   @MaxLength(8)
   currency: string;
+
+  @IsString()
+  @MaxLength(120)
+  @IsOptional()
+  custom_id?: string;
+
+  @IsDateString()
+  start_date: string;
+
+  @IsDateString()
+  @IsOptional()
+  end_date?: string;
 }
 
 export class UpdateProjectMemberTimeRateDto {
@@ -118,4 +134,17 @@ export class UpdateProjectMemberTimeRateDto {
   @MaxLength(8)
   @IsOptional()
   currency?: string;
+
+  @IsString()
+  @MaxLength(120)
+  @IsOptional()
+  custom_id?: string;
+
+  @IsDateString()
+  @IsOptional()
+  start_date?: string;
+
+  @IsDateString()
+  @IsOptional()
+  end_date?: string;
 }

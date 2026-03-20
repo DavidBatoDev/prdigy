@@ -50,6 +50,9 @@ export interface ProjectMemberTimeRate {
   member_user_id: string;
   hourly_rate: number;
   currency: string;
+  custom_id?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
   created_at: string;
   updated_at: string;
   member?: {
@@ -64,6 +67,15 @@ export interface ProjectMemberTimeRate {
     role?: string;
     position?: string;
   };
+}
+
+export interface ProjectTaskOption {
+  id: string;
+  title: string;
+  feature_title?: string;
+  epic_title?: string;
+  feature_position?: number;
+  epic_position?: number;
 }
 
 type ApiResponse<T> = {
@@ -114,6 +126,7 @@ export const projectTimeService = {
   async update(
     logId: string,
     payload: {
+      task_id?: string;
       started_at?: string;
       ended_at?: string;
       review_note?: string;
@@ -127,6 +140,14 @@ export const projectTimeService = {
       return response.data.data;
     } catch (error) {
       throw extractError(error, "Failed to update time log");
+    }
+  },
+
+  async delete(logId: string): Promise<void> {
+    try {
+      await apiClient.delete(`/api/project-time/logs/${logId}`);
+    } catch (error) {
+      throw extractError(error, "Failed to delete time log");
     }
   },
 
@@ -246,6 +267,28 @@ export const projectTimeService = {
     }
   },
 
+  async getMyProjectMemberRate(projectId: string): Promise<ProjectMemberTimeRate> {
+    try {
+      const response = await apiClient.get<ApiResponse<ProjectMemberTimeRate>>(
+        `/api/project-time/projects/${projectId}/my-rate`,
+      );
+      return response.data.data;
+    } catch (error) {
+      throw extractError(error, "Failed to fetch my project member time rate");
+    }
+  },
+
+  async listProjectTasks(projectId: string): Promise<ProjectTaskOption[]> {
+    try {
+      const response = await apiClient.get<ApiResponse<ProjectTaskOption[]>>(
+        `/api/project-time/projects/${projectId}/tasks`,
+      );
+      return response.data.data;
+    } catch (error) {
+      throw extractError(error, "Failed to fetch project tasks");
+    }
+  },
+
   async createProjectMemberRate(
     projectId: string,
     payload: {
@@ -253,6 +296,9 @@ export const projectTimeService = {
       member_user_id?: string;
       hourly_rate: number;
       currency: string;
+      custom_id?: string;
+      start_date: string;
+      end_date?: string;
     },
   ): Promise<ProjectMemberTimeRate> {
     try {
@@ -272,6 +318,9 @@ export const projectTimeService = {
     payload: {
       hourly_rate?: number;
       currency?: string;
+      custom_id?: string;
+      start_date?: string;
+      end_date?: string;
     },
   ): Promise<ProjectMemberTimeRate> {
     try {
@@ -282,6 +331,14 @@ export const projectTimeService = {
       return response.data.data;
     } catch (error) {
       throw extractError(error, "Failed to update project member time rate");
+    }
+  },
+
+  async deleteProjectMemberRate(projectId: string, rateId: string): Promise<void> {
+    try {
+      await apiClient.delete(`/api/project-time/projects/${projectId}/rates/${rateId}`);
+    } catch (error) {
+      throw extractError(error, "Failed to delete project member time rate");
     }
   },
 };

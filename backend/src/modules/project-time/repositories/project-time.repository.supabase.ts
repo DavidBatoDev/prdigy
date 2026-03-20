@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_ADMIN } from '../../../config/supabase.module';
 import type {
+  ProjectTaskOption,
   ProjectMemberTimeRateRecord,
   ProjectTimeRepository,
   TaskTimeLogRecord,
@@ -74,6 +75,85 @@ export class ProjectTimeRepositorySupabase implements ProjectTimeRepository {
     return (data as ProjectMemberTimeRateRecord | null) ?? null;
   }
 
+  async listProjectTasks(projectId: string): Promise<ProjectTaskOption[]> {
+    const { data: roadmaps, error: roadmapError } = await this.db
+      .from('roadmaps')
+      .select('id')
+      .eq('project_id', projectId);
+    if (roadmapError) throw new Error(roadmapError.message);
+    const roadmapIds = (roadmaps ?? []).map((item) => item.id as string);
+    if (roadmapIds.length === 0) return [];
+
+    const { data: features, error: featureError } = await this.db
+      .from('roadmap_features')
+      .select('id, title, epic_id, position')
+      .in('roadmap_id', roadmapIds);
+    if (featureError) throw new Error(featureError.message);
+    const featureIds = (features ?? []).map((item) => item.id as string);
+    if (featureIds.length === 0) return [];
+
+    const featureTitleById = new Map<string, string>();
+    const featurePositionById = new Map<string, number | undefined>();
+    const featureEpicIdById = new Map<string, string | undefined>();
+    const epicIds = new Set<string>();
+    for (const feature of features ?? []) {
+      const featureId = feature.id as string;
+      const featureTitle =
+        (feature.title as string | null | undefined) ?? 'Untitled feature';
+      featureTitleById.set(featureId, featureTitle);
+      featurePositionById.set(
+        featureId,
+        (feature.position as number | null | undefined) ?? undefined,
+      );
+      const epicId = feature.epic_id as string | null | undefined;
+      featureEpicIdById.set(featureId, epicId ?? undefined);
+      if (epicId) epicIds.add(epicId);
+    }
+
+    const epicTitleById = new Map<string, string>();
+    const epicPositionById = new Map<string, number | undefined>();
+    if (epicIds.size > 0) {
+      const { data: epics, error: epicError } = await this.db
+        .from('roadmap_epics')
+        .select('id, title, position')
+        .in('id', Array.from(epicIds));
+      if (epicError) throw new Error(epicError.message);
+      for (const epic of epics ?? []) {
+        const epicId = epic.id as string;
+        epicTitleById.set(
+          epicId,
+          (epic.title as string | null | undefined) ?? 'Untitled epic',
+        );
+        epicPositionById.set(
+          epicId,
+          (epic.position as number | null | undefined) ?? undefined,
+        );
+      }
+    }
+
+    const { data: tasks, error: taskError } = await this.db
+      .from('roadmap_tasks')
+      .select('id, title, feature_id')
+      .in('feature_id', featureIds)
+      .order('created_at', { ascending: true });
+    if (taskError) throw new Error(taskError.message);
+
+    return (tasks ?? []).map((item) => ({
+      id: item.id as string,
+      title: (item.title as string | null | undefined) ?? 'Untitled task',
+      feature_title: featureTitleById.get(item.feature_id as string),
+      feature_position: featurePositionById.get(item.feature_id as string),
+      epic_title: (() => {
+        const epicId = featureEpicIdById.get(item.feature_id as string);
+        return epicId ? epicTitleById.get(epicId) : undefined;
+      })(),
+      epic_position: (() => {
+        const epicId = featureEpicIdById.get(item.feature_id as string);
+        return epicId ? epicPositionById.get(epicId) : undefined;
+      })(),
+    }));
+  }
+
   async listProjectMemberRates(
     projectId: string,
   ): Promise<ProjectMemberTimeRateRecord[]> {
@@ -92,6 +172,9 @@ export class ProjectTimeRepositorySupabase implements ProjectTimeRepository {
     member_user_id: string;
     hourly_rate: number;
     currency: string;
+    custom_id?: string | null;
+    start_date: string;
+    end_date?: string | null;
   }): Promise<ProjectMemberTimeRateRecord> {
     const { data, error } = await this.db
       .from('project_member_time_rates')
@@ -107,6 +190,9 @@ export class ProjectTimeRepositorySupabase implements ProjectTimeRepository {
     patch: {
       hourly_rate?: number;
       currency?: string;
+      custom_id?: string | null;
+      start_date?: string;
+      end_date?: string | null;
     },
   ): Promise<ProjectMemberTimeRateRecord> {
     const { data, error } = await this.db
@@ -117,6 +203,14 @@ export class ProjectTimeRepositorySupabase implements ProjectTimeRepository {
       .single();
     if (error) throw new Error(error.message);
     return data as ProjectMemberTimeRateRecord;
+  }
+
+  async deleteProjectMemberRateById(id: string): Promise<void> {
+    const { error } = await this.db
+      .from('project_member_time_rates')
+      .delete()
+      .eq('id', id);
+    if (error) throw new Error(error.message);
   }
 
   async getProjectMemberForUser(
@@ -265,6 +359,11 @@ export class ProjectTimeRepositorySupabase implements ProjectTimeRepository {
 
     if (error) throw new Error(error.message);
     return data as TaskTimeLogRecord;
+  }
+
+  async deleteLogById(id: string): Promise<void> {
+    const { error } = await this.db.from('task_time_logs').delete().eq('id', id);
+    if (error) throw new Error(error.message);
   }
 
   async updateLogById(

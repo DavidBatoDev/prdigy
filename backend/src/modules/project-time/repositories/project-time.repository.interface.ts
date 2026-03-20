@@ -1,5 +1,13 @@
 export type TimeLogStatus = 'pending' | 'approved' | 'rejected';
 export type TimeLogSource = 'timer' | 'manual';
+export type ProjectTaskOption = {
+  id: string;
+  title: string;
+  feature_title?: string;
+  epic_title?: string;
+  feature_position?: number;
+  epic_position?: number;
+};
 
 export type ProjectMemberTimeRateRecord = {
   id: string;
@@ -8,6 +16,9 @@ export type ProjectMemberTimeRateRecord = {
   member_user_id: string;
   hourly_rate: number;
   currency: string;
+  custom_id?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
   created_at: string;
   updated_at: string;
   member?: {
@@ -84,6 +95,7 @@ export interface ProjectTimeRepository {
     projectId: string,
     memberUserId: string,
   ): Promise<ProjectMemberTimeRateRecord | null>;
+  listProjectTasks(projectId: string): Promise<ProjectTaskOption[]>;
   listProjectMemberRates(
     projectId: string,
   ): Promise<ProjectMemberTimeRateRecord[]>;
@@ -93,14 +105,21 @@ export interface ProjectTimeRepository {
     member_user_id: string;
     hourly_rate: number;
     currency: string;
+    custom_id?: string | null;
+    start_date: string;
+    end_date?: string | null;
   }): Promise<ProjectMemberTimeRateRecord>;
   updateProjectMemberRateById(
     id: string,
     patch: {
       hourly_rate?: number;
       currency?: string;
+      custom_id?: string | null;
+      start_date?: string;
+      end_date?: string | null;
     },
   ): Promise<ProjectMemberTimeRateRecord>;
+  deleteProjectMemberRateById(id: string): Promise<void>;
   getProjectMemberForUser(
     projectId: string,
     userId: string,
@@ -127,6 +146,7 @@ export interface ProjectTimeRepository {
     id: string;
     ended_at: string;
   }): Promise<TaskTimeLogRecord>;
+  deleteLogById(id: string): Promise<void>;
   updateLogById(
     id: string,
     patch: Record<string, unknown>,

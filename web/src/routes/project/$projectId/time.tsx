@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Clock, Plus, Save, X, XCircle } from "lucide-react";
+import { Clock } from "lucide-react";
 import {
   projectTimeService,
+  type ProjectTaskOption,
   type ProjectMemberTimeRate,
   type TaskTimeLog,
 } from "@/services/project-time.service";
@@ -11,7 +12,19 @@ import {
   type ProjectMember,
   type ProjectPermissions,
 } from "@/services/project.service";
-import { useUser } from "@/stores/authStore";
+import { MyLogsGrid } from "@/components/project/time/MyLogsGrid";
+import { TeamRatesSection } from "@/components/project/time/TeamRatesSection";
+import {
+  AddLogModal,
+  AddRateModal,
+  DeleteRateModal,
+  EditLogModal,
+  EditRateModal,
+} from "@/components/project/time/TimeModals";
+import {
+  fromLocalDateTimeInput,
+  toLocalDateTimeInput,
+} from "@/components/project/time/time-utils";
 
 type TimeTab = "my_logs" | "team_logs";
 
@@ -21,114 +34,8 @@ export const Route = createFileRoute("/project/$projectId/time")({
   component: TimePage,
 });
 
-const formatDuration = (seconds?: number | null) => {
-  if (!seconds || seconds <= 0) return "00:00:00";
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  return [h, m, s].map((n) => String(n).padStart(2, "0")).join(":");
-};
-
-function TimeLogRowSkeleton() {
-  return (
-    <div className="bg-white border border-gray-200 rounded-xl px-4 py-3 animate-pulse">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-2">
-          <div className="h-4 w-44 rounded bg-gray-200" />
-          <div className="h-3 w-60 rounded bg-gray-100" />
-          <div className="h-3 w-40 rounded bg-gray-100" />
-        </div>
-        <div className="space-y-2 text-right">
-          <div className="h-4 w-16 rounded bg-gray-200 ml-auto" />
-          <div className="h-5 w-20 rounded-full bg-gray-100 ml-auto" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function TimeLogRow({
-  log,
-  nowMs,
-}: {
-  log: TaskTimeLog;
-  nowMs: number;
-}) {
-  const liveDurationSeconds = (() => {
-    if (log.ended_at) return log.duration_seconds;
-    const started = new Date(log.started_at).getTime();
-    if (Number.isNaN(started)) return log.duration_seconds;
-    return Math.max(0, Math.floor((nowMs - started) / 1000));
-  })();
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-xl px-4 py-3">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-gray-900">
-            {log.task?.title ?? "Task"}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">
-            {new Date(log.started_at).toLocaleString()} {" "}
-            {log.ended_at
-              ? `- ${new Date(log.ended_at).toLocaleString()}`
-              : "- Running"}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">
-            Member: {log.member?.display_name || log.member?.email || log.member_user_id}
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-sm font-semibold text-gray-900">
-            {formatDuration(liveDurationSeconds)}
-          </p>
-          <span
-            className={`inline-flex mt-1 px-2 py-0.5 text-[11px] rounded-full ${
-              log.status === "approved"
-                ? "bg-emerald-100 text-emerald-700"
-                : log.status === "rejected"
-                  ? "bg-red-100 text-red-700"
-                  : "bg-amber-100 text-amber-700"
-            }`}
-          >
-            {log.status}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function RateCardSkeleton() {
-  return (
-    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden animate-pulse">
-      <div className="h-16 bg-gray-100" />
-      <div className="px-4 pb-4 -mt-8">
-        <div className="mx-auto h-16 w-16 rounded-full border-4 border-white bg-gray-200" />
-        <div className="mt-3 space-y-2 text-center">
-          <div className="mx-auto h-4 w-32 rounded bg-gray-200" />
-          <div className="mx-auto h-3 w-40 rounded bg-gray-100" />
-          <div className="mx-auto h-7 w-24 rounded-full bg-gray-100" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function initialsFromName(name?: string) {
-  const base = (name || "?").trim();
-  if (!base) return "?";
-  return base
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
-
 function TimePage() {
   const { projectId } = Route.useParams();
-  const user = useUser();
 
   const [permissions, setPermissions] = useState<ProjectPermissions | null>(null);
   const [loadingPermissions, setLoadingPermissions] = useState(true);
@@ -136,28 +43,54 @@ function TimePage() {
 
   const [activeTab, setActiveTab] = useState<TimeTab>("my_logs");
   const [myLogs, setMyLogs] = useState<TaskTimeLog[]>([]);
+  const [projectTasks, setProjectTasks] = useState<ProjectTaskOption[]>([]);
   const [rates, setRates] = useState<ProjectMemberTimeRate[]>([]);
+  const [ownRate, setOwnRate] = useState<ProjectMemberTimeRate | null>(null);
   const [teamMembers, setTeamMembers] = useState<ProjectMember[]>([]);
 
   const [loadingMyLogs, setLoadingMyLogs] = useState(false);
+  const [loadingProjectTasks, setLoadingProjectTasks] = useState(false);
   const [loadingRates, setLoadingRates] = useState(false);
+  const [loadingOwnRate, setLoadingOwnRate] = useState(false);
   const [loadingMembers, setLoadingMembers] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [timerNowMs, setTimerNowMs] = useState(Date.now());
+  const [rowActionLoadingById, setRowActionLoadingById] = useState<
+    Record<string, boolean>
+  >({});
+  const [taskSavingById, setTaskSavingById] = useState<Record<string, boolean>>(
+    {},
+  );
 
   const [isTimeBlocked, setIsTimeBlocked] = useState(false);
   const [isAddRateModalOpen, setIsAddRateModalOpen] = useState(false);
+  const [isAddLogModalOpen, setIsAddLogModalOpen] = useState(false);
+  const [newLogTaskId, setNewLogTaskId] = useState("");
+  const [savingAddLog, setSavingAddLog] = useState(false);
+  const [editingLogId, setEditingLogId] = useState<string | null>(null);
+  const [editStartedAt, setEditStartedAt] = useState("");
+  const [editEndedAt, setEditEndedAt] = useState("");
+  const [savingLogEdit, setSavingLogEdit] = useState(false);
 
   const [newRateMemberId, setNewRateMemberId] = useState("");
+  const [newRateCustomId, setNewRateCustomId] = useState("");
   const [newRateValue, setNewRateValue] = useState("");
   const [newRateCurrency, setNewRateCurrency] = useState("USD");
+  const [newRateStartDate, setNewRateStartDate] = useState("");
+  const [newRateEndDate, setNewRateEndDate] = useState("");
   const [savingRate, setSavingRate] = useState(false);
+  const [deletingRate, setDeletingRate] = useState(false);
 
   const [isEditRateModalOpen, setIsEditRateModalOpen] = useState(false);
+  const [isDeleteRateModalOpen, setIsDeleteRateModalOpen] = useState(false);
+  const [deleteRateVerificationText, setDeleteRateVerificationText] = useState("");
   const [editingRateId, setEditingRateId] = useState<string | null>(null);
+  const [editingRateCustomId, setEditingRateCustomId] = useState("");
   const [editingRateValue, setEditingRateValue] = useState("");
   const [editingRateCurrency, setEditingRateCurrency] = useState("USD");
+  const [editingRateStartDate, setEditingRateStartDate] = useState("");
+  const [editingRateEndDate, setEditingRateEndDate] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -195,7 +128,7 @@ function TimePage() {
       setError(null);
       const result = await projectTimeService.listMyLogs(projectId, {
         page: 1,
-        limit: 50,
+        limit: 100,
       });
       setMyLogs(result.items);
       setIsTimeBlocked(false);
@@ -231,6 +164,36 @@ function TimePage() {
     }
   };
 
+  const loadOwnRate = async () => {
+    try {
+      setLoadingOwnRate(true);
+      const rate = await projectTimeService.getMyProjectMemberRate(projectId);
+      setOwnRate(rate);
+      setIsTimeBlocked(false);
+    } catch (e) {
+      const message =
+        e instanceof Error ? e.message : "Failed to load your time rate.";
+      if (message.toLowerCase().includes(RATE_REQUIRED_HINT)) {
+        setIsTimeBlocked(true);
+      }
+      setOwnRate(null);
+    } finally {
+      setLoadingOwnRate(false);
+    }
+  };
+
+  const loadProjectTasks = async () => {
+    try {
+      setLoadingProjectTasks(true);
+      const tasks = await projectTimeService.listProjectTasks(projectId);
+      setProjectTasks(tasks);
+    } catch {
+      setProjectTasks([]);
+    } finally {
+      setLoadingProjectTasks(false);
+    }
+  };
+
   const loadTeamMembers = async () => {
     if (!canManageRates) {
       setTeamMembers([]);
@@ -249,7 +212,9 @@ function TimePage() {
 
   useEffect(() => {
     if (!permissions) return;
+    void loadOwnRate();
     void loadMyLogs();
+    void loadProjectTasks();
   }, [permissions, projectId]);
 
   useEffect(() => {
@@ -274,16 +239,12 @@ function TimePage() {
     return () => window.clearInterval(interval);
   }, [hasActiveLog]);
 
-  const ownRate = useMemo(() => {
-    if (!user?.id) return null;
-    return rates.find((rate) => rate.member_user_id === user.id) ?? null;
-  }, [rates, user?.id]);
-
   const canShowMyLogsTab = useMemo(() => {
     if (ownRate) return true;
+    if (loadingOwnRate) return true;
     if (loadingRates) return true;
     return !isTimeBlocked;
-  }, [ownRate, loadingRates, isTimeBlocked]);
+  }, [ownRate, loadingOwnRate, loadingRates, isTimeBlocked]);
 
   useEffect(() => {
     if (!canShowMyLogsTab && activeTab === "my_logs" && canViewTeamRates) {
@@ -308,27 +269,39 @@ function TimePage() {
     const role = member.role ? member.role.replace(/_/g, " ") : "member";
     const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
     const position = (member.position || "").trim();
-    return position ? `${roleLabel} • ${position}` : roleLabel;
+    return position ? `${roleLabel} | ${position}` : roleLabel;
   };
 
   const openEditRateModal = (rate: ProjectMemberTimeRate) => {
     setIsEditRateModalOpen(true);
     setEditingRateId(rate.id);
+    setEditingRateCustomId(rate.custom_id || "");
     setEditingRateValue(String(rate.hourly_rate ?? ""));
     setEditingRateCurrency(rate.currency || "USD");
+    setEditingRateStartDate(rate.start_date || "");
+    setEditingRateEndDate(rate.end_date || "");
   };
 
   const closeEditRateModal = () => {
     setIsEditRateModalOpen(false);
+    setIsDeleteRateModalOpen(false);
+    setDeleteRateVerificationText("");
     setEditingRateId(null);
+    setEditingRateCustomId("");
     setEditingRateValue("");
     setEditingRateCurrency("USD");
+    setEditingRateStartDate("");
+    setEditingRateEndDate("");
   };
 
   const saveEditedRate = async (rateId: string) => {
     const hourly = Number(editingRateValue);
     if (!Number.isFinite(hourly) || hourly < 0) {
       setError("Hourly rate must be a non-negative number.");
+      return;
+    }
+    if (!editingRateStartDate) {
+      setError("Start date is required.");
       return;
     }
 
@@ -338,6 +311,9 @@ function TimePage() {
       await projectTimeService.updateProjectMemberRate(projectId, rateId, {
         hourly_rate: hourly,
         currency: editingRateCurrency.trim().toUpperCase() || "USD",
+        custom_id: editingRateCustomId.trim(),
+        start_date: editingRateStartDate,
+        ...(editingRateEndDate ? { end_date: editingRateEndDate } : {}),
       });
       closeEditRateModal();
       await loadRates();
@@ -359,6 +335,10 @@ function TimePage() {
       setError("Hourly rate must be a non-negative number.");
       return;
     }
+    if (!newRateStartDate) {
+      setError("Start date is required.");
+      return;
+    }
 
     try {
       setSavingRate(true);
@@ -367,16 +347,174 @@ function TimePage() {
         project_member_id: newRateMemberId,
         hourly_rate: hourly,
         currency: newRateCurrency.trim().toUpperCase() || "USD",
+        custom_id: newRateCustomId.trim(),
+        start_date: newRateStartDate,
+        ...(newRateEndDate ? { end_date: newRateEndDate } : {}),
       });
       setIsAddRateModalOpen(false);
       setNewRateMemberId("");
+      setNewRateCustomId("");
       setNewRateValue("");
       setNewRateCurrency("USD");
+      setNewRateStartDate("");
+      setNewRateEndDate("");
       await loadRates();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create rate.");
     } finally {
       setSavingRate(false);
+    }
+  };
+
+  const deleteEditedRate = async (rateId: string) => {
+    if (deleteRateVerificationText.trim().toUpperCase() !== "DELETE") return;
+    try {
+      setDeletingRate(true);
+      setError(null);
+      await projectTimeService.deleteProjectMemberRate(projectId, rateId);
+      closeEditRateModal();
+      await loadRates();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete rate.");
+    } finally {
+      setDeletingRate(false);
+    }
+  };
+
+  const beginEditLog = (log: TaskTimeLog) => {
+    setEditingLogId(log.id);
+    setEditStartedAt(toLocalDateTimeInput(log.started_at));
+    setEditEndedAt(toLocalDateTimeInput(log.ended_at));
+  };
+
+  const closeEditLogModal = () => {
+    setEditingLogId(null);
+    setEditStartedAt("");
+    setEditEndedAt("");
+  };
+
+  const saveEditedLog = async () => {
+    if (!editingLogId) return;
+    const started_at = fromLocalDateTimeInput(editStartedAt);
+    const ended_at = fromLocalDateTimeInput(editEndedAt);
+    if (!started_at) {
+      setError("Time-in is required.");
+      return;
+    }
+    try {
+      setSavingLogEdit(true);
+      setError(null);
+      await projectTimeService.update(editingLogId, {
+        started_at,
+        ...(ended_at ? { ended_at } : {}),
+      });
+      closeEditLogModal();
+      await loadMyLogs();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to update time log.");
+    } finally {
+      setSavingLogEdit(false);
+    }
+  };
+
+  const stopLog = async (logId: string) => {
+    try {
+      setRowActionLoadingById((prev) => ({ ...prev, [logId]: true }));
+      setError(null);
+      await projectTimeService.stop(logId);
+      await loadMyLogs();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to stop timer.");
+    } finally {
+      setRowActionLoadingById((prev) => ({ ...prev, [logId]: false }));
+    }
+  };
+
+  const deleteLog = async (logId: string) => {
+    const confirmed = window.confirm("Delete this time log?");
+    if (!confirmed) return;
+    try {
+      setRowActionLoadingById((prev) => ({ ...prev, [logId]: true }));
+      setError(null);
+      await projectTimeService.delete(logId);
+      await loadMyLogs();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete log.");
+    } finally {
+      setRowActionLoadingById((prev) => ({ ...prev, [logId]: false }));
+    }
+  };
+
+  const taskTitleById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const task of projectTasks) map.set(task.id, task.title);
+    return map;
+  }, [projectTasks]);
+
+  const handleTaskChange = async (log: TaskTimeLog, nextTaskId: string) => {
+    if (!nextTaskId || nextTaskId === log.task_id) return;
+    const previousTaskId = log.task_id;
+    const previousTitle = log.task?.title;
+
+    setTaskSavingById((prev) => ({ ...prev, [log.id]: true }));
+    setMyLogs((prev) =>
+      prev.map((entry) =>
+        entry.id === log.id
+          ? {
+              ...entry,
+              task_id: nextTaskId,
+              task: {
+                id: nextTaskId,
+                title: taskTitleById.get(nextTaskId) ?? previousTitle ?? "Task",
+              },
+            }
+          : entry,
+      ),
+    );
+
+    try {
+      setError(null);
+      const updated = await projectTimeService.update(log.id, { task_id: nextTaskId });
+      setMyLogs((prev) =>
+        prev.map((entry) => (entry.id === updated.id ? updated : entry)),
+      );
+    } catch (e) {
+      setMyLogs((prev) =>
+        prev.map((entry) =>
+          entry.id === log.id
+            ? {
+                ...entry,
+                task_id: previousTaskId,
+                task: previousTitle
+                  ? { id: previousTaskId, title: previousTitle }
+                  : entry.task,
+              }
+            : entry,
+        ),
+      );
+      setError(e instanceof Error ? e.message : "Failed to update task.");
+    } finally {
+      setTaskSavingById((prev) => ({ ...prev, [log.id]: false }));
+    }
+  };
+
+  const createLogFromModal = async () => {
+    if (!newLogTaskId) {
+      setError("Select a task.");
+      return;
+    }
+
+    try {
+      setSavingAddLog(true);
+      setError(null);
+      await projectTimeService.start(projectId, newLogTaskId);
+      setIsAddLogModalOpen(false);
+      setNewLogTaskId("");
+      await loadMyLogs();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to add log.");
+    } finally {
+      setSavingAddLog(false);
     }
   };
 
@@ -445,335 +583,123 @@ function TimePage() {
         <>
           {activeTab === "my_logs" && canShowMyLogsTab && (
             <div className="space-y-3">
-              {loadingMyLogs ? (
-                <>
-                  <TimeLogRowSkeleton />
-                  <TimeLogRowSkeleton />
-                  <TimeLogRowSkeleton />
-                </>
-              ) : myLogs.length === 0 ? (
-                <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-12 text-center">
-                  <p className="text-sm text-gray-500">No logs yet.</p>
-                </div>
-              ) : (
-                myLogs.map((log) => (
-                  <TimeLogRow
-                    key={log.id}
-                    log={log}
-                    nowMs={timerNowMs}
-                  />
-                ))
-              )}
+              <MyLogsGrid
+                logs={myLogs}
+                tasks={projectTasks}
+                ownRate={ownRate}
+                loadingLogs={loadingMyLogs}
+                loadingTasks={loadingProjectTasks}
+                timerNowMs={timerNowMs}
+                taskSavingById={taskSavingById}
+                rowActionLoadingById={rowActionLoadingById}
+                onTaskChange={handleTaskChange}
+                onStopLog={stopLog}
+                onDeleteLog={deleteLog}
+                onEditLog={beginEditLog}
+                onOpenAddLog={() => setIsAddLogModalOpen(true)}
+              />
             </div>
           )}
 
           {activeTab === "team_logs" && canViewTeamRates && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-base font-semibold text-gray-900">Project Member Time Rates</h2>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Members need a rate row here before they can use time tracking.
-                  </p>
-                </div>
-                {canManageRates && (
-                  <button
-                    type="button"
-                    onClick={() => setIsAddRateModalOpen(true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-md border border-[#ff9933]/30 bg-[#ff9933]/10 text-[#b35f00] hover:bg-[#ff9933]/20"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Add Rate
-                  </button>
-                )}
-              </div>
-
-              <div className="space-y-3">
-                {loadingRates ? (
-                  <div className="flex flex-wrap gap-4">
-                    <RateCardSkeleton />
-                    <RateCardSkeleton />
-                    <RateCardSkeleton />
-                  </div>
-                ) : rates.length === 0 ? (
-                  <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-12 text-center">
-                    <p className="text-sm text-gray-500">No time rates set yet.</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-4">
-                    {rates.map((rate) => {
-                      const memberName =
-                        rate.member?.display_name ||
-                        rate.member?.email ||
-                        rate.member_user_id;
-                      const roleRaw = rate.project_member?.role || "member";
-                      const roleLabel =
-                        roleRaw.charAt(0).toUpperCase() + roleRaw.slice(1);
-                      const positionLabel =
-                        (rate.project_member?.position || "").trim() || "Project Member";
-                      const avatarUrl = rate.member?.avatar_url;
-                      const bannerUrl = rate.member?.banner_url;
-
-                      return (
-                        <div
-                          key={rate.id}
-                          className="w-full sm:w-[240px] rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden aspect-square flex flex-col"
-                        >
-                          <div
-                            className="h-14 bg-gradient-to-r from-orange-200 via-amber-200 to-orange-100"
-                            style={
-                              bannerUrl
-                                ? {
-                                    backgroundImage: `url(${bannerUrl})`,
-                                    backgroundSize: "cover",
-                                    backgroundPosition: "center",
-                                  }
-                                : undefined
-                            }
-                          />
-                          <div className="px-3 pb-3 -mt-7 flex-1 flex flex-col">
-                            <div className="mx-auto h-14 w-14 rounded-full border-4 border-white bg-white shadow-sm overflow-hidden flex items-center justify-center">
-                              {avatarUrl ? (
-                                <img
-                                  src={avatarUrl}
-                                  alt={memberName}
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <span className="text-xs font-semibold text-gray-700">
-                                  {initialsFromName(memberName)}
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="mt-2.5 text-center">
-                              <p className="text-sm font-semibold text-gray-900 leading-tight">
-                                {memberName}
-                              </p>
-                              <p className="text-[11px] text-gray-500 mt-1">
-                                {roleLabel} | {positionLabel}
-                              </p>
-                            </div>
-
-                            <div className="mt-auto pt-3 border-t border-gray-100">
-                              <div className="flex items-center justify-center gap-2">
-                                <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-800">
-                                  {Number(rate.hourly_rate).toFixed(2)} {rate.currency}
-                                </span>
-                                {canManageRates && (
-                                  <button
-                                    type="button"
-                                    onClick={() => openEditRateModal(rate)}
-                                    className="px-2.5 py-1 text-xs font-semibold rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                                  >
-                                    Edit
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
+            <TeamRatesSection
+              rates={rates}
+              loadingRates={loadingRates}
+              canManageRates={canManageRates}
+              onOpenAddRate={() => setIsAddRateModalOpen(true)}
+              onOpenEditRate={openEditRateModal}
+            />
           )}
         </>
       )}
 
-      {isAddRateModalOpen && canManageRates && (
-        <div
-          className="fixed inset-0 z-[160] flex items-center justify-center bg-slate-900/55 backdrop-blur-[2px] p-4"
-          onClick={() => setIsAddRateModalOpen(false)}
-        >
-          <div
-            className="w-full max-w-xl rounded-3xl border border-orange-100 bg-white shadow-[0_24px_80px_rgba(2,6,23,0.35)] overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-orange-100 px-6 py-5 bg-gradient-to-r from-orange-50 to-amber-50">
-              <div>
-                <h3 className="text-base font-semibold text-slate-900">Add Team Rate</h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  Enable time tracking for a project member by assigning hourly rate.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsAddRateModalOpen(false)}
-                className="rounded-lg p-1.5 text-slate-500 hover:bg-white/70"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+      <EditLogModal
+        isOpen={editingLogId !== null}
+        startedAt={editStartedAt}
+        endedAt={editEndedAt}
+        saving={savingLogEdit}
+        onClose={closeEditLogModal}
+        onSave={saveEditedLog}
+        onChangeStartedAt={setEditStartedAt}
+        onChangeEndedAt={setEditEndedAt}
+      />
 
-            <div className="p-6 space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Select Member
-                </label>
-                <select
-                  value={newRateMemberId}
-                  onChange={(e) => setNewRateMemberId(e.target.value)}
-                  disabled={savingRate || loadingMembers}
-                  className="w-full px-3 py-2.5 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-orange-200"
-                >
-                  <option value="">Select member</option>
-                  {membersWithoutRate.map((member) => {
-                    const memberName =
-                      member.user?.display_name ||
-                      member.user?.email ||
-                      member.user_id ||
-                      member.id;
-                    return (
-                      <option key={member.id} value={member.id}>
-                        {memberName} ({formatMemberRole(member)})
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
+      <AddLogModal
+        isOpen={isAddLogModalOpen}
+        tasks={projectTasks}
+        selectedTaskId={newLogTaskId}
+        saving={savingAddLog}
+        onClose={() => {
+          setIsAddLogModalOpen(false);
+          setNewLogTaskId("");
+        }}
+        onSave={createLogFromModal}
+        onChangeTaskId={setNewLogTaskId}
+      />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Hourly Rate
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={newRateValue}
-                    onChange={(e) => setNewRateValue(e.target.value)}
-                    placeholder="e.g. 25.00"
-                    disabled={savingRate}
-                    className="w-full px-3 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-200"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Currency
-                  </label>
-                  <input
-                    type="text"
-                    value={newRateCurrency}
-                    onChange={(e) => setNewRateCurrency(e.target.value)}
-                    placeholder="USD"
-                    maxLength={8}
-                    disabled={savingRate}
-                    className="w-full px-3 py-2.5 text-sm border border-slate-300 rounded-lg uppercase focus:outline-none focus:ring-2 focus:ring-orange-200"
-                  />
-                </div>
-              </div>
+      <AddRateModal
+        isOpen={isAddRateModalOpen}
+        canManageRates={canManageRates}
+        membersWithoutRate={membersWithoutRate}
+        loadingMembers={loadingMembers}
+        savingRate={savingRate}
+        newRateMemberId={newRateMemberId}
+        newRateCustomId={newRateCustomId}
+        newRateValue={newRateValue}
+        newRateCurrency={newRateCurrency}
+        newRateStartDate={newRateStartDate}
+        newRateEndDate={newRateEndDate}
+        onClose={() => setIsAddRateModalOpen(false)}
+        onCreateRate={createRate}
+        onChangeMemberId={setNewRateMemberId}
+        onChangeCustomId={setNewRateCustomId}
+        onChangeRateValue={setNewRateValue}
+        onChangeRateCurrency={setNewRateCurrency}
+        onChangeStartDate={setNewRateStartDate}
+        onChangeEndDate={setNewRateEndDate}
+        formatMemberRole={formatMemberRole}
+      />
 
-              <div className="rounded-xl border border-orange-100 bg-orange-50/60 px-3 py-2 text-xs text-slate-600">
-                Members with no rate row cannot use the Time page or timer actions.
-              </div>
-            </div>
+      <EditRateModal
+        isOpen={isEditRateModalOpen}
+        canManageRates={canManageRates}
+        editingRateId={editingRateId}
+        editingRateTarget={editingRateTarget}
+        editingRateCustomId={editingRateCustomId}
+        editingRateValue={editingRateValue}
+        editingRateCurrency={editingRateCurrency}
+        editingRateStartDate={editingRateStartDate}
+        editingRateEndDate={editingRateEndDate}
+        savingRate={savingRate}
+        onClose={closeEditRateModal}
+        onSave={saveEditedRate}
+        onRequestDelete={() => setIsDeleteRateModalOpen(true)}
+        onChangeCustomId={setEditingRateCustomId}
+        onChangeRateValue={setEditingRateValue}
+        onChangeRateCurrency={setEditingRateCurrency}
+        onChangeStartDate={setEditingRateStartDate}
+        onChangeEndDate={setEditingRateEndDate}
+      />
 
-            <div className="flex items-center justify-end gap-2 border-t border-orange-100 px-6 py-4 bg-slate-50">
-              <button
-                type="button"
-                onClick={() => setIsAddRateModalOpen(false)}
-                disabled={savingRate}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-50"
-              >
-                <XCircle className="w-3.5 h-3.5" />
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void createRate()}
-                disabled={savingRate || loadingMembers}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-md border border-orange-300 bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50"
-              >
-                <Save className="w-3.5 h-3.5" />
-                Save Rate
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isEditRateModalOpen && canManageRates && editingRateId && (
-        <div
-          className="fixed inset-0 z-[170] flex items-center justify-center bg-slate-900/55 backdrop-blur-[2px] p-4"
-          onClick={closeEditRateModal}
-        >
-          <div
-            className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
-              <div>
-                <h3 className="text-base font-semibold text-gray-900">Edit Team Rate</h3>
-                <p className="text-xs text-gray-500 mt-1">
-                  {editingRateTarget?.member?.display_name ||
-                    editingRateTarget?.member?.email ||
-                    editingRateTarget?.member_user_id}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={closeEditRateModal}
-                className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Hourly Rate
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={editingRateValue}
-                  onChange={(e) => setEditingRateValue(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Currency
-                </label>
-                <input
-                  type="text"
-                  maxLength={8}
-                  value={editingRateCurrency}
-                  onChange={(e) => setEditingRateCurrency(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md uppercase"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 border-t border-gray-200 px-5 py-4 bg-gray-50">
-              <button
-                type="button"
-                onClick={closeEditRateModal}
-                disabled={savingRate}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-              >
-                <XCircle className="w-3.5 h-3.5" />
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void saveEditedRate(editingRateId)}
-                disabled={savingRate}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
-              >
-                <Save className="w-3.5 h-3.5" />
-                Save Changes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DeleteRateModal
+        isOpen={isDeleteRateModalOpen && Boolean(editingRateId)}
+        targetLabel={
+          editingRateTarget?.member?.display_name ||
+          editingRateTarget?.member?.email ||
+          editingRateTarget?.custom_id ||
+          editingRateTarget?.member_user_id
+        }
+        verificationText={deleteRateVerificationText}
+        deletingRate={deletingRate}
+        onClose={() => {
+          setIsDeleteRateModalOpen(false);
+          setDeleteRateVerificationText("");
+        }}
+        onChangeVerificationText={setDeleteRateVerificationText}
+        onConfirmDelete={() =>
+          editingRateId ? deleteEditedRate(editingRateId) : undefined
+        }
+      />
     </div>
   );
 }
