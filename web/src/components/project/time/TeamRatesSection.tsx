@@ -2,6 +2,13 @@ import { Plus } from "lucide-react";
 import type { ProjectMemberTimeRate } from "@/services/project-time.service";
 import { initialsFromName } from "./time-utils";
 
+function formatRateDate(value?: string | null) {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(parsed);
+}
+
 function RateCardSkeleton() {
   return (
     <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden animate-pulse">
@@ -80,7 +87,7 @@ export function TeamRatesSection({
               return (
                 <div
                   key={rate.id}
-                  className="w-full sm:w-[240px] rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden aspect-square flex flex-col"
+                  className="w-full sm:w-[240px] rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden min-h-[280px] flex flex-col"
                 >
                   <div
                     className="h-14 bg-gradient-to-r from-orange-200 via-amber-200 to-orange-100"
@@ -116,6 +123,27 @@ export function TeamRatesSection({
                       <p className="text-[11px] text-gray-500 mt-1">
                         {roleLabel} | {positionLabel}
                       </p>
+                    </div>
+
+                    <div className="mt-3 rounded-lg border border-gray-100 bg-gray-50/70 p-2">
+                      <div className="flex items-center justify-between gap-2 text-[11px]">
+                        <span className="font-semibold text-gray-500">Custom ID</span>
+                        <span className="font-medium text-gray-700 text-right break-all">
+                          {rate.custom_id?.trim() || "-"}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between gap-2 text-[11px]">
+                        <span className="font-semibold text-gray-500">Start Date</span>
+                        <span className="font-medium text-gray-700 text-right">
+                          {formatRateDate(rate.start_date)}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between gap-2 text-[11px]">
+                        <span className="font-semibold text-gray-500">End Date</span>
+                        <span className="font-medium text-gray-700 text-right">
+                          {formatRateDate(rate.end_date)}
+                        </span>
+                      </div>
                     </div>
 
                     <div className="mt-auto pt-3 border-t border-gray-100">

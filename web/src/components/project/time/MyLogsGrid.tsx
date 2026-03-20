@@ -1,6 +1,11 @@
-import { useMemo, type CSSProperties } from "react";
+import { useMemo } from "react";
 import { Pencil, Plus, Square, Trash2 } from "lucide-react";
-import DataGrid, { type Column, type RenderCellProps } from "react-data-grid";
+import {
+  createColumnHelper,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
 import type {
   ProjectMemberTimeRate,
   ProjectTaskOption,
@@ -68,8 +73,6 @@ export function MyLogsGrid({
   onEditLog,
   onOpenAddLog,
 }: MyLogsGridProps) {
-  const rowHeight = 52;
-  const headerRowHeight = 44;
   const fullDateFormatter = useMemo(
     () =>
       new Intl.DateTimeFormat(undefined, {
@@ -84,6 +87,27 @@ export function MyLogsGrid({
   const timeFormatter = useMemo(
     () =>
       new Intl.DateTimeFormat(undefined, {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      }),
+    [],
+  );
+  const shortDateFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }),
+    [],
+  );
+  const shortDateTimeFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
@@ -113,27 +137,50 @@ export function MyLogsGrid({
           : null;
       const startedDate = new Date(log.started_at);
       const endedDate = log.ended_at ? new Date(log.ended_at) : null;
+      const nowDate = new Date(timerNowMs);
+      const hasValidStart = !Number.isNaN(startedDate.getTime());
+      const hasValidEnd = Boolean(endedDate && !Number.isNaN(endedDate.getTime()));
+      const hasValidNow = !Number.isNaN(nowDate.getTime());
+      const endedDateValue: Date | undefined = hasValidEnd
+        ? (endedDate as Date)
+        : undefined;
+      const isMultiDay =
+        hasValidStart &&
+        hasValidEnd &&
+        startedDate.toDateString() !== endedDateValue?.toDateString();
+
       return {
         id: log.id,
-        date: Number.isNaN(startedDate.getTime())
+        date: !hasValidStart
           ? "-"
-          : fullDateFormatter.format(startedDate),
+          : isMultiDay
+            ? `${shortDateFormatter.format(startedDate)} - ${shortDateFormatter.format(
+                endedDateValue,
+              )}`
+            : fullDateFormatter.format(startedDate),
         task_id: log.task_id,
         task_title: log.task?.title ?? taskTitleById.get(log.task_id) ?? "Task",
-        time_in: Number.isNaN(startedDate.getTime())
+        time_in: !hasValidStart
           ? "-"
-          : timeFormatter.format(startedDate),
-        time_out:
-          endedDate && !Number.isNaN(endedDate.getTime())
-            ? timeFormatter.format(endedDate)
-            : "Running",
+          : isMultiDay
+            ? shortDateTimeFormatter.format(startedDate)
+            : timeFormatter.format(startedDate),
+        time_out: hasValidEnd
+          ? isMultiDay
+            ? shortDateTimeFormatter.format(endedDateValue)
+            : timeFormatter.format(endedDateValue)
+          : !hasValidNow
+            ? "-"
+            : hasValidStart && startedDate.toDateString() !== nowDate.toDateString()
+              ? shortDateTimeFormatter.format(nowDate)
+              : timeFormatter.format(nowDate),
         hours_worked: hoursWorked,
         fees,
         is_running: !log.ended_at,
         log,
       };
     });
-    const minimumRows = 10;
+    const minimumRows = Math.max(4, populatedRows.length + 1);
     if (populatedRows.length >= minimumRows) return populatedRows;
     const emptyCount = minimumRows - populatedRows.length;
     const emptyRows: MyLogGridRow[] = Array.from({ length: emptyCount }).map(
@@ -153,78 +200,108 @@ export function MyLogsGrid({
       }),
     );
     return [...populatedRows, ...emptyRows];
-  }, [fullDateFormatter, logs, ownRate, taskTitleById, timeFormatter, timerNowMs]);
-
-  const columns = useMemo<Column<MyLogGridRow>[]>(() => {
-    return [
-      { key: "date", name: "Dates", minWidth: 260, width: 300 },
-      {
-        key: "task_id",
-        name: "Task",
-        minWidth: 220,
-        renderCell: ({ row }: RenderCellProps<MyLogGridRow>) => (
-          row.is_placeholder ? null : (
+  }, [
+    fullDateFormatter,
+    logs,
+    ownRate,
+    shortDateFormatter,
+    shortDateTimeFormatter,
+    taskTitleById,
+    timeFormatter,
+    timerNowMs,
+  ]);
+  const columnHelper = createColumnHelper<MyLogGridRow>();
+  const columns = useMemo(
+    () => [
+      columnHelper.accessor("date", {
+        id: "date",
+        header: "Dates",
+        cell: (info) =>
+          info.row.original.is_placeholder ? null : info.getValue(),
+      }),
+      columnHelper.accessor("task_id", {
+        id: "task_id",
+        header: "Task",
+        cell: (info) => {
+          const row = info.row.original;
+          if (row.is_placeholder) return null;
+          return (
             <TaskTreePicker
               tasks={tasks}
               value={row.task_id}
               onChange={(taskId) => void onTaskChange(row.log, taskId)}
               disabled={taskSavingById[row.id] || loadingTasks || tasks.length === 0}
-              triggerClassName="w-full rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-left"
+              triggerClassName="w-full rounded-md border border-gray-300 bg-white px-2 py-0.5 text-[11px] leading-tight text-left"
               selectedLabelMode="task"
               panelClassName="max-h-72 overflow-auto rounded-md border border-gray-200 bg-white p-1 shadow-lg"
             />
-          )
-        ),
-      },
-      { key: "time_in", name: "Time-in", minWidth: 120, width: 140 },
-      { key: "time_out", name: "Time-Out", minWidth: 120, width: 140 },
-      {
-        key: "hours_worked",
-        name: "Hours Works (float)",
-        minWidth: 130,
-        width: 150,
-        renderCell: ({ row }: RenderCellProps<MyLogGridRow>) => (
-          row.is_placeholder ? null : (
+          );
+        },
+      }),
+      columnHelper.accessor("time_in", {
+        id: "time_in",
+        header: "Time-in",
+        cell: (info) =>
+          info.row.original.is_placeholder ? null : (
+            <span className="tabular-nums">{info.getValue()}</span>
+          ),
+      }),
+      columnHelper.accessor("time_out", {
+        id: "time_out",
+        header: "Time-Out",
+        cell: (info) =>
+          info.row.original.is_placeholder ? null : (
+            <span className="tabular-nums">{info.getValue()}</span>
+          ),
+      }),
+      columnHelper.accessor("hours_worked", {
+        id: "hours_worked",
+        header: "Hours",
+        cell: (info) => {
+          const row = info.row.original;
+          if (row.is_placeholder) return null;
+          return (
             <span className="text-xs font-semibold text-gray-700">
               {row.hours_worked.toFixed(2)}
             </span>
-          )
-        ),
-      },
-      {
-        key: "fees",
-        name: "Fees",
-        minWidth: 120,
-        width: 140,
-        renderCell: ({ row }: RenderCellProps<MyLogGridRow>) => (
-          row.is_placeholder ? null : (
+          );
+        },
+      }),
+      columnHelper.accessor("fees", {
+        id: "fees",
+        header: "Fees",
+        cell: (info) => {
+          const row = info.row.original;
+          if (row.is_placeholder) return null;
+          return (
             <span className="text-xs font-semibold text-emerald-700">
               {row.fees === null
                 ? "-"
                 : `${row.fees.toFixed(2)} ${ownRate?.currency || "USD"}`}
             </span>
-          )
-        ),
-      },
-      {
-        key: "actions",
-        name: "Actions",
-        minWidth: 130,
-        width: 150,
-        renderCell: ({ row }: RenderCellProps<MyLogGridRow>) => (
-          row.is_placeholder ? (
-            row.placeholder_index === 0 ? (
+          );
+        },
+      }),
+      columnHelper.display({
+        id: "actions",
+        header: "Actions",
+        cell: (info) => {
+          const row = info.row.original;
+          if (row.is_placeholder) {
+            return row.placeholder_index === 0 ? (
               <button
                 type="button"
                 onClick={onOpenAddLog}
                 title="Add Log"
                 aria-label="Add Log"
-                className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-[#ff9933]/40 bg-[#ff9933]/10 text-[#b35f00] hover:bg-[#ff9933]/20"
+                className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-[#ff9933]/40 bg-[#ff9933]/10 text-[#b35f00] hover:bg-[#ff9933]/20 cursor-pointer"
               >
                 <Plus className="h-3.5 w-3.5" />
               </button>
-            ) : null
-          ) : (
+            ) : null;
+          }
+
+          return (
             <div className="flex items-center gap-1">
               {row.is_running && (
                 <button
@@ -233,7 +310,7 @@ export function MyLogsGrid({
                   disabled={rowActionLoadingById[row.id]}
                   title="Stop Timer"
                   aria-label="Stop Timer"
-                  className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-rose-200 bg-rose-50 text-rose-700 disabled:opacity-50"
+                  className="inline-flex items-center justify-center h-7 w-8 rounded-md border border-rose-200 bg-rose-50 text-rose-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Square className="h-3.5 w-3.5" />
                 </button>
@@ -243,7 +320,7 @@ export function MyLogsGrid({
                 onClick={() => onEditLog(row.log)}
                 title="Edit Log"
                 aria-label="Edit Log"
-                className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                className="inline-flex items-center justify-center h-7 w-8 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 cursor-pointer"
               >
                 <Pencil className="h-3.5 w-3.5" />
               </button>
@@ -253,43 +330,77 @@ export function MyLogsGrid({
                 disabled={rowActionLoadingById[row.id]}
                 title="Delete Log"
                 aria-label="Delete Log"
-                className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50"
+                className="inline-flex items-center justify-center h-7 w-8 rounded-md border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
             </div>
-          )
-        ),
-      },
-    ];
-  }, [
-    loadingTasks,
-    onEditLog,
-    onDeleteLog,
-    onStopLog,
-    onTaskChange,
-    ownRate?.currency,
-    rowActionLoadingById,
-    taskSavingById,
-    tasks,
-  ]);
+          );
+        },
+      }),
+    ],
+    [
+      columnHelper,
+      loadingTasks,
+      onDeleteLog,
+      onEditLog,
+      onOpenAddLog,
+      onStopLog,
+      onTaskChange,
+      ownRate?.currency,
+      rowActionLoadingById,
+      taskSavingById,
+      tasks,
+    ],
+  );
+
+  const table = useReactTable({
+    data: rows,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
 
   if (loadingLogs) return <MyLogsGridSkeleton />;
   return (
-    <div className="rounded-xl border border-gray-200">
-      <DataGrid
-        columns={columns}
-        rows={rows}
-        rowHeight={rowHeight}
-        headerRowHeight={headerRowHeight}
-        className="rdg-light text-xs my-logs-rdg"
-        style={
-          {
-            height: rows.length * rowHeight + headerRowHeight + 2,
-            "--rdg-header-background-color": "var(--primary)",
-          } as CSSProperties
-        }
-      />
+    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+      <table className="w-full table-fixed text-[11px]">
+        <colgroup>
+          <col className="w-[22%]" />
+          <col className="w-[21%]" />
+          <col className="w-[15%]" />
+          <col className="w-[15%]" />
+          <col className="w-[9%]" />
+          <col className="w-[9%]" />
+          <col className="w-[9%]" />
+        </colgroup>
+        <thead className="bg-[var(--primary)] text-white">
+          {table.getHeaderGroups().map((headerGroup) => (
+            <tr key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <th
+                  key={header.id}
+                  className="px-2 py-2.5 text-left text-sm font-bold border-r border-white/30 last:border-r-0"
+                >
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(header.column.columnDef.header, header.getContext())}
+                </th>
+              ))}
+            </tr>
+          ))}
+        </thead>
+        <tbody>
+          {table.getRowModel().rows.map((row) => (
+            <tr key={row.id} className="border-t border-gray-200">
+              {row.getVisibleCells().map((cell) => (
+                <td key={cell.id} className="px-2 py-1.5 align-middle">
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

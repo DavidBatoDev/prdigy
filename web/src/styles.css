@@ -246,3 +246,7 @@ code {
   color: #ffffff;
   font-weight: 700;
 }
+
+.my-logs-rdg .rdg-viewport {
+  overflow-y: hidden;
+}

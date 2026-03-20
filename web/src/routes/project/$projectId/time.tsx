@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Clock } from "lucide-react";
+import { ChevronDown, ChevronUp, Clock } from "lucide-react";
 import {
   projectTimeService,
   type ProjectMemberTimeRate,
@@ -22,6 +22,7 @@ import {
 } from "@/components/project/time/TimeModals";
 import {
   fromLocalDateTimeInput,
+  liveDurationSecondsFromLog,
   toLocalDateTimeInput,
 } from "@/components/project/time/time-utils";
 import {
@@ -44,6 +45,7 @@ export const Route = createFileRoute("/project/$projectId/time")({
 function TimePage() {
   const { projectId } = Route.useParams();
   const queryClient = useQueryClient();
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const { user, guestUserId, isLoading: authLoading } = useAuth();
   const actorKey = user?.id ?? guestUserId ?? "anonymous";
   const canRunQueries = Boolean(projectId) && !authLoading;
@@ -82,6 +84,8 @@ function TimePage() {
   const [editingRateCurrency, setEditingRateCurrency] = useState("USD");
   const [editingRateStartDate, setEditingRateStartDate] = useState("");
   const [editingRateEndDate, setEditingRateEndDate] = useState("");
+  const [canScrollUp, setCanScrollUp] = useState(false);
+  const [canScrollDown, setCanScrollDown] = useState(false);
 
   const permissionsQuery = useQuery({
     queryKey: projectTimeKeys.permissions(projectId, actorKey),
@@ -383,6 +387,37 @@ function TimePage() {
     return myLogs.some((log) => !log.ended_at);
   }, [myLogs]);
 
+  const totalHoursWorked = useMemo(() => {
+    return myLogs.reduce((sum, log) => {
+      const seconds = liveDurationSecondsFromLog(log, timerNowMs);
+      return sum + seconds / 3600;
+    }, 0);
+  }, [myLogs, timerNowMs]);
+
+  const totalWorkAmount = useMemo(() => {
+    if (!ownRate) return 0;
+    const hourlyRate = Number(ownRate.hourly_rate);
+    if (!Number.isFinite(hourlyRate)) return 0;
+    return totalHoursWorked * hourlyRate;
+  }, [ownRate, totalHoursWorked]);
+
+  const formattedTotalWork = useMemo(() => {
+    const currency = ownRate?.currency || "USD";
+    return `${totalWorkAmount.toFixed(2)} ${currency}`;
+  }, [ownRate?.currency, totalWorkAmount]);
+
+  const formatRateDate = (value?: string | null) => {
+    if (!value) return "-";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return "-";
+    return parsed.toLocaleDateString(undefined, {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
   useEffect(() => {
     if (!hasActiveLog) return;
     const interval = window.setInterval(() => setTimerNowMs(Date.now()), 1000);
@@ -396,6 +431,47 @@ function TimePage() {
   }, [canViewTime, isResolvingMyLogsAccess, ownRate, isTimeBlocked]);
   const showMyLogsTabSkeleton =
     canViewTime && isResolvingMyLogsAccess && !canShowMyLogsTab;
+
+  const updateScrollButtons = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) {
+      setCanScrollUp(false);
+      setCanScrollDown(false);
+      return;
+    }
+
+    const threshold = 2;
+    const isAtTop = el.scrollTop <= threshold;
+    const isAtBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - threshold;
+
+    setCanScrollUp(!isAtTop);
+    setCanScrollDown(!isAtBottom);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+
+    const handleScroll = () => updateScrollButtons();
+    updateScrollButtons();
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleScroll);
+
+    return () => {
+      el.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
+    };
+  }, [updateScrollButtons, myLogs.length, activeTab, showMyLogsTabSkeleton]);
+
+  const scrollToTop = useCallback(() => {
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, []);
 
   useEffect(() => {
     if (!canShowMyLogsTab && activeTab === "my_logs" && canViewTeamRates) {
@@ -624,7 +700,7 @@ function TimePage() {
   const deletingRate = deleteRateMutation.isPending;
 
   return (
-    <div className="h-full w-full overflow-y-auto p-8">
+    <div ref={scrollContainerRef} className="h-full w-full overflow-y-auto p-8">
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
           <Clock className="w-5 h-5 text-[#ff9933]" />
@@ -709,22 +785,87 @@ function TimePage() {
             </div>
           )}
           {activeTab === "my_logs" && canShowMyLogsTab && (
-            <div className="space-y-3">
-              <MyLogsGrid
-                logs={myLogs}
-                tasks={projectTasks}
-                ownRate={ownRate}
-                loadingLogs={loadingMyLogs}
-                loadingTasks={loadingProjectTasks}
-                timerNowMs={timerNowMs}
-                taskSavingById={taskSavingById}
-                rowActionLoadingById={rowActionLoadingById}
-                onTaskChange={handleTaskChange}
-                onStopLog={stopLog}
-                onDeleteLog={deleteLog}
-                onEditLog={beginEditLog}
-                onOpenAddLog={() => setIsAddLogModalOpen(true)}
-              />
+            <div className="grid grid-cols-1 xl:grid-cols-10 gap-4 items-start">
+              <div className="xl:col-span-7 min-w-0">
+                <MyLogsGrid
+                  logs={myLogs}
+                  tasks={projectTasks}
+                  ownRate={ownRate}
+                  loadingLogs={loadingMyLogs}
+                  loadingTasks={loadingProjectTasks}
+                  timerNowMs={timerNowMs}
+                  taskSavingById={taskSavingById}
+                  rowActionLoadingById={rowActionLoadingById}
+                  onTaskChange={handleTaskChange}
+                  onStopLog={stopLog}
+                  onDeleteLog={deleteLog}
+                  onEditLog={beginEditLog}
+                  onOpenAddLog={() => setIsAddLogModalOpen(true)}
+                />
+              </div>
+
+              <aside className="xl:col-span-3 xl:sticky xl:top-6">
+                <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                  <div className="border-b border-gray-200 px-4 py-3 bg-primary">
+                    <h3 className="text-sm font-semibold text-white">
+                      Project Member Time Rate
+                    </h3>
+                  </div>
+
+                  <div className="p-4 space-y-2 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-gray-500">Employee ID</span>
+                      <span className="font-semibold text-[#b35f00]">
+                        {ownRate?.custom_id || ownRate?.member_user_id || "-"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-gray-500">Start Date</span>
+                      <span className="text-right">{formatRateDate(ownRate?.start_date)}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-gray-500">End Date</span>
+                      <span className="text-right">{formatRateDate(ownRate?.end_date)}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-gray-500">Hourly Rate</span>
+                      <span className="font-semibold">
+                        {ownRate
+                          ? `${Number(ownRate.hourly_rate).toFixed(2)} ${ownRate.currency}`
+                          : "-"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-200 p-4">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs border border-gray-200">
+                        <thead>
+                          <tr className="bg-gray-50">
+                            <th className="px-2 py-1 text-left border-b border-gray-200">Work</th>
+                            <th className="px-2 py-1 text-left border-b border-gray-200">Training</th>
+                            <th className="px-2 py-1 text-left border-b border-gray-200">Paid</th>
+                            <th className="px-2 py-1 text-left border-b border-gray-200">Deductions</th>
+                            <th className="px-2 py-1 text-left border-b border-gray-200">Balance</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td className="px-2 py-1 font-semibold">{formattedTotalWork}</td>
+                            <td className="px-2 py-1">0.00</td>
+                            <td className="px-2 py-1">0.00</td>
+                            <td className="px-2 py-1">0.00</td>
+                            <td className="px-2 py-1 font-semibold">{formattedTotalWork}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="text-[11px] text-gray-500 mt-2">
+                      Total Hours: {totalHoursWorked.toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+              </aside>
             </div>
           )}
 
@@ -827,6 +968,35 @@ function TimePage() {
           editingRateId ? deleteEditedRate(editingRateId) : undefined
         }
       />
+
+      {(canScrollUp || canScrollDown) && (
+        <div className="fixed right-5 bottom-5 z-50 flex flex-col gap-1.5">
+          <div className="h-7 w-7">
+            {canScrollUp && (
+              <button
+                type="button"
+                onClick={scrollToTop}
+                aria-label="Scroll to top"
+                className="h-7 w-7 rounded-full bg-primary text-primary-foreground shadow-md hover:bg-primary/90 transition-colors flex items-center justify-center"
+              >
+                <ChevronUp className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          <div className="h-7 w-7">
+            {canScrollDown && (
+              <button
+                type="button"
+                onClick={scrollToBottom}
+                aria-label="Scroll to bottom"
+                className="h-7 w-7 rounded-full bg-primary text-primary-foreground shadow-md hover:bg-primary/90 transition-colors flex items-center justify-center"
+              >
+                <ChevronDown className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
