@@ -1,10 +1,10 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useAuthStore } from "@/stores/authStore";
-import { fetchProfile } from "@/queries/profile";
 import { PrimaryFlow } from "@/components/home/LeftSide";
 import { useEffect } from "react";
 import { useTutorial } from "@/contexts/TutorialContext";
 import { dashboardTutorial } from "@/tutorials/dashboardTutorial";
+import { useProfileQuery } from "@/hooks/useProfileQuery";
 
 export const Route = createFileRoute("/dashboard")({
   beforeLoad: () => {
@@ -17,22 +17,12 @@ export const Route = createFileRoute("/dashboard")({
       });
     }
   },
-  loader: async () => {
-    const { user, setProfile } = useAuthStore.getState();
-
-    if (!user) return null;
-
-    // Fetch profile and sync to store so the page has up-to-date data.
-    const profile = await fetchProfile(user.id);
-    if (profile) setProfile(profile);
-
-    return { user };
-  },
   component: DashboardPage,
 });
 
 function DashboardPage() {
   const { profile } = useAuthStore();
+  useProfileQuery();
   const { startTutorial, isActive } = useTutorial();
 
   // Auto-start tutorial on first visit

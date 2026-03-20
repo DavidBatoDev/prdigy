@@ -1,10 +1,11 @@
 ﻿import { Calendar, Clock } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { useState, useEffect, useCallback } from "react";
+import { useEffect } from "react";
 import { projectService, type Project } from "@/services/project.service";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore, useUser } from "@/stores/authStore";
 import { getFreelancerStage } from "@/lib/freelancer-stage";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const PROJECT_STATUS_CONFIG: Record<
   string,
@@ -46,8 +47,20 @@ export function ProjectsGrid() {
   const user = useUser();
   const { profile } = useAuthStore();
   const persona = profile?.active_persona || "client";
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const projectsQueryKey = ["dashboard", "projects", user?.id ?? "anonymous"];
+  const projectsQuery = useQuery({
+    queryKey: projectsQueryKey,
+    queryFn: () => projectService.listDashboardProjects(),
+    enabled: persona !== "freelancer" && Boolean(user?.id),
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    retry: 1,
+  });
+  const projects = (projectsQuery.data as Project[] | undefined) ?? [];
+  const isLoading = persona !== "freelancer" && projectsQuery.isPending;
 
   const matchItems = [
     {
@@ -82,26 +95,6 @@ export function ProjectsGrid() {
       (profile?.city || profile?.country ? 10 : 0),
   );
 
-  const fetchProjects = useCallback(async () => {
-    if (persona === "freelancer") {
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const data = await projectService.listDashboardProjects();
-      setProjects(data);
-    } catch {
-      setProjects([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchProjects();
-  }, [fetchProjects]);
-
   useEffect(() => {
     if (persona === "freelancer") return;
     if (!user?.id) return;
@@ -116,7 +109,9 @@ export function ProjectsGrid() {
           table: "projects",
           filter: `client_id=eq.${user.id}`,
         },
-        () => fetchProjects(),
+        () => {
+          void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
+        },
       )
       .on(
         "postgres_changes",
@@ -126,14 +121,16 @@ export function ProjectsGrid() {
           table: "projects",
           filter: `consultant_id=eq.${user.id}`,
         },
-        () => fetchProjects(),
+        () => {
+          void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
+        },
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, fetchProjects]);
+  }, [persona, queryClient, user?.id]);
 
   return (
     <div id="my-project-visions" data-tutorial="projects-grid" className="scroll-mt-6">

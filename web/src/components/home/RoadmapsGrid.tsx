@@ -1,19 +1,10 @@
 import { CheckCircle2, Loader, Inbox, Briefcase } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import { getRoadmapsPreview } from "@/api";
 import { useAuthStore } from "@/stores/authStore";
 import type { RoadmapPreview } from "@/api/endpoints/roadmap";
-
-interface Template {
-  id: string;
-  title: string;
-  category: string;
-  milestones: string;
-  budget: string;
-  tag: string;
-  preview: RoadmapPreview;
-}
+import { useQuery } from "@tanstack/react-query";
 
 const ROADMAP_TAG_CLASS: Record<string, string> = {
   Active: "bg-emerald-100 text-emerald-700",
@@ -90,47 +81,35 @@ export function RoadmapsGrid() {
   const { profile } = useAuthStore();
   const persona = profile?.active_persona || "client";
   const freelancerRoleLabel = profile?.headline?.trim() || "Freelancer Contributor";
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isUnavailable, setIsUnavailable] = useState(false);
-
-  useEffect(() => {
-    const fetchRoadmaps = async () => {
-      try {
-        setLoading(true);
-        setIsUnavailable(false);
-
-        const roadmaps = await getRoadmapsPreview();
-
-        const transformedTemplates: Template[] = roadmaps.map(
-          (roadmap: RoadmapPreview, index: number) => ({
-            id: roadmap.id,
-            title: roadmap.name,
-            category: roadmap.description || "Project Roadmap",
-            milestones: "View plan",
-            budget: "Custom",
-            tag:
-              index === 0
-                ? "Active"
-                : roadmap.status === "completed"
-                  ? "Completed"
-                  : "Draft",
-            preview: roadmap,
-          }),
-        );
-
-        setTemplates(transformedTemplates);
-      } catch (err) {
-        console.error("Error fetching roadmaps:", err);
-        setIsUnavailable(true);
-        setTemplates([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRoadmaps();
-  }, []);
+  const roadmapsQuery = useQuery({
+    queryKey: ["dashboard", "roadmaps-preview"],
+    queryFn: () => getRoadmapsPreview(),
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    retry: 1,
+  });
+  const loading = roadmapsQuery.isPending;
+  const isUnavailable = Boolean(roadmapsQuery.error);
+  const templates = useMemo(
+    () =>
+      (roadmapsQuery.data ?? []).map((roadmap: RoadmapPreview, index: number) => ({
+        id: roadmap.id,
+        title: roadmap.name,
+        category: roadmap.description || "Project Roadmap",
+        milestones: "View plan",
+        budget: "Custom",
+        tag:
+          index === 0
+            ? "Active"
+            : roadmap.status === "completed"
+              ? "Completed"
+              : "Draft",
+        preview: roadmap,
+      })),
+    [roadmapsQuery.data],
+  );
 
   return (
     <div id="my-roadmaps-section">

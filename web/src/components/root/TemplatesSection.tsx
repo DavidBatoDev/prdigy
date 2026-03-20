@@ -1,5 +1,5 @@
 import { CheckCircle2, DollarSign, Loader, Inbox } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useNavigate } from "@tanstack/react-router";
 import { getRoadmapsPreview } from "@/api";
@@ -8,21 +8,7 @@ import type { RoadmapPreview } from "@/api/endpoints/roadmap";
 import { useAuthStore } from "@/stores/authStore";
 import { roadmapService } from "@/services/roadmap.service";
 import { getOrCreateGuestUser } from "@/lib/guestAuth";
-
-interface Template {
-  id: string;
-  title: string;
-  category: string;
-  milestones: string;
-  budget: string;
-  tag: string;
-  preview: RoadmapPreview;
-  author?: {
-    name: string;
-    role: string;
-    avatar: string;
-  };
-}
+import { useQuery } from "@tanstack/react-query";
 
 const ProfessionalTemplateCardSkeleton = () => {
   return (
@@ -609,100 +595,85 @@ const mockProfessionalTemplates = [
 
 export const TemplatesSection = () => {
   const navigate = useNavigate();
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [professionalTemplates, setProfessionalTemplates] = useState<
-    Template[]
-  >([]);
-  const [professionalLoading, setProfessionalLoading] = useState(true);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [isCloningTemplateId, setIsCloningTemplateId] = useState<string | null>(
     null,
   );
   const { isAuthenticated } = useAuthStore();
 
-  useEffect(() => {
-    const fetchPublicTemplates = async () => {
-      try {
-        setProfessionalLoading(true);
-        const roadmaps = await roadmapService.getPublicTemplates();
+  const publicTemplatesQuery = useQuery({
+    queryKey: ["root", "public-templates"],
+    queryFn: () => roadmapService.getPublicTemplates(),
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    retry: 1,
+  });
 
-        const transformed: Template[] = roadmaps.map((roadmap) => ({
-          id: roadmap.id,
-          title: roadmap.name,
-          category: roadmap.description || "Consultant Template",
-          milestones: "Ready template",
-          budget: "Custom",
-          tag: "Template",
-          preview: roadmap as unknown as RoadmapPreview,
-          author: {
-            name: roadmap.owner?.display_name || "Consultant",
-            role: roadmap.owner?.headline || "Verified Consultant",
-            avatar:
-              roadmap.owner?.avatar_url ||
-              "https://i.pravatar.cc/150?u=consultant-template",
-          },
-        }));
+  const roadmapsPreviewQuery = useQuery({
+    queryKey: ["root", "roadmaps-preview", isAuthenticated ? "auth" : "guest"],
+    queryFn: () => getRoadmapsPreview(),
+    enabled: isAuthenticated,
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    retry: 1,
+  });
 
-        setProfessionalTemplates(transformed);
-      } catch (err) {
-        console.error("Error fetching public templates:", err);
-        setProfessionalTemplates([]);
-      } finally {
-        setProfessionalLoading(false);
-      }
-    };
+  const professionalLoading = publicTemplatesQuery.isPending;
+  const loading = isAuthenticated ? roadmapsPreviewQuery.isPending : false;
+  const error = isAuthenticated
+    ? roadmapsPreviewQuery.error instanceof Error
+      ? roadmapsPreviewQuery.error.message
+      : roadmapsPreviewQuery.error
+        ? "Failed to load roadmaps"
+        : null
+    : null;
 
-    fetchPublicTemplates();
-  }, []);
+  const professionalTemplates = useMemo(
+    () =>
+      (publicTemplatesQuery.data ?? []).map((roadmap) => ({
+        id: roadmap.id,
+        title: roadmap.name,
+        category: roadmap.description || "Consultant Template",
+        milestones: "Ready template",
+        budget: "Custom",
+        tag: "Template",
+        preview: roadmap as unknown as RoadmapPreview,
+        author: {
+          name: roadmap.owner?.display_name || "Consultant",
+          role: roadmap.owner?.headline || "Verified Consultant",
+          avatar:
+            roadmap.owner?.avatar_url ||
+            "https://i.pravatar.cc/150?u=consultant-template",
+        },
+      })),
+    [publicTemplatesQuery.data],
+  );
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setLoading(false);
-      setTemplates([]);
-      return;
-    }
-
-    const fetchRoadmaps = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        // Use centralized API from apiClient with automatic auth headers
-        const roadmaps = await getRoadmapsPreview();
-
-        // Transform roadmaps to template format
-        const transformedTemplates: Template[] = roadmaps.map(
-          (roadmap: RoadmapPreview, index: number) => ({
-            id: roadmap.id,
-            title: roadmap.name,
-            category: roadmap.description || "Project Roadmap",
-            milestones: "View plan",
-            budget: "Custom",
-            tag:
-              index === 0
-                ? "Active"
-                : roadmap.status === "completed"
-                  ? "Completed"
-                  : "Draft",
-            preview: roadmap,
-          }),
-        );
-
-        setTemplates(transformedTemplates);
-      } catch (err) {
-        console.error("Error fetching roadmaps:", err);
-        setError(
-          err instanceof Error ? err.message : "Failed to load roadmaps",
-        );
-        setTemplates([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRoadmaps();
-  }, [isAuthenticated]);
+  const templates = useMemo(
+    () =>
+      isAuthenticated
+        ? (roadmapsPreviewQuery.data ?? []).map(
+            (roadmap: RoadmapPreview, index: number) => ({
+              id: roadmap.id,
+              title: roadmap.name,
+              category: roadmap.description || "Project Roadmap",
+              milestones: "View plan",
+              budget: "Custom",
+              tag:
+                index === 0
+                  ? "Active"
+                  : roadmap.status === "completed"
+                    ? "Completed"
+                    : "Draft",
+              preview: roadmap,
+            }),
+          )
+        : [],
+    [isAuthenticated, roadmapsPreviewQuery.data],
+  );
 
   const handleUseTemplate = async (templateId: string) => {
     try {

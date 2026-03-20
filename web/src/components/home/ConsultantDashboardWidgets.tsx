@@ -5,10 +5,11 @@ import {
   FolderOpen,
   ShieldCheck,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { getRoadmapFull, getRoadmaps } from "@/api";
 import { projectService, type Project } from "@/services/project.service";
 import { useAuthStore } from "@/stores/authStore";
+import { useQuery } from "@tanstack/react-query";
 
 type ActionItem = {
   id: string;
@@ -137,144 +138,114 @@ export function ConsultantDashboardWidgets({
   const { profile } = useAuthStore();
   const persona = profile?.active_persona || "client";
   const isFreelancer = persona === "freelancer";
+  const projectsQuery = useQuery({
+    queryKey: ["dashboard", "projects", "widgets"],
+    queryFn: () => projectService.listDashboardProjects(),
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    retry: 1,
+  });
+  const timelineQuery = useQuery({
+    queryKey: ["dashboard", "timeline-roadmaps"],
+    queryFn: async () => {
+      const roadmaps = await getRoadmaps();
+      const roadmapDetails = await Promise.all(
+        roadmaps.map(async (roadmap) => {
+          try {
+            return await getRoadmapFull(roadmap.id);
+          } catch {
+            return null;
+          }
+        }),
+      );
+      return roadmapDetails.filter(
+        (roadmap): roadmap is NonNullable<typeof roadmap> => Boolean(roadmap),
+      );
+    },
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    retry: 1,
+  });
+  const projects = (projectsQuery.data as Project[] | undefined) ?? [];
+  const isProjectsLoading = projectsQuery.isPending;
+  const isMilestonesLoading = timelineQuery.isPending;
 
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [upcomingMilestones, setUpcomingMilestones] = useState<TimelineItem[]>([]);
-  const [upcomingDeadlines, setUpcomingDeadlines] = useState<TimelineItem[]>([]);
-  const [hoursLogged, setHoursLogged] = useState(0);
-  const [isProjectsLoading, setIsProjectsLoading] = useState(true);
-  const [isMilestonesLoading, setIsMilestonesLoading] = useState(true);
+  const { upcomingMilestones, upcomingDeadlines, hoursLogged } = useMemo(() => {
+    const validRoadmaps = timelineQuery.data ?? [];
+    const today = startOfToday().getTime();
 
-  useEffect(() => {
-    let isMounted = true;
+    const milestones = validRoadmaps
+      .flatMap((roadmap: any) =>
+        (roadmap.milestones || []).map((milestone: any) => ({
+          id: milestone.id,
+          title: milestone.title,
+          roadmapName: roadmap.name,
+          targetDate: milestone.target_date,
+        })),
+      )
+      .filter((item: TimelineItem) => {
+        if (!item.targetDate) return false;
+        const parsed = new Date(item.targetDate).getTime();
+        return Number.isFinite(parsed) && parsed >= today;
+      })
+      .sort(
+        (a: TimelineItem, b: TimelineItem) =>
+          new Date(a.targetDate).getTime() - new Date(b.targetDate).getTime(),
+      )
+      .slice(0, 6);
 
-    const fetchProjects = async () => {
-      try {
-        const data = await projectService.listDashboardProjects();
-        if (!isMounted) return;
-        setProjects(data);
-      } catch {
-        if (!isMounted) return;
-        setProjects([]);
-      } finally {
-        if (!isMounted) return;
-        setIsProjectsLoading(false);
-      }
-    };
-
-    fetchProjects();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchTimeline = async () => {
-      try {
-        const roadmaps = await getRoadmaps();
-        const roadmapDetails = await Promise.all(
-          roadmaps.map(async (roadmap) => {
-            try {
-              return await getRoadmapFull(roadmap.id);
-            } catch {
-              return null;
-            }
-          }),
-        );
-
-        const validRoadmaps = roadmapDetails.filter(
-          (roadmap): roadmap is NonNullable<typeof roadmap> => Boolean(roadmap),
-        );
-
-        const today = startOfToday().getTime();
-
-        const milestones = validRoadmaps
-          .flatMap((roadmap) =>
-            (roadmap.milestones || []).map((milestone) => ({
-              id: milestone.id,
-              title: milestone.title,
+    const deadlines = validRoadmaps
+      .flatMap((roadmap: any) =>
+        (roadmap.epics || []).flatMap((epic: any) =>
+          (epic.features || []).flatMap((feature: any) =>
+            (feature.tasks || []).map((task: any) => ({
+              id: task.id,
+              title: task.title || "Task",
               roadmapName: roadmap.name,
-              targetDate: milestone.target_date,
+              targetDate: task.due_date,
             })),
-          )
-          .filter((item) => {
-            if (!item.targetDate) return false;
-            const parsed = new Date(item.targetDate).getTime();
-            return Number.isFinite(parsed) && parsed >= today;
-          })
-          .sort(
-            (a, b) =>
-              new Date(a.targetDate).getTime() - new Date(b.targetDate).getTime(),
-          )
-          .slice(0, 6);
+          ),
+        ),
+      )
+      .filter((item: TimelineItem) => {
+        if (!item.targetDate) return false;
+        const parsed = new Date(item.targetDate).getTime();
+        return Number.isFinite(parsed) && parsed >= today;
+      })
+      .sort(
+        (a: TimelineItem, b: TimelineItem) =>
+          new Date(a.targetDate).getTime() - new Date(b.targetDate).getTime(),
+      )
+      .slice(0, 6);
 
-        const deadlines = validRoadmaps
-          .flatMap((roadmap: any) =>
-            (roadmap.epics || []).flatMap((epic: any) =>
-              (epic.features || []).flatMap((feature: any) =>
-                (feature.tasks || []).map((task: any) => ({
-                  id: task.id,
-                  title: task.title || "Task",
-                  roadmapName: roadmap.name,
-                  targetDate: task.due_date,
-                })),
-              ),
-            ),
-          )
-          .filter((item) => {
-            if (!item.targetDate) return false;
-            const parsed = new Date(item.targetDate).getTime();
-            return Number.isFinite(parsed) && parsed >= today;
-          })
-          .sort(
-            (a, b) =>
-              new Date(a.targetDate).getTime() - new Date(b.targetDate).getTime(),
-          )
-          .slice(0, 6);
-
-        const totalHours = validRoadmaps.reduce((sum: number, roadmap: any) => {
-          const epicsTotal = (roadmap.epics || []).reduce(
-            (epicSum: number, epic: any) => epicSum + Number(epic.actual_hours || 0),
+    const totalHours = validRoadmaps.reduce((sum: number, roadmap: any) => {
+      const epicsTotal = (roadmap.epics || []).reduce(
+        (epicSum: number, epic: any) => epicSum + Number(epic.actual_hours || 0),
+        0,
+      );
+      const featuresTotal = (roadmap.epics || []).reduce(
+        (epicSum: number, epic: any) =>
+          epicSum +
+          (epic.features || []).reduce(
+            (featureSum: number, feature: any) =>
+              featureSum + Number(feature.actual_hours || 0),
             0,
-          );
-          const featuresTotal = (roadmap.epics || []).reduce(
-            (epicSum: number, epic: any) =>
-              epicSum +
-              (epic.features || []).reduce(
-                (featureSum: number, feature: any) =>
-                  featureSum + Number(feature.actual_hours || 0),
-                0,
-              ),
-            0,
-          );
+          ),
+        0,
+      );
+      return sum + epicsTotal + featuresTotal;
+    }, 0);
 
-          return sum + epicsTotal + featuresTotal;
-        }, 0);
-
-        if (!isMounted) return;
-        setUpcomingMilestones(milestones);
-        setUpcomingDeadlines(deadlines);
-        setHoursLogged(totalHours);
-      } catch {
-        if (!isMounted) return;
-        setUpcomingMilestones([]);
-        setUpcomingDeadlines([]);
-        setHoursLogged(0);
-      } finally {
-        if (!isMounted) return;
-        setIsMilestonesLoading(false);
-      }
+    return {
+      upcomingMilestones: milestones,
+      upcomingDeadlines: deadlines,
+      hoursLogged: totalHours,
     };
-
-    fetchTimeline();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  }, [timelineQuery.data]);
 
   const projectActiveCount = useMemo(
     () =>
