@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Plus, Edit2, ChevronDown, ChevronUp, Calendar, X } from "lucide-react";
 import type {
   EpicPriority,
@@ -15,6 +15,7 @@ import { CommentsSection } from "../shared/CommentsSection";
 import { commentsService } from "@/services/roadmap.service";
 import type { Label } from "@/types/label";
 import { LABEL_COLORS } from "@/types/label";
+import { UnsavedChangesConfirmModal } from "../shared/UnsavedChangesConfirmModal";
 
 interface EpicModalProps {
   isOpen: boolean;
@@ -50,6 +51,21 @@ interface EpicModalProps {
   isLoading?: boolean;
 }
 
+const resolveInitialLabels = (initialData?: EpicModalProps["initialData"]) => {
+  if (initialData?.labels) return initialData.labels;
+  if (initialData?.tags) {
+    return initialData.tags.map((tag, idx) => ({
+      id: `label-${idx}`,
+      name: tag,
+      color: LABEL_COLORS[idx % LABEL_COLORS.length],
+    }));
+  }
+  return [];
+};
+
+const labelsSignature = (items: Label[]) =>
+  items.map((item) => `${item.name}|${item.color ?? ""}`).join("||");
+
 export const EpicModal = ({
   isOpen,
   onClose,
@@ -78,45 +94,57 @@ export const EpicModal = ({
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showReadMore, setShowReadMore] = useState(false);
+  const [showUnsavedChangesConfirm, setShowUnsavedChangesConfirm] =
+    useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
   const descriptionRef = useRef<HTMLDivElement>(null);
+  const initialSnapshotRef = useRef<{
+    title: string;
+    description: string;
+    priority: EpicPriority;
+    labels: Label[];
+    startDate: string;
+    endDate: string;
+  } | null>(null);
 
   const epicId = initialData?.id;
 
   useEffect(() => {
     if (isOpen) {
-      setTitle(initialData?.title ?? "");
-      setDescription(initialData?.description ?? "");
-      setPriority(initialData?.priority ?? "medium");
-      const initialStartDate = initialData?.start_date?.slice(0, 10) ?? "";
-      const initialEndDate = initialData?.end_date?.slice(0, 10) ?? "";
-      setStartDate(initialStartDate);
-      setEndDate(initialEndDate);
-      setDraftStartDate(initialStartDate);
-      setDraftEndDate(initialEndDate);
-      setIsDateMenuOpen(false);
+      const nextInitialValues = {
+        title: initialData?.title ?? "",
+        description: initialData?.description ?? "",
+        priority: initialData?.priority ?? "medium",
+        labels: resolveInitialLabels(initialData),
+        startDate: initialData?.start_date?.slice(0, 10) ?? "",
+        endDate: initialData?.end_date?.slice(0, 10) ?? "",
+      };
+      initialSnapshotRef.current = nextInitialValues;
 
-      // Use labels if available, otherwise convert tags for backward compatibility
-      if (initialData?.labels) {
-        setLabels(initialData.labels);
-      } else if (initialData?.tags) {
-        // Convert legacy tags to labels
-        const existingLabels: Label[] = initialData.tags.map((tag, idx) => ({
-          id: `label-${idx}`,
-          name: tag,
-          color: LABEL_COLORS[idx % LABEL_COLORS.length],
-        }));
-        setLabels(existingLabels);
-      } else {
-        setLabels([]);
-      }
+      setTitle(nextInitialValues.title);
+      setDescription(nextInitialValues.description);
+      setPriority(nextInitialValues.priority);
+      setStartDate(nextInitialValues.startDate);
+      setEndDate(nextInitialValues.endDate);
+      setDraftStartDate(nextInitialValues.startDate);
+      setDraftEndDate(nextInitialValues.endDate);
+      setIsDateMenuOpen(false);
+      setShowUnsavedChangesConfirm(false);
+
+      setLabels(nextInitialValues.labels);
 
       // Reset description editing state when modal opens
       setIsEditingDescription(false);
       setIsExpanded(false);
     }
   }, [isOpen, initialData?.id]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setShowUnsavedChangesConfirm(false);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     // Check if content needs "Show more" button after render
@@ -185,9 +213,7 @@ export const EpicModal = ({
     setComments((prev) => prev.filter((comment) => comment.id !== commentId));
   };
 
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-
+  const submitCurrentValues = () => {
     // Submit both labels and tags for backward compatibility
     const tags = labels.map((label) => label.name);
 
@@ -200,6 +226,46 @@ export const EpicModal = ({
       start_date: startDate || undefined,
       end_date: endDate || undefined,
     });
+  };
+
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    submitCurrentValues();
+  };
+
+  const hasUnsavedChanges = useMemo(() => {
+    const snapshot = initialSnapshotRef.current;
+    if (!snapshot) return false;
+
+    return (
+      title !== snapshot.title ||
+      description !== snapshot.description ||
+      priority !== snapshot.priority ||
+      startDate !== snapshot.startDate ||
+      endDate !== snapshot.endDate ||
+      labelsSignature(labels) !== labelsSignature(snapshot.labels)
+    );
+  }, [description, endDate, labels, priority, startDate, title]);
+
+  const handleRequestClose = () => {
+    if (isLoading) return;
+    if (hasUnsavedChanges) {
+      setShowUnsavedChangesConfirm(true);
+      return;
+    }
+    onClose();
+  };
+
+  const handleDiscardChanges = () => {
+    setShowUnsavedChangesConfirm(false);
+    onClose();
+  };
+
+  const handleSaveBeforeClose = () => {
+    if (isLoading || !title.trim()) return;
+    setShowUnsavedChangesConfirm(false);
+    submitCurrentValues();
+    onClose();
   };
 
   const hasDates = Boolean(startDate || endDate);
@@ -624,21 +690,32 @@ export const EpicModal = ({
   ) : null;
 
   return (
-    <RoadmapModalLayout
-      isOpen={isOpen}
-      onClose={onClose}
-      title={title}
-      onTitleChange={setTitle}
-      titlePlaceholder="Title"
-      onSubmit={handleSubmit}
-      actionButtons={dateActionButton}
-      showDefaultDatesAction={false}
-      body={body}
-      footer={footer}
-      canComment={Boolean(user)}
-      rightPanelTabs={rightPanelTabs}
-      defaultRightPanelTabId="features"
-      autoFocusTitle={true}
-    />
+    <>
+      <RoadmapModalLayout
+        isOpen={isOpen}
+        onClose={handleRequestClose}
+        title={title}
+        onTitleChange={setTitle}
+        titlePlaceholder="Title"
+        onSubmit={handleSubmit}
+        actionButtons={dateActionButton}
+        showDefaultDatesAction={false}
+        body={body}
+        footer={footer}
+        canComment={Boolean(user)}
+        rightPanelTabs={rightPanelTabs}
+        defaultRightPanelTabId="features"
+        autoFocusTitle={true}
+      />
+      <UnsavedChangesConfirmModal
+        isOpen={isOpen && showUnsavedChangesConfirm}
+        isSaving={isLoading}
+        isSaveDisabled={!title.trim()}
+        entityLabel="epic"
+        onCancel={() => setShowUnsavedChangesConfirm(false)}
+        onDiscard={handleDiscardChanges}
+        onSave={handleSaveBeforeClose}
+      />
+    </>
   );
 };

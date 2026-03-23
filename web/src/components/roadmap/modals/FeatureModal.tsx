@@ -12,6 +12,7 @@ import { RichTextEditor } from "@/components/common/RichTextEditor";
 import { TaskListItem } from "../widgets/TaskListItem";
 import { CommentsSection } from "../shared/CommentsSection";
 import { commentsService } from "@/services/roadmap.service";
+import { UnsavedChangesConfirmModal } from "../shared/UnsavedChangesConfirmModal";
 import {
   calculateFeatureProgressFromTasks,
   getCompletedTaskCount,
@@ -66,28 +67,53 @@ export const FeatureModal = ({
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showReadMore, setShowReadMore] = useState(false);
+  const [showUnsavedChangesConfirm, setShowUnsavedChangesConfirm] =
+    useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
   const descriptionRef = useRef<HTMLDivElement>(null);
+  const initialSnapshotRef = useRef<{
+    title: string;
+    description: string;
+    status: FeatureStatus;
+    isDeliverable: boolean;
+    startDate: string;
+    endDate: string;
+  } | null>(null);
 
   // Populate form from initialData when modal opens
   useEffect(() => {
     if (isOpen) {
-      setTitle(initialData?.title ?? "");
-      setDescription(initialData?.description ?? "");
-      setStatus(initialData?.status ?? "not_started");
-      setIsDeliverable(initialData?.is_deliverable ?? false);
-      const initialStartDate = initialData?.start_date?.slice(0, 10) ?? "";
-      const initialEndDate = initialData?.end_date?.slice(0, 10) ?? "";
-      setStartDate(initialStartDate);
-      setEndDate(initialEndDate);
-      setDraftStartDate(initialStartDate);
-      setDraftEndDate(initialEndDate);
+      const nextInitialValues = {
+        title: initialData?.title ?? "",
+        description: initialData?.description ?? "",
+        status: initialData?.status ?? "not_started",
+        isDeliverable: initialData?.is_deliverable ?? false,
+        startDate: initialData?.start_date?.slice(0, 10) ?? "",
+        endDate: initialData?.end_date?.slice(0, 10) ?? "",
+      };
+      initialSnapshotRef.current = nextInitialValues;
+
+      setTitle(nextInitialValues.title);
+      setDescription(nextInitialValues.description);
+      setStatus(nextInitialValues.status);
+      setIsDeliverable(nextInitialValues.isDeliverable);
+      setStartDate(nextInitialValues.startDate);
+      setEndDate(nextInitialValues.endDate);
+      setDraftStartDate(nextInitialValues.startDate);
+      setDraftEndDate(nextInitialValues.endDate);
       setIsDateMenuOpen(false);
       setIsEditingDescription(false);
       setIsExpanded(false);
+      setShowUnsavedChangesConfirm(false);
     }
   }, [isOpen, initialData?.id]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setShowUnsavedChangesConfirm(false);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     // Check if content needs "Show more" button after render
@@ -105,9 +131,7 @@ export const FeatureModal = ({
     return () => clearTimeout(timer);
   }, [description, isEditingDescription, isOpen]);
 
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-
+  const submitCurrentValues = () => {
     onSubmit({
       title,
       description,
@@ -124,6 +148,46 @@ export const FeatureModal = ({
       setStatus("not_started");
       setIsDeliverable(false);
     }
+  };
+
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    submitCurrentValues();
+  };
+
+  const hasUnsavedChanges = useMemo(() => {
+    const snapshot = initialSnapshotRef.current;
+    if (!snapshot) return false;
+
+    return (
+      title !== snapshot.title ||
+      description !== snapshot.description ||
+      status !== snapshot.status ||
+      isDeliverable !== snapshot.isDeliverable ||
+      startDate !== snapshot.startDate ||
+      endDate !== snapshot.endDate
+    );
+  }, [description, endDate, isDeliverable, startDate, status, title]);
+
+  const handleRequestClose = () => {
+    if (isLoading) return;
+    if (hasUnsavedChanges) {
+      setShowUnsavedChangesConfirm(true);
+      return;
+    }
+    onClose();
+  };
+
+  const handleDiscardChanges = () => {
+    setShowUnsavedChangesConfirm(false);
+    onClose();
+  };
+
+  const handleSaveBeforeClose = () => {
+    if (isLoading || !title.trim()) return;
+    setShowUnsavedChangesConfirm(false);
+    submitCurrentValues();
+    onClose();
   };
 
   const hasDates = Boolean(startDate || endDate);
@@ -622,20 +686,31 @@ export const FeatureModal = ({
   ) : null;
 
   return (
-    <RoadmapModalLayout
-      isOpen={isOpen}
-      onClose={onClose}
-      title={title}
-      onTitleChange={setTitle}
-      titlePlaceholder="Feature title"
-      onSubmit={handleSubmit}
-      actionButtons={dateActionButton}
-      showDefaultDatesAction={false}
-      body={body}
-      footer={footer}
-      canComment={Boolean(user)}
-      rightPanelTabs={rightPanelTabs}
-      defaultRightPanelTabId="tasks"
-    />
+    <>
+      <RoadmapModalLayout
+        isOpen={isOpen}
+        onClose={handleRequestClose}
+        title={title}
+        onTitleChange={setTitle}
+        titlePlaceholder="Feature title"
+        onSubmit={handleSubmit}
+        actionButtons={dateActionButton}
+        showDefaultDatesAction={false}
+        body={body}
+        footer={footer}
+        canComment={Boolean(user)}
+        rightPanelTabs={rightPanelTabs}
+        defaultRightPanelTabId="tasks"
+      />
+      <UnsavedChangesConfirmModal
+        isOpen={isOpen && showUnsavedChangesConfirm}
+        isSaving={isLoading}
+        isSaveDisabled={!title.trim()}
+        entityLabel="feature"
+        onCancel={() => setShowUnsavedChangesConfirm(false)}
+        onDiscard={handleDiscardChanges}
+        onSave={handleSaveBeforeClose}
+      />
+    </>
   );
 };

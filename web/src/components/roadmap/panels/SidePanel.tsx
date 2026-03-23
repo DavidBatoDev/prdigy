@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   X,
@@ -24,6 +24,7 @@ import {
   type TaskTimeLog,
 } from "@/services/project-time.service";
 import { CommentsSection } from "../shared/CommentsSection";
+import { UnsavedChangesConfirmModal } from "../shared/UnsavedChangesConfirmModal";
 import { Button } from "@/ui/button";
 import { useUser } from "@/stores/authStore";
 
@@ -41,6 +42,40 @@ interface SidePanelProps {
 }
 
 type TabType = "details" | "comments";
+
+type TaskDraftSnapshot = {
+  title: string;
+  status: RoadmapTask["status"];
+  priority: RoadmapTask["priority"];
+  assigneeId?: string;
+  dueDate: string;
+};
+
+const TASK_CREATE_DEFAULTS: TaskDraftSnapshot = {
+  title: "",
+  status: "todo",
+  priority: "medium",
+  assigneeId: undefined,
+  dueDate: "",
+};
+
+const buildTaskDraftSnapshot = (taskData: Partial<RoadmapTask>): TaskDraftSnapshot => ({
+  title: taskData.title ?? "",
+  status: (taskData.status as RoadmapTask["status"]) ?? "todo",
+  priority: (taskData.priority as RoadmapTask["priority"]) ?? "medium",
+  assigneeId: taskData.assignee_id ?? taskData.assignee?.id,
+  dueDate: toDateInputValue(taskData.due_date),
+});
+
+const isSameTaskDraftSnapshot = (
+  left: TaskDraftSnapshot,
+  right: TaskDraftSnapshot,
+) =>
+  left.title === right.title &&
+  left.status === right.status &&
+  left.priority === right.priority &&
+  left.assigneeId === right.assigneeId &&
+  left.dueDate === right.dueDate;
 
 const toDateInputValue = (value?: string) => {
   if (!value) return "";
@@ -142,22 +177,31 @@ export const SidePanel = ({
   const [editStartedAt, setEditStartedAt] = useState("");
   const [editEndedAt, setEditEndedAt] = useState("");
   const [timerNow, setTimerNow] = useState(Date.now());
+  const [showUnsavedChangesConfirm, setShowUnsavedChangesConfirm] =
+    useState(false);
+  const createSnapshotRef = useRef<TaskDraftSnapshot>({
+    ...TASK_CREATE_DEFAULTS,
+  });
+  const editSnapshotRef = useRef<TaskDraftSnapshot | null>(null);
 
   const isCreateMode = isCreating || (!!isOpen && !task);
 
   // Initialize state when task or isCreating changes
   useEffect(() => {
     if (isCreateMode) {
+      createSnapshotRef.current = { ...TASK_CREATE_DEFAULTS };
       setNewTaskData({
         title: "",
         status: "todo",
         priority: "medium",
       });
     } else if (task) {
-      setEditedTask({
+      const normalizedTask = {
         ...task,
         due_date: toDateInputValue(task.due_date) || undefined,
-      });
+      };
+      editSnapshotRef.current = buildTaskDraftSnapshot(normalizedTask);
+      setEditedTask(normalizedTask);
     }
   }, [isCreateMode, task]);
 
@@ -171,8 +215,25 @@ export const SidePanel = ({
       setIsLoadingTimeLogs(false);
       setTimeError(null);
       setEditingLogId(null);
+      setShowUnsavedChangesConfirm(false);
     }
   }, [isOpen]);
+
+  const hasUnsavedChanges = useMemo(() => {
+    if (isCreateMode) {
+      return !isSameTaskDraftSnapshot(
+        buildTaskDraftSnapshot(newTaskData),
+        createSnapshotRef.current,
+      );
+    }
+
+    if (!editedTask || !editSnapshotRef.current) return false;
+
+    return !isSameTaskDraftSnapshot(
+      buildTaskDraftSnapshot(editedTask),
+      editSnapshotRef.current,
+    );
+  }, [editedTask, isCreateMode, newTaskData]);
 
   useEffect(() => {
     if (!isOpen || isCreateMode || activeTab !== "comments" || !task?.id)
@@ -415,6 +476,66 @@ export const SidePanel = ({
     }
   };
 
+  const handleSave = () => {
+    if (isLoading) return false;
+
+    if (isCreateMode) {
+      // Validate title is required
+      if (!newTaskData.title?.trim()) {
+        alert("Task title is required");
+        return false;
+      }
+      if (onCreateTask) {
+        void Promise.resolve(onCreateTask(newTaskData)).catch(() => undefined);
+      }
+      onClose();
+      return true;
+    } else {
+      // Edit mode
+      if (editedTask) {
+        if (!editedTask.title?.trim()) {
+          alert("Task title is required");
+          return false;
+        }
+        void Promise.resolve(onUpdateTask(editedTask)).catch(() => undefined);
+        onClose();
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const closeImmediately = () => {
+    if (isLoading) return;
+
+    if (isCreateMode) {
+      setNewTaskData({
+        title: "",
+        status: "todo",
+        priority: "medium",
+      });
+    }
+    setShowUnsavedChangesConfirm(false);
+    onClose();
+  };
+
+  const handleRequestClose = () => {
+    if (isLoading) return;
+    if (hasUnsavedChanges) {
+      setShowUnsavedChangesConfirm(true);
+      return;
+    }
+    closeImmediately();
+  };
+
+  const handleSaveBeforeClose = () => {
+    if (isLoading) return;
+    const didSave = handleSave();
+    if (didSave) {
+      setShowUnsavedChangesConfirm(false);
+    }
+  };
+
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -422,7 +543,7 @@ export const SidePanel = ({
 
       // Esc to close
       if (e.key === "Escape" && !isLoading) {
-        handleCancel();
+        handleRequestClose();
       }
 
       // Ctrl+Enter to save
@@ -434,49 +555,12 @@ export const SidePanel = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, isCreateMode, newTaskData, editedTask, isLoading]);
+  }, [handleRequestClose, handleSave, isLoading, isOpen]);
 
-  const handleSave = () => {
-    if (isLoading) return;
-
-    if (isCreateMode) {
-      // Validate title is required
-      if (!newTaskData.title?.trim()) {
-        alert("Task title is required");
-        return;
-      }
-      if (onCreateTask) {
-        void Promise.resolve(onCreateTask(newTaskData)).catch(() => undefined);
-      }
-      onClose();
-    } else {
-      // Edit mode
-      if (editedTask) {
-        if (!editedTask.title?.trim()) {
-          alert("Task title is required");
-          return;
-        }
-        void Promise.resolve(onUpdateTask(editedTask)).catch(() => undefined);
-        onClose();
-      }
-    }
-  };
-
-  const handleCancel = () => {
-    if (isLoading) return;
-
-    if (isCreateMode) {
-      setNewTaskData({
-        title: "",
-        status: "todo",
-        priority: "medium",
-      });
-    }
-    onClose();
-  };
-
-  return createPortal(
-    <AnimatePresence>
+  return (
+    <>
+      {createPortal(
+        <AnimatePresence>
       {isOpen && (
         <motion.div
           key="sidepanel-backdrop"
@@ -484,7 +568,7 @@ export const SidePanel = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2, ease: "easeInOut" }}
-          onClick={handleCancel}
+          onClick={handleRequestClose}
           className="fixed inset-0 z-120 bg-black/15 cursor-default"
         />
       )}
@@ -503,7 +587,7 @@ export const SidePanel = ({
               {isCreateMode ? "Create Task" : "Edit Task"}
             </h2>
             <button
-              onClick={handleCancel}
+              onClick={handleRequestClose}
               disabled={isLoading}
               className="p-2 hover:bg-gray-100 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Close panel (Esc)"
@@ -970,7 +1054,7 @@ export const SidePanel = ({
                   {isLoading ? "Creating..." : "Create Task"}
                 </Button>
                 <Button
-                  onClick={handleCancel}
+                  onClick={handleRequestClose}
                   variant="outlined"
                   colorScheme="secondary"
                   size="md"
@@ -1013,12 +1097,28 @@ export const SidePanel = ({
               )
             )}
             <p className="text-xs text-gray-500 mt-2 text-center">
-              Press Esc to close • Ctrl+Enter to save
+              Press Esc to close | Ctrl+Enter to save
             </p>
           </div>
         </motion.div>
       )}
-    </AnimatePresence>,
-    document.body,
+        </AnimatePresence>,
+        document.body,
+      )}
+      <UnsavedChangesConfirmModal
+        isOpen={isOpen && showUnsavedChangesConfirm}
+        isSaving={isLoading}
+        isSaveDisabled={
+          !(
+            (isCreateMode ? newTaskData.title : editedTask?.title)?.trim() ??
+            ""
+          )
+        }
+        entityLabel="task"
+        onCancel={() => setShowUnsavedChangesConfirm(false)}
+        onDiscard={closeImmediately}
+        onSave={handleSaveBeforeClose}
+      />
+    </>
   );
 };
