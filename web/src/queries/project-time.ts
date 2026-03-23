@@ -10,6 +10,24 @@ export const projectTimeKeys = {
     ["project-time", "my-logs", projectId, actorKey, page, limit] as const,
   myRate: (projectId: string, actorKey: string) =>
     ["project-time", "my-rate", projectId, actorKey] as const,
+  teamLogs: (
+    projectId: string,
+    actorKey: string,
+    memberUserId: string,
+    page: number,
+    limit: number,
+    scope: "team" | "approvals" = "team",
+  ) =>
+    [
+      "project-time",
+      "team-logs",
+      scope,
+      projectId,
+      actorKey,
+      memberUserId,
+      page,
+      limit,
+    ] as const,
   tasks: (projectId: string, actorKey: string) =>
     ["project-time", "tasks", projectId, actorKey] as const,
   rates: (projectId: string, actorKey: string) =>
@@ -25,7 +43,9 @@ export function getErrorMessage(error: unknown, fallback: string): string {
 
 export function isForbiddenError(error: unknown): boolean {
   const maybeAxiosError = error as AxiosError | undefined;
-  return maybeAxiosError?.response?.status === 403;
+  if (maybeAxiosError?.response?.status === 403) return true;
+  const maybeError = error as { status?: number } | undefined;
+  return maybeError?.status === 403;
 }
 
 export function isRateRequiredError(error: unknown): boolean {

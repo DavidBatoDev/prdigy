@@ -29,6 +29,7 @@ interface TeamRatesSectionProps {
   rates: ProjectMemberTimeRate[];
   loadingRates: boolean;
   canManageRates: boolean;
+  onViewLogs: (rate: ProjectMemberTimeRate) => void;
   onOpenAddRate: () => void;
   onOpenEditRate: (rate: ProjectMemberTimeRate) => void;
 }
@@ -37,6 +38,7 @@ export function TeamRatesSection({
   rates,
   loadingRates,
   canManageRates,
+  onViewLogs,
   onOpenAddRate,
   onOpenEditRate,
 }: TeamRatesSectionProps) {
@@ -144,13 +146,23 @@ export function TeamRatesSection({
                           {formatRateDate(rate.end_date)}
                         </span>
                       </div>
+                      <div className="mt-1 flex items-center justify-between gap-2 text-[11px]">
+                        <span className="font-semibold text-gray-500">Hourly Rate</span>
+                        <span className="font-semibold text-[#b35f00] text-right">
+                          {Number(rate.hourly_rate).toFixed(2)} {rate.currency}
+                        </span>
+                      </div>
                     </div>
 
                     <div className="mt-auto pt-3 border-t border-gray-100">
                       <div className="flex items-center justify-center gap-2">
-                        <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-800">
-                          {Number(rate.hourly_rate).toFixed(2)} {rate.currency}
-                        </span>
+                        <button
+                          type="button"
+                          onClick={() => onViewLogs(rate)}
+                          className="px-2.5 py-1 text-xs font-semibold rounded-md border border-[#ff9933]/30 bg-[#ff9933]/10 text-[#b35f00] hover:bg-[#ff9933]/20"
+                        >
+                          View Logs
+                        </button>
                         {canManageRates && (
                           <button
                             type="button"

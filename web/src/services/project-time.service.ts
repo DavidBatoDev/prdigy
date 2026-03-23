@@ -84,7 +84,10 @@ type ApiResponse<T> = {
 
 function extractError(error: unknown, fallback: string): Error {
   const maybeAxios = error as {
-    response?: { data?: { error?: { message?: string }; message?: string } };
+    response?: {
+      status?: number;
+      data?: { error?: { message?: string }; message?: string };
+    };
     message?: string;
   };
   const message =
@@ -92,7 +95,13 @@ function extractError(error: unknown, fallback: string): Error {
     maybeAxios?.response?.data?.message ||
     maybeAxios?.message ||
     fallback;
-  return new Error(message);
+  const wrappedError = new Error(message) as Error & {
+    status?: number;
+    cause?: unknown;
+  };
+  wrappedError.status = maybeAxios?.response?.status;
+  wrappedError.cause = error;
+  return wrappedError;
 }
 
 export const projectTimeService = {
@@ -153,7 +162,7 @@ export const projectTimeService = {
 
   async review(
     logId: string,
-    decision: "approved" | "rejected",
+    decision: "approved" | "rejected" | "pending",
     reason?: string,
   ): Promise<TaskTimeLog> {
     try {
@@ -167,6 +176,26 @@ export const projectTimeService = {
       return response.data.data;
     } catch (error) {
       throw extractError(error, "Failed to review time log");
+    }
+  },
+
+  async reviewBulk(
+    logIds: string[],
+    decision: "approved" | "rejected" | "pending",
+    reason?: string,
+  ): Promise<TaskTimeLog[]> {
+    try {
+      const response = await apiClient.post<ApiResponse<TaskTimeLog[]>>(
+        "/api/project-time/logs/review-bulk",
+        {
+          log_ids: logIds,
+          decision,
+          reason,
+        },
+      );
+      return response.data.data;
+    } catch (error) {
+      throw extractError(error, "Failed to review time logs");
     }
   },
 
