@@ -220,10 +220,11 @@ export function useRoadmapCanvasController({
   };
 
   const onAddFeatureWithToast = async (
-    ...args: Parameters<typeof onAddFeature>
+    epicId: Parameters<typeof onAddFeature>[0],
+    data: Parameters<typeof onAddFeature>[1],
   ) => {
     try {
-      await onAddFeature(...args);
+      await onAddFeature(epicId, data);
       toast.success("Feature created");
     } catch (error) {
       toast.error(getErrorMessage(error, "Failed to create feature"));
