@@ -764,13 +764,15 @@ export const EpicTab = ({
                                 (t) => t.id === taskId,
                               );
                               if (taskToUpdate) {
-                                onUpdateTask({
-                                  ...taskToUpdate,
-                                  status:
-                                    taskToUpdate.status === "done"
-                                      ? "todo"
-                                      : "done",
-                                });
+                                void Promise.resolve(
+                                  onUpdateTask({
+                                    ...taskToUpdate,
+                                    status:
+                                      taskToUpdate.status === "done"
+                                        ? "todo"
+                                        : "done",
+                                  }),
+                                ).catch(() => undefined);
                               }
                             }}
                             onUpdateStatus={(taskId, status) => {
@@ -778,10 +780,12 @@ export const EpicTab = ({
                                 (t) => t.id === taskId,
                               );
                               if (taskToUpdate) {
-                                onUpdateTask({
-                                  ...taskToUpdate,
-                                  status,
-                                });
+                                void Promise.resolve(
+                                  onUpdateTask({
+                                    ...taskToUpdate,
+                                    status,
+                                  }),
+                                ).catch(() => undefined);
                               }
                             }}
                           />

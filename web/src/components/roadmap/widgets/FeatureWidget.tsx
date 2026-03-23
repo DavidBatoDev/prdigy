@@ -42,6 +42,10 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
     onSelectTask,
     onUpdateTask,
   } = data;
+  const safelyUpdateTask = (task: RoadmapTask) => {
+    if (!onUpdateTask) return;
+    void Promise.resolve(onUpdateTask(task)).catch(() => undefined);
+  };
   const descriptionRef = useRef<HTMLDivElement>(null);
   const [hasOverflow, setHasOverflow] = useState(false);
 
@@ -331,24 +335,22 @@ export const FeatureWidget = memo(({ data }: NodeProps<FeatureWidgetNode>) => {
                     density="compact"
                     onClick={onSelectTask}
                     onToggleComplete={(taskId) => {
-                      if (!onUpdateTask) return;
                       const taskToUpdate = feature.tasks?.find(
                         (t) => t.id === taskId,
                       );
                       if (!taskToUpdate) return;
-                      onUpdateTask({
+                      safelyUpdateTask({
                         ...taskToUpdate,
                         status:
                           taskToUpdate.status === "done" ? "todo" : "done",
                       });
                     }}
                     onUpdateStatus={(taskId, status) => {
-                      if (!onUpdateTask) return;
                       const taskToUpdate = feature.tasks?.find(
                         (t) => t.id === taskId,
                       );
                       if (!taskToUpdate) return;
-                      onUpdateTask({
+                      safelyUpdateTask({
                         ...taskToUpdate,
                         status,
                       });

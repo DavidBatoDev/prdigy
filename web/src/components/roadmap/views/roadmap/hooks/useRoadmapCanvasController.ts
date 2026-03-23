@@ -87,6 +87,9 @@ export function useRoadmapCanvasController({
   const storeDeleteFeature = useRoadmapStore((state) => state.deleteFeature);
   const storeAddTask = useRoadmapStore((state) => state.addTask);
   const storeUpdateTask = useRoadmapStore((state) => state.updateTask);
+  const storeUpdateTaskStatusIntent = useRoadmapStore(
+    (state) => state.updateTaskStatusIntent,
+  );
   const storeDeleteTask = useRoadmapStore((state) => state.deleteTask);
   const storeFocusNodeId = useRoadmapStore((state) => state.focusNodeId);
   const storeFocusNodeOffsetX = useRoadmapStore(
@@ -194,6 +197,16 @@ export function useRoadmapCanvasController({
     }
   };
 
+  const onAddEpicWithToast = async (...args: Parameters<typeof onAddEpic>) => {
+    try {
+      await onAddEpic(...args);
+      toast.success("Epic created");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to create epic"));
+      throw error;
+    }
+  };
+
   const onUpdateFeature = async (
     ...args: Parameters<typeof onUpdateFeatureBase>
   ) => {
@@ -206,7 +219,51 @@ export function useRoadmapCanvasController({
     }
   };
 
+  const onAddFeatureWithToast = async (
+    ...args: Parameters<typeof onAddFeature>
+  ) => {
+    try {
+      await onAddFeature(...args);
+      toast.success("Feature created");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to create feature"));
+      throw error;
+    }
+  };
+
+  const stripTaskStatus = (task: RoadmapTask) => {
+    const nextTask = { ...task };
+    delete (nextTask as Partial<RoadmapTask>).status;
+    return nextTask;
+  };
+
+  const isStatusOnlyTaskUpdate = (nextTask: RoadmapTask): boolean => {
+    if (onUpdateTaskProp) return false;
+
+    const currentTask = epics
+      .flatMap((epic) => epic.features || [])
+      .flatMap((feature) => feature.tasks || [])
+      .find((task) => task.id === nextTask.id);
+    if (!currentTask) return false;
+    if (currentTask.status === nextTask.status) return false;
+
+    const currentWithoutStatus = stripTaskStatus(currentTask);
+    const nextWithoutStatus = stripTaskStatus(nextTask);
+    return JSON.stringify(currentWithoutStatus) === JSON.stringify(nextWithoutStatus);
+  };
+
   const onUpdateTask = async (...args: Parameters<typeof onUpdateTaskBase>) => {
+    const [nextTask] = args;
+    if (nextTask && isStatusOnlyTaskUpdate(nextTask)) {
+      try {
+        await storeUpdateTaskStatusIntent(nextTask.id, nextTask.status);
+      } catch (error) {
+        toast.error(getErrorMessage(error, "Failed to update task"));
+        throw error;
+      }
+      return;
+    }
+
     try {
       await onUpdateTaskBase(...args);
       toast.success("Task updated");
@@ -360,32 +417,30 @@ export function useRoadmapCanvasController({
     start_date?: string;
     end_date?: string;
   }) => {
-    setIsEpicLoading(true);
-    try {
-      let position = epics.length;
-      if (targetEpicForAddBelow) {
-        const targetEpic = epics.find(
-          (epic) => epic.id === targetEpicForAddBelow,
-        );
-        if (targetEpic) {
-          position = targetEpic.position + 1;
-        }
+    let position = epics.length;
+    if (targetEpicForAddBelow) {
+      const targetEpic = epics.find((epic) => epic.id === targetEpicForAddBelow);
+      if (targetEpic) {
+        position = targetEpic.position + 1;
       }
-      await onAddEpic(undefined, {
-        title: data.title,
-        description: data.description,
-        priority: data.priority,
-        tags: data.tags,
-        status: "backlog",
-        position,
-        start_date: data.start_date,
-        end_date: data.end_date,
-      });
-      setIsAddEpicModalOpen(false);
-      setTargetEpicForAddBelow(null);
-    } finally {
-      setIsEpicLoading(false);
     }
+
+    setIsAddEpicModalOpen(false);
+    setTargetEpicForAddBelow(null);
+    setIsEpicLoading(true);
+
+    void onAddEpicWithToast(undefined, {
+      title: data.title,
+      description: data.description,
+      priority: data.priority,
+      tags: data.tags,
+      status: "backlog",
+      position,
+      start_date: data.start_date,
+      end_date: data.end_date,
+    })
+      .catch(() => undefined)
+      .finally(() => setIsEpicLoading(false));
   };
 
   const handleAddEpicBelow = (epicId: string) => {
@@ -415,23 +470,22 @@ export function useRoadmapCanvasController({
     const epic = epics.find((item) => item.id === editingEpicId);
     if (!epic) return;
 
+    setIsEditEpicModalOpen(false);
+    setEditingEpicId(null);
     setIsEpicLoading(true);
-    try {
-      await onUpdateEpic({
-        ...epic,
-        title: data.title,
-        description: data.description,
-        priority: data.priority,
-        tags: data.tags,
-        start_date: data.start_date,
-        end_date: data.end_date,
-        updated_at: new Date().toISOString(),
-      });
-      setIsEditEpicModalOpen(false);
-      setEditingEpicId(null);
-    } finally {
-      setIsEpicLoading(false);
-    }
+
+    void onUpdateEpic({
+      ...epic,
+      title: data.title,
+      description: data.description,
+      priority: data.priority,
+      tags: data.tags,
+      start_date: data.start_date,
+      end_date: data.end_date,
+      updated_at: new Date().toISOString(),
+    })
+      .catch(() => undefined)
+      .finally(() => setIsEpicLoading(false));
   };
 
   const handleCreateFeature = async (data: {
@@ -442,16 +496,16 @@ export function useRoadmapCanvasController({
     start_date?: string;
     end_date?: string;
   }) => {
-    if (targetEpicForFeature) {
-      setIsFeatureLoading(true);
-      try {
-        await onAddFeature(targetEpicForFeature, data);
-        setIsAddFeatureModalOpen(false);
-        setTargetEpicForFeature(null);
-      } finally {
-        setIsFeatureLoading(false);
-      }
-    }
+    if (!targetEpicForFeature) return;
+
+    const epicId = targetEpicForFeature;
+    setIsAddFeatureModalOpen(false);
+    setTargetEpicForFeature(null);
+    setIsFeatureLoading(true);
+
+    void onAddFeatureWithToast(epicId, data)
+      .catch(() => undefined)
+      .finally(() => setIsFeatureLoading(false));
   };
 
   const handleOpenEditFeatureModal = (epicId: string, featureId: string) => {
@@ -544,24 +598,23 @@ export function useRoadmapCanvasController({
     );
     if (!epic || !feature) return;
 
+    setIsEditFeatureModalOpen(false);
+    setEditingFeatureId(null);
+    setEditingFeatureEpicId(null);
     setIsFeatureLoading(true);
-    try {
-      await onUpdateFeature({
-        ...feature,
-        title: data.title,
-        description: data.description,
-        status: data.status,
-        is_deliverable: data.is_deliverable,
-        start_date: data.start_date,
-        end_date: data.end_date,
-        updated_at: new Date().toISOString(),
-      });
-      setIsEditFeatureModalOpen(false);
-      setEditingFeatureId(null);
-      setEditingFeatureEpicId(null);
-    } finally {
-      setIsFeatureLoading(false);
-    }
+
+    void onUpdateFeature({
+      ...feature,
+      title: data.title,
+      description: data.description,
+      status: data.status,
+      is_deliverable: data.is_deliverable,
+      start_date: data.start_date,
+      end_date: data.end_date,
+      updated_at: new Date().toISOString(),
+    })
+      .catch(() => undefined)
+      .finally(() => setIsFeatureLoading(false));
   };
 
   const handleDeleteEpic = (id: string) => {
@@ -603,8 +656,9 @@ export function useRoadmapCanvasController({
       setIsTaskLoading(true);
       try {
         await onAddTask(targetFeatureForTask, taskData);
-        setSidePanelOpen(false);
-        setTargetFeatureForTask(null);
+      } catch (error) {
+        toast.error(getErrorMessage(error, "Failed to create task"));
+        throw error;
       } finally {
         setIsTaskLoading(false);
       }

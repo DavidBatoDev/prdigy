@@ -446,8 +446,9 @@ export const SidePanel = ({
         return;
       }
       if (onCreateTask) {
-        onCreateTask(newTaskData);
+        void Promise.resolve(onCreateTask(newTaskData)).catch(() => undefined);
       }
+      onClose();
     } else {
       // Edit mode
       if (editedTask) {
@@ -455,7 +456,8 @@ export const SidePanel = ({
           alert("Task title is required");
           return;
         }
-        onUpdateTask(editedTask);
+        void Promise.resolve(onUpdateTask(editedTask)).catch(() => undefined);
+        onClose();
       }
     }
   };

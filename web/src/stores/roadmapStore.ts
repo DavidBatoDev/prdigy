@@ -28,6 +28,12 @@ interface RoadmapState {
 	roadmap: Roadmap | null;
 	epics: RoadmapEpic[];
 	milestones: RoadmapMilestone[];
+	pendingEpicById: Record<string, boolean>;
+	pendingFeatureById: Record<string, boolean>;
+	pendingTaskById: Record<string, boolean>;
+	queuedTaskStatusIntentById: Record<string, RoadmapTask["status"]>;
+	activeTaskStatusSyncById: Record<string, boolean>;
+	taskStatusRollbackById: Partial<Record<string, RoadmapTask>>;
 
 	// UI State - Canvas Navigation
 	focusNodeId: string | null;
@@ -97,6 +103,10 @@ interface RoadmapActions {
 	// Task CRUD
 	addTask: (featureId: string, data: Partial<RoadmapTask>) => Promise<void>;
 	updateTask: (task: RoadmapTask) => Promise<void>;
+	updateTaskStatusIntent: (
+		taskId: string,
+		nextStatus: RoadmapTask["status"],
+	) => Promise<void>;
 	deleteTask: (taskId: string) => Promise<void>;
 
 	// Milestone CRUD
@@ -140,11 +150,80 @@ interface RoadmapActions {
 
 type RoadmapStore = RoadmapState & RoadmapActions;
 
+const clearPendingKey = <T>(
+	record: Record<string, T>,
+	key: string,
+): Record<string, T> => {
+	if (!(key in record)) return record;
+	const next = { ...record };
+	delete next[key];
+	return next;
+};
+
+const patchEpicById = (
+	epics: RoadmapEpic[],
+	epicId: string,
+	patcher: (epic: RoadmapEpic) => RoadmapEpic,
+): RoadmapEpic[] =>
+	epics.map((epic) => (epic.id === epicId ? patcher(epic) : epic));
+
+const patchFeatureById = (
+	epics: RoadmapEpic[],
+	featureId: string,
+	patcher: (feature: RoadmapFeature) => RoadmapFeature,
+): RoadmapEpic[] =>
+	epics.map((epic) => ({
+		...epic,
+		features: (epic.features || []).map((feature) =>
+			feature.id === featureId ? patcher(feature) : feature,
+		),
+	}));
+
+const patchTaskById = (
+	epics: RoadmapEpic[],
+	taskId: string,
+	patcher: (task: RoadmapTask) => RoadmapTask,
+): RoadmapEpic[] =>
+	epics.map((epic) => ({
+		...epic,
+		features: (epic.features || []).map((feature) => ({
+			...feature,
+			tasks: (feature.tasks || []).map((task) =>
+				task.id === taskId ? patcher(task) : task,
+			),
+		})),
+	}));
+
+const findTaskById = (
+	epics: RoadmapEpic[],
+	taskId: string,
+): RoadmapTask | undefined =>
+	epics
+		.flatMap((epic) => epic.features || [])
+		.flatMap((feature) => feature.tasks || [])
+		.find((task) => task.id === taskId);
+
+const clearTaskRollbackKey = (
+	record: Partial<Record<string, RoadmapTask>>,
+	key: string,
+): Partial<Record<string, RoadmapTask>> => {
+	if (!(key in record)) return record;
+	const next = { ...record };
+	delete next[key];
+	return next;
+};
+
 export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
 	// Initial State
 	roadmap: null,
 	epics: [],
 	milestones: [],
+	pendingEpicById: {},
+	pendingFeatureById: {},
+	pendingTaskById: {},
+	queuedTaskStatusIntentById: {},
+	activeTaskStatusSyncById: {},
+	taskStatusRollbackById: {},
 	focusNodeId: null,
 	focusNodeOffsetX: 0,
 	navigateToEpicId: null,
@@ -177,6 +256,12 @@ export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
 				roadmap: fullRoadmap,
 				epics: fullRoadmap.epics || [],
 				milestones: fullRoadmap.milestones || [],
+				pendingEpicById: {},
+				pendingFeatureById: {},
+				pendingTaskById: {},
+				queuedTaskStatusIntentById: {},
+				activeTaskStatusSyncById: {},
+				taskStatusRollbackById: {},
 				isLoadingRoadmap: false,
 			});
 		} catch (error) {
@@ -192,6 +277,12 @@ export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
 			roadmap: fullRoadmap,
 			epics: fullRoadmap.epics || [],
 			milestones: fullRoadmap.milestones || [],
+			pendingEpicById: {},
+			pendingFeatureById: {},
+			pendingTaskById: {},
+			queuedTaskStatusIntentById: {},
+			activeTaskStatusSyncById: {},
+			taskStatusRollbackById: {},
 		});
 	},
 
@@ -201,6 +292,12 @@ export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
 			roadmap: null,
 			epics: [],
 			milestones: [],
+			pendingEpicById: {},
+			pendingFeatureById: {},
+			pendingTaskById: {},
+			queuedTaskStatusIntentById: {},
+			activeTaskStatusSyncById: {},
+			taskStatusRollbackById: {},
 			focusNodeId: null,
 			focusNodeOffsetX: 0,
 			navigateToEpicId: null,
@@ -279,12 +376,28 @@ export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
 	},
 
 	updateEpic: async (updatedEpic: RoadmapEpic) => {
-		const { epics } = get();
+		const currentEpic = get().epics.find((epic) => epic.id === updatedEpic.id);
+		if (!currentEpic) return;
+
+		const epicId = updatedEpic.id;
+		const rollbackSnapshot = { ...currentEpic };
+		const optimisticEpic: RoadmapEpic = {
+			...currentEpic,
+			...updatedEpic,
+			features: currentEpic.features,
+		};
+
+		set((state) => ({
+			isLoadingEpic: true,
+			pendingEpicById: {
+				...state.pendingEpicById,
+				[epicId]: true,
+			},
+			epics: patchEpicById(state.epics, epicId, () => optimisticEpic),
+		}));
 
 		try {
-			set({ isLoadingEpic: true });
-
-			const updated = await epicService.update(updatedEpic.id, {
+			const updated = await epicService.update(epicId, {
 				title: updatedEpic.title,
 				description: updatedEpic.description,
 				priority: updatedEpic.priority,
@@ -300,16 +413,23 @@ export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
 				labels: updatedEpic.labels,
 			});
 
-			set({
-				epics: epics.map((e) =>
-					e.id === updated.id ? { ...updated, features: e.features } : e,
-				),
-				isLoadingEpic: false,
-			});
+			set((state) => ({
+				epics: patchEpicById(state.epics, epicId, (epic) => ({
+					...updated,
+					features: epic.features || [],
+				})),
+			}));
 		} catch (error) {
 			console.error("Failed to update epic:", error);
-			set({ isLoadingEpic: false });
+			set((state) => ({
+				epics: patchEpicById(state.epics, epicId, () => rollbackSnapshot),
+			}));
 			throw error;
+		} finally {
+			set((state) => ({
+				isLoadingEpic: false,
+				pendingEpicById: clearPendingKey(state.pendingEpicById, epicId),
+			}));
 		}
 	},
 
@@ -501,12 +621,30 @@ export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
 	},
 
 	updateFeature: async (feature: RoadmapFeature) => {
-		const { epics } = get();
+		const currentFeature = get()
+			.epics.flatMap((epic) => epic.features || [])
+			.find((item) => item.id === feature.id);
+		if (!currentFeature) return;
+
+		const featureId = feature.id;
+		const rollbackSnapshot = { ...currentFeature };
+		const optimisticFeature: RoadmapFeature = {
+			...currentFeature,
+			...feature,
+			tasks: currentFeature.tasks,
+		};
+
+		set((state) => ({
+			isLoadingFeature: true,
+			pendingFeatureById: {
+				...state.pendingFeatureById,
+				[featureId]: true,
+			},
+			epics: patchFeatureById(state.epics, featureId, () => optimisticFeature),
+		}));
 
 		try {
-			set({ isLoadingFeature: true });
-
-			const updated = await featureService.update(feature.id, {
+			const updated = await featureService.update(featureId, {
 				title: feature.title,
 				description: feature.description,
 				status: feature.status,
@@ -518,25 +656,26 @@ export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
 				end_date: feature.end_date,
 			});
 
-			set({
-				epics: epics.map((epic) =>
-					epic.id === feature.epic_id
-						? {
-								...epic,
-								features: (epic.features || []).map((f) =>
-									f.id === updated.id
-										? { ...updated, tasks: f.tasks || [] }
-										: f,
-								),
-							}
-						: epic,
-				),
-				isLoadingFeature: false,
-			});
+			set((state) => ({
+				epics: patchFeatureById(state.epics, featureId, (current) => ({
+					...updated,
+					tasks: current.tasks || [],
+				})),
+			}));
 		} catch (error) {
 			console.error("Failed to update feature:", error);
-			set({ isLoadingFeature: false });
+			set((state) => ({
+				epics: patchFeatureById(state.epics, featureId, () => rollbackSnapshot),
+			}));
 			throw error;
+		} finally {
+			set((state) => ({
+				isLoadingFeature: false,
+				pendingFeatureById: clearPendingKey(
+					state.pendingFeatureById,
+					featureId,
+				),
+			}));
 		}
 	},
 
@@ -766,12 +905,30 @@ export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
 	},
 
 	updateTask: async (task: RoadmapTask) => {
-		const { epics } = get();
+		const { epics, pendingTaskById } = get();
+		const taskId = task.id;
+		if (pendingTaskById[taskId]) return;
+
+		const currentTask = findTaskById(epics, taskId);
+		if (!currentTask) return;
+
+		const rollbackSnapshot = { ...currentTask };
+		const optimisticTask: RoadmapTask = {
+			...currentTask,
+			...task,
+		};
+
+		set((state) => ({
+			isLoadingTask: true,
+			pendingTaskById: {
+				...state.pendingTaskById,
+				[taskId]: true,
+			},
+			epics: patchTaskById(state.epics, taskId, () => optimisticTask),
+		}));
 
 		try {
-			set({ isLoadingTask: true });
-
-			const updated = await taskService.update(task.id, {
+			const updated = await taskService.update(taskId, {
 				title: task.title,
 				status: task.status,
 				priority: task.priority,
@@ -780,22 +937,123 @@ export const useRoadmapStore = create<RoadmapStore>((set, get) => ({
 				completed_at: task.completed_at,
 			});
 
-			set({
-				epics: epics.map((epic) => ({
-					...epic,
-					features: (epic.features || []).map((feature) => ({
-						...feature,
-						tasks: (feature.tasks || []).map((t) =>
-							t.id === updated.id ? updated : t,
-						),
-					})),
-				})),
-				isLoadingTask: false,
-			});
+			set((state) => ({
+				epics: patchTaskById(state.epics, taskId, () => updated),
+			}));
 		} catch (error) {
 			console.error("Failed to update task:", error);
-			set({ isLoadingTask: false });
+			set((state) => ({
+				epics: patchTaskById(state.epics, taskId, () => rollbackSnapshot),
+			}));
 			throw error;
+		} finally {
+			set((state) => ({
+				isLoadingTask: false,
+				pendingTaskById: clearPendingKey(state.pendingTaskById, taskId),
+			}));
+		}
+	},
+
+	updateTaskStatusIntent: async (
+		taskId: string,
+		nextStatus: RoadmapTask["status"],
+	) => {
+		const taskBeforeIntent = findTaskById(get().epics, taskId);
+		if (!taskBeforeIntent) return;
+
+		const shouldStartSync = !Boolean(get().activeTaskStatusSyncById[taskId]);
+
+		set((state) => ({
+			epics: patchTaskById(state.epics, taskId, (task) => ({
+				...task,
+				status: nextStatus,
+			})),
+			queuedTaskStatusIntentById: {
+				...state.queuedTaskStatusIntentById,
+				[taskId]: nextStatus,
+			},
+			taskStatusRollbackById: {
+				...state.taskStatusRollbackById,
+				[taskId]: { ...taskBeforeIntent },
+			},
+			activeTaskStatusSyncById: shouldStartSync
+				? {
+						...state.activeTaskStatusSyncById,
+						[taskId]: true,
+					}
+				: state.activeTaskStatusSyncById,
+		}));
+
+		if (!shouldStartSync) return;
+
+		try {
+			while (true) {
+				const intentStatus = get().queuedTaskStatusIntentById[taskId];
+				if (!intentStatus) break;
+
+				set((state) => ({
+					queuedTaskStatusIntentById: clearPendingKey(
+						state.queuedTaskStatusIntentById,
+						taskId,
+					),
+				}));
+
+				const taskForRequest = findTaskById(get().epics, taskId);
+				if (!taskForRequest) break;
+
+				try {
+					const updated = await taskService.update(taskId, {
+						title: taskForRequest.title,
+						status: intentStatus,
+						priority: taskForRequest.priority,
+						position: taskForRequest.position,
+						due_date: taskForRequest.due_date,
+						completed_at: taskForRequest.completed_at,
+					});
+
+					set((state) => ({
+						epics: patchTaskById(state.epics, taskId, (task) => {
+							const merged = { ...task, ...updated };
+							const hasQueuedNewerIntent = Boolean(
+								state.queuedTaskStatusIntentById[taskId],
+							);
+							return hasQueuedNewerIntent
+								? { ...merged, status: task.status }
+								: merged;
+						}),
+					}));
+				} catch (error) {
+					const hasQueuedNewerIntent = Boolean(
+						get().queuedTaskStatusIntentById[taskId],
+					);
+					if (hasQueuedNewerIntent) {
+						continue;
+					}
+
+					const rollbackTask = get().taskStatusRollbackById[taskId];
+					if (rollbackTask) {
+						set((state) => ({
+							epics: patchTaskById(state.epics, taskId, () => rollbackTask),
+						}));
+					}
+					throw error;
+				}
+			}
+		} finally {
+			set((state) => ({
+				queuedTaskStatusIntentById: clearPendingKey(
+					state.queuedTaskStatusIntentById,
+					taskId,
+				),
+				activeTaskStatusSyncById: clearPendingKey(
+					state.activeTaskStatusSyncById,
+					taskId,
+				),
+				taskStatusRollbackById: clearTaskRollbackKey(
+					state.taskStatusRollbackById,
+					taskId,
+				),
+			}));
 		}
 	},
 

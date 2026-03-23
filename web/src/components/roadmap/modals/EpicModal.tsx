@@ -523,13 +523,15 @@ export const EpicModal = ({
                                 (t) => t.id === taskId,
                               );
                               if (!taskToUpdate) return;
-                              onUpdateTask({
-                                ...taskToUpdate,
-                                status:
-                                  taskToUpdate.status === "done"
-                                    ? "todo"
-                                    : "done",
-                              } as RoadmapTask);
+                              void Promise.resolve(
+                                onUpdateTask({
+                                  ...taskToUpdate,
+                                  status:
+                                    taskToUpdate.status === "done"
+                                      ? "todo"
+                                      : "done",
+                                } as RoadmapTask),
+                              ).catch(() => undefined);
                             }}
                             onUpdateStatus={(taskId, status) => {
                               if (!onUpdateTask) return;
@@ -537,10 +539,12 @@ export const EpicModal = ({
                                 (t) => t.id === taskId,
                               );
                               if (!taskToUpdate) return;
-                              onUpdateTask({
-                                ...taskToUpdate,
-                                status,
-                              } as RoadmapTask);
+                              void Promise.resolve(
+                                onUpdateTask({
+                                  ...taskToUpdate,
+                                  status,
+                                } as RoadmapTask),
+                              ).catch(() => undefined);
                             }}
                           />
                         ))}

@@ -539,22 +539,26 @@ export const FeatureModal = ({
                   onDelete={onDeleteTask}
                   onClick={onSelectTask}
                   onToggleComplete={(taskId) => {
-                    if (!onUpdateTask) return;
                     const taskToUpdate = tasks.find((t) => t.id === taskId);
                     if (!taskToUpdate) return;
-                    onUpdateTask({
-                      ...taskToUpdate,
-                      status: taskToUpdate.status === "done" ? "todo" : "done",
-                    });
+                    if (!onUpdateTask) return;
+                    void Promise.resolve(
+                      onUpdateTask({
+                        ...taskToUpdate,
+                        status: taskToUpdate.status === "done" ? "todo" : "done",
+                      }),
+                    ).catch(() => undefined);
                   }}
                   onUpdateStatus={(taskId, status) => {
-                    if (!onUpdateTask) return;
                     const taskToUpdate = tasks.find((t) => t.id === taskId);
                     if (!taskToUpdate) return;
-                    onUpdateTask({
-                      ...taskToUpdate,
-                      status,
-                    });
+                    if (!onUpdateTask) return;
+                    void Promise.resolve(
+                      onUpdateTask({
+                        ...taskToUpdate,
+                        status,
+                      }),
+                    ).catch(() => undefined);
                   }}
                 />
               ))}
