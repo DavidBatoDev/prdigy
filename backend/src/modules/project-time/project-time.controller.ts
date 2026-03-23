@@ -14,6 +14,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../common/interfaces/authenticated-request.interface';
 import { ProjectTimeService } from './project-time.service';
 import {
+  BulkReviewTimeLogsDto,
   CreateProjectMemberTimeRateDto,
   ReviewTimeLogDto,
   StartTimeLogDto,
@@ -63,6 +64,14 @@ export class ProjectTimeController {
     @Body() dto: ReviewTimeLogDto,
   ) {
     return this.projectTimeService.review(user.id, id, dto);
+  }
+
+  @Post('logs/review-bulk')
+  reviewBulk(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: BulkReviewTimeLogsDto,
+  ) {
+    return this.projectTimeService.reviewBulk(user.id, dto);
   }
 
   @Get('projects/:projectId/rates')

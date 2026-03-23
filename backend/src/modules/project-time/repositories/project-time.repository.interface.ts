@@ -130,6 +130,7 @@ export interface ProjectTimeRepository {
   ): Promise<{ id: string; user_id: string | null } | null>;
   getTaskProjectId(taskId: string): Promise<string | null>;
   findById(id: string): Promise<TaskTimeLogRecord | null>;
+  findByIds(ids: string[]): Promise<TaskTimeLogRecord[]>;
   stopActiveForMember(
     projectId: string,
     memberUserId: string,
@@ -151,6 +152,15 @@ export interface ProjectTimeRepository {
     id: string,
     patch: Record<string, unknown>,
   ): Promise<TaskTimeLogRecord>;
+  updateLogReviewByIds(
+    ids: string[],
+    patch: {
+      status: TimeLogStatus;
+      reviewed_by: string | null;
+      reviewed_at: string | null;
+      review_note: string | null;
+    },
+  ): Promise<TaskTimeLogRecord[]>;
   listProjectLogs(
     projectId: string,
     filters: TimeLogsQueryFilters,

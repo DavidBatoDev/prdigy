@@ -1,4 +1,7 @@
 import {
+  ArrayMaxSize,
+  ArrayNotEmpty,
+  IsArray,
   IsDateString,
   IsEnum,
   IsInt,
@@ -47,8 +50,24 @@ export class UpdateTimeLogDto {
 }
 
 export class ReviewTimeLogDto {
-  @IsEnum(['approved', 'rejected'])
-  decision: 'approved' | 'rejected';
+  @IsEnum(['approved', 'rejected', 'pending'])
+  decision: 'approved' | 'rejected' | 'pending';
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(2000)
+  reason?: string;
+}
+
+export class BulkReviewTimeLogsDto {
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(200)
+  @IsUUID('4', { each: true })
+  log_ids: string[];
+
+  @IsEnum(['approved', 'rejected', 'pending'])
+  decision: 'approved' | 'rejected' | 'pending';
 
   @IsString()
   @IsOptional()

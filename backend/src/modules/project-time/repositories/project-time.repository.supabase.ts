@@ -286,6 +286,16 @@ export class ProjectTimeRepositorySupabase implements ProjectTimeRepository {
     return (data as TaskTimeLogRecord | null) ?? null;
   }
 
+  async findByIds(ids: string[]): Promise<TaskTimeLogRecord[]> {
+    if (ids.length === 0) return [];
+    const { data, error } = await this.db
+      .from('task_time_logs')
+      .select(this.selectClause)
+      .in('id', ids);
+    if (error) throw new Error(error.message);
+    return (data as TaskTimeLogRecord[] | null) ?? [];
+  }
+
   async stopActiveForMember(
     projectId: string,
     memberUserId: string,
@@ -379,6 +389,25 @@ export class ProjectTimeRepositorySupabase implements ProjectTimeRepository {
 
     if (error) throw new Error(error.message);
     return data as TaskTimeLogRecord;
+  }
+
+  async updateLogReviewByIds(
+    ids: string[],
+    patch: {
+      status: 'pending' | 'approved' | 'rejected';
+      reviewed_by: string | null;
+      reviewed_at: string | null;
+      review_note: string | null;
+    },
+  ): Promise<TaskTimeLogRecord[]> {
+    if (ids.length === 0) return [];
+    const { data, error } = await this.db
+      .from('task_time_logs')
+      .update(patch)
+      .in('id', ids)
+      .select(this.selectClause);
+    if (error) throw new Error(error.message);
+    return (data as TaskTimeLogRecord[] | null) ?? [];
   }
 
   async listProjectLogs(

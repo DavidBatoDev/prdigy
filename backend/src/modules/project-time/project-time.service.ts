@@ -8,6 +8,7 @@ import {
 import { ProjectsService } from '../projects/projects.service';
 import { hasPermission } from '../projects/permissions/project-permissions';
 import {
+  BulkReviewTimeLogsDto,
   CreateProjectMemberTimeRateDto,
   ReviewTimeLogDto,
   StartTimeLogDto,
@@ -176,8 +177,12 @@ export class ProjectTimeService {
     userId: string,
     projectId: string,
   ): Promise<ProjectTaskOption[]> {
-    await this.projectsService.assertProjectPermission(projectId, userId, 'time.view');
-    await this.assertTimeRateEnabled(projectId, userId);
+    await this.projectsService.assertProjectAnyPermission(projectId, userId, [
+      'time.view',
+      'time.edit_team',
+      'time.approve',
+      'time.manage_rates',
+    ]);
     return this.repo.listProjectTasks(projectId);
   }
 
@@ -430,14 +435,47 @@ export class ProjectTimeService {
       userId,
       'time.approve',
     );
-    await this.assertTimeRateEnabled(existing.project_id, userId);
 
+    const isPending = dto.decision === 'pending';
     const nowIso = new Date().toISOString();
     return this.repo.updateLogById(logId, {
       status: dto.decision,
-      reviewed_by: userId,
-      reviewed_at: nowIso,
-      review_note: dto.reason?.trim() || null,
+      reviewed_by: isPending ? null : userId,
+      reviewed_at: isPending ? null : nowIso,
+      review_note: isPending ? null : dto.reason?.trim() || null,
+    });
+  }
+
+  async reviewBulk(
+    userId: string,
+    dto: BulkReviewTimeLogsDto,
+  ): Promise<TaskTimeLogRecord[]> {
+    const uniqueLogIds = Array.from(new Set(dto.log_ids));
+    if (uniqueLogIds.length === 0) {
+      throw new BadRequestException('At least one time log is required.');
+    }
+
+    const logs = await this.repo.findByIds(uniqueLogIds);
+    if (logs.length !== uniqueLogIds.length) {
+      throw new NotFoundException('One or more time logs were not found.');
+    }
+
+    const projectIds = Array.from(new Set(logs.map((log) => log.project_id)));
+    for (const projectId of projectIds) {
+      await this.projectsService.assertProjectPermission(
+        projectId,
+        userId,
+        'time.approve',
+      );
+    }
+
+    const isPending = dto.decision === 'pending';
+    const nowIso = new Date().toISOString();
+    return this.repo.updateLogReviewByIds(uniqueLogIds, {
+      status: dto.decision,
+      reviewed_by: isPending ? null : userId,
+      reviewed_at: isPending ? null : nowIso,
+      review_note: isPending ? null : dto.reason?.trim() || null,
     });
   }
 
@@ -470,7 +508,6 @@ export class ProjectTimeService {
       userId,
       'time.approve',
     );
-    await this.assertTimeRateEnabled(projectId, userId);
     const { page, limit } = this.normalizePaging(query);
     return this.repo.listProjectLogs(projectId, {
       page,
@@ -493,7 +530,6 @@ export class ProjectTimeService {
       userId,
       'time.edit_team',
     );
-    await this.assertTimeRateEnabled(projectId, userId);
     const { page, limit } = this.normalizePaging(query);
     return this.repo.listProjectLogs(projectId, {
       page,
