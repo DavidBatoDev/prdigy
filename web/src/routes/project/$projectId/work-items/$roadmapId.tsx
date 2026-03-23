@@ -15,6 +15,7 @@ import {
   Map,
   AlertCircle,
   Users,
+  Loader2,
 } from "lucide-react";
 import {
   epicService,
@@ -39,6 +40,22 @@ import {
   useProjectMembersQuery,
   useRoadmapFullQuery,
 } from "@/hooks/useProjectQueries";
+import { useToast } from "@/hooks/useToast";
+import {
+  buildStatusPatch,
+  clearRecordKey,
+  clearTaskRollbackKey,
+  enqueueTaskStatusIntent,
+  findEpicById,
+  findFeatureById,
+  findTaskById,
+  isStatusOnlyTaskUpdate,
+  patchEpicById,
+  patchFeatureById,
+  patchTaskById,
+  removeTaskById,
+  restoreTaskAtLocation,
+} from "./workItemsOptimistic";
 
 export const Route = createFileRoute(
   "/project/$projectId/work-items/$roadmapId",
@@ -441,14 +458,14 @@ function TaskRow({
   onOpen,
   onToggleComplete,
   onUpdateStatus,
-  isSaving,
+  isPending,
 }: {
   task: RoadmapTask;
   isLast: boolean;
   onOpen: (t: RoadmapTask) => void;
   onToggleComplete: (t: RoadmapTask) => void;
   onUpdateStatus: (t: RoadmapTask, status: TaskStatus) => void;
-  isSaving: boolean;
+  isPending: boolean;
 }) {
   const isDone = task.status === "done";
   const checkboxStyle = getTaskCheckboxStyle(task.status);
@@ -524,8 +541,7 @@ function TaskRow({
             setCheckboxMenuPosition({ top: e.clientY, left: e.clientX });
             setIsCheckboxMenuOpen(true);
           }}
-          disabled={isSaving}
-          className={`shrink-0 w-4.5 h-4.5 rounded border-2 flex items-center justify-center transition-all ${checkboxStyle.box} disabled:opacity-60 disabled:cursor-not-allowed`}
+          className={`shrink-0 w-4.5 h-4.5 rounded border-2 flex items-center justify-center transition-all ${checkboxStyle.box}`}
           title={isDone ? "Mark as incomplete" : "Mark as complete"}
         >
           {checkboxStyle.mark === "check" ? (
@@ -567,6 +583,9 @@ function TaskRow({
         >
           {task.title}
         </span>
+        {isPending && (
+          <Loader2 className="w-3 h-3 text-gray-400 animate-spin shrink-0" />
+        )}
       </div>
 
       {/* Assignee */}
@@ -591,8 +610,7 @@ function TaskRow({
           onChange={(e) => {
             onUpdateStatus(task, e.target.value as TaskStatus);
           }}
-          disabled={isSaving}
-          className={`text-xs font-medium rounded px-2 py-1 border border-transparent focus:outline-none focus:ring-2 focus:ring-[#ff9933]/25 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${TASK_STATUS_MAP[task.status]?.cls ?? "bg-gray-100 text-gray-500"}`}
+          className={`text-xs font-medium rounded px-2 py-1 border border-transparent focus:outline-none focus:ring-2 focus:ring-[#ff9933]/25 cursor-pointer ${TASK_STATUS_MAP[task.status]?.cls ?? "bg-gray-100 text-gray-500"}`}
         >
           {TASK_STATUS_OPTIONS.map((status) => (
             <option key={status} value={status}>
@@ -632,7 +650,8 @@ function FeatureRow({
   onOpenTask,
   onToggleTaskComplete,
   onUpdateTaskStatus,
-  isSaving,
+  isFeaturePending,
+  isTaskPending,
 }: {
   feature: RoadmapFeature;
   isExpanded: boolean;
@@ -646,7 +665,8 @@ function FeatureRow({
   onOpenTask: (t: RoadmapTask) => void;
   onToggleTaskComplete: (t: RoadmapTask) => void;
   onUpdateTaskStatus: (t: RoadmapTask, status: TaskStatus) => void;
-  isSaving: boolean;
+  isFeaturePending: boolean;
+  isTaskPending: (taskId: string) => boolean;
 }) {
   const tasks = useMemo(
     () =>
@@ -718,6 +738,9 @@ function FeatureRow({
             <span className="text-[13px] font-medium text-gray-800 truncate group-hover:text-gray-900">
               {feature.title}
             </span>
+            {isFeaturePending && (
+              <Loader2 className="w-3 h-3 text-gray-400 animate-spin shrink-0" />
+            )}
             {hasTasks && (
               <span className="text-[10px] text-gray-400 shrink-0 tabular-nums">
                 {doneTasks}/{tasks.length}
@@ -793,7 +816,7 @@ function FeatureRow({
             onOpen={onOpenTask}
             onToggleComplete={onToggleTaskComplete}
             onUpdateStatus={onUpdateTaskStatus}
-            isSaving={isSaving}
+            isPending={isTaskPending(task.id)}
           />
         ))}
     </>
@@ -817,7 +840,9 @@ function EpicCard({
   onOpenTask,
   onToggleTaskComplete,
   onUpdateTaskStatus,
-  isSaving,
+  isEpicPending,
+  isFeaturePending,
+  isTaskPending,
 }: {
   epic: RoadmapEpic;
   isExpanded: boolean;
@@ -833,7 +858,9 @@ function EpicCard({
   onOpenTask: (t: RoadmapTask) => void;
   onToggleTaskComplete: (t: RoadmapTask) => void;
   onUpdateTaskStatus: (t: RoadmapTask, status: TaskStatus) => void;
-  isSaving: boolean;
+  isEpicPending: boolean;
+  isFeaturePending: (featureId: string) => boolean;
+  isTaskPending: (taskId: string) => boolean;
 }) {
   const features = useMemo(
     () =>
@@ -918,6 +945,9 @@ function EpicCard({
             <span className="text-base font-bold text-gray-900 truncate group-hover:text-gray-950">
               {epic.title}
             </span>
+            {isEpicPending && (
+              <Loader2 className="w-3.5 h-3.5 text-gray-500 animate-spin shrink-0" />
+            )}
             {features.length > 0 && (
               <span className="text-[10px] font-medium text-gray-400 shrink-0 bg-gray-100 px-1.5 py-0.5 rounded tabular-nums">
                 {features.length} feat.
@@ -970,7 +1000,8 @@ function EpicCard({
             onOpenTask={onOpenTask}
             onToggleTaskComplete={onToggleTaskComplete}
             onUpdateTaskStatus={onUpdateTaskStatus}
-            isSaving={isSaving}
+            isFeaturePending={isFeaturePending(feature.id)}
+            isTaskPending={isTaskPending}
           />
         ))}
     </div>
@@ -982,6 +1013,7 @@ function EpicCard({
 function WorkItemsViewPage() {
   const { projectId, roadmapId } = Route.useParams();
   const user = useUser();
+  const toast = useToast();
   const roadmapFullQuery = useRoadmapFullQuery(roadmapId);
   const membersQuery = useProjectMembersQuery(projectId);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -1016,7 +1048,24 @@ function WorkItemsViewPage() {
   );
   const [selectedTask, setSelectedTask] = useState<RoadmapTask | null>(null);
   const [projectMembers, setProjectMembers] = useState<ProjectMember[]>([]);
-  const [isSaving, setIsSaving] = useState(false);
+  const [pendingEpicById, setPendingEpicById] = useState<Record<string, boolean>>({});
+  const [pendingFeatureById, setPendingFeatureById] = useState<Record<string, boolean>>({});
+  const [pendingTaskById, setPendingTaskById] = useState<Record<string, boolean>>({});
+  const [queuedTaskStatusIntentById, setQueuedTaskStatusIntentById] = useState<
+    Record<string, TaskStatus>
+  >({});
+  const [activeTaskStatusSyncById, setActiveTaskStatusSyncById] = useState<
+    Record<string, boolean>
+  >({});
+  const [taskStatusRollbackById, setTaskStatusRollbackById] = useState<
+    Partial<Record<string, RoadmapTask>>
+  >({});
+
+  const epicsRef = useRef(epics);
+  const pendingTaskByIdRef = useRef(pendingTaskById);
+  const queuedTaskStatusIntentByIdRef = useRef(queuedTaskStatusIntentById);
+  const activeTaskStatusSyncByIdRef = useRef(activeTaskStatusSyncById);
+  const taskStatusRollbackByIdRef = useRef(taskStatusRollbackById);
 
   // ── Data loading — roadmapId comes from the URL param ────────────────────────
   useEffect(() => {
@@ -1074,11 +1123,22 @@ function WorkItemsViewPage() {
         );
 
         if (cancelled) return;
+        epicsRef.current = hydrated;
         setEpics(hydrated);
         setExpandedEpics(new Set(hydrated.map((e) => e.id)));
         setExpandedFeatures(
           new Set(hydrated.flatMap((e) => (e.features ?? []).map((f) => f.id))),
         );
+        setPendingEpicById({});
+        setPendingFeatureById({});
+        setPendingTaskById({});
+        setQueuedTaskStatusIntentById({});
+        setActiveTaskStatusSyncById({});
+        setTaskStatusRollbackById({});
+        pendingTaskByIdRef.current = {};
+        queuedTaskStatusIntentByIdRef.current = {};
+        activeTaskStatusSyncByIdRef.current = {};
+        taskStatusRollbackByIdRef.current = {};
       } catch {
         if (!cancelled)
           setError("Failed to load work items. Please try again.");
@@ -1120,54 +1180,180 @@ function WorkItemsViewPage() {
     setProjectMembers(membersQuery.data ?? []);
   }, [membersQuery.data, membersQuery.error]);
 
+  useEffect(() => {
+    epicsRef.current = epics;
+  }, [epics]);
+
+  useEffect(() => {
+    pendingTaskByIdRef.current = pendingTaskById;
+  }, [pendingTaskById]);
+
+  useEffect(() => {
+    queuedTaskStatusIntentByIdRef.current = queuedTaskStatusIntentById;
+  }, [queuedTaskStatusIntentById]);
+
+  useEffect(() => {
+    activeTaskStatusSyncByIdRef.current = activeTaskStatusSyncById;
+  }, [activeTaskStatusSyncById]);
+
+  useEffect(() => {
+    taskStatusRollbackByIdRef.current = taskStatusRollbackById;
+  }, [taskStatusRollbackById]);
+
   // ── Helper: patch a single epic in local state ─────────────────────────────
-  const patchEpic = useCallback((updated: RoadmapEpic) => {
-    setEpics((prev) =>
-      prev.map((e) => (e.id === updated.id ? { ...e, ...updated } : e)),
+  const patchEpic = useCallback(
+    (epicId: string, patcher: (epic: RoadmapEpic) => RoadmapEpic) => {
+      setEpics((prev) => {
+        const next = patchEpicById(prev, epicId, patcher);
+        epicsRef.current = next;
+        return next;
+      });
+    },
+    [],
+  );
+
+  const patchFeature = useCallback(
+    (
+      featureId: string,
+      patcher: (feature: RoadmapFeature) => RoadmapFeature,
+    ) => {
+      setEpics((prev) => {
+        const next = patchFeatureById(prev, featureId, patcher);
+        epicsRef.current = next;
+        return next;
+      });
+    },
+    [],
+  );
+
+  const patchTask = useCallback(
+    (taskId: string, patcher: (task: RoadmapTask) => RoadmapTask) => {
+      setEpics((prev) => {
+        const next = patchTaskById(prev, taskId, patcher);
+        epicsRef.current = next;
+        return next;
+      });
+    },
+    [],
+  );
+
+  const setEpicPending = useCallback((epicId: string, pending: boolean) => {
+    setPendingEpicById((prev) =>
+      pending ? { ...prev, [epicId]: true } : clearRecordKey(prev, epicId),
     );
   }, []);
 
-  const patchFeature = useCallback((updated: RoadmapFeature) => {
-    setEpics((prev) =>
-      prev.map((e) => ({
-        ...e,
-        features: (e.features ?? []).map((f) =>
-          f.id === updated.id ? { ...f, ...updated } : f,
-        ),
-      })),
-    );
+  const setFeaturePending = useCallback(
+    (featureId: string, pending: boolean) => {
+      setPendingFeatureById((prev) =>
+        pending
+          ? { ...prev, [featureId]: true }
+          : clearRecordKey(prev, featureId),
+      );
+    },
+    [],
+  );
+
+  const setTaskPending = useCallback((taskId: string, pending: boolean) => {
+    setPendingTaskById((prev) => {
+      const next = pending
+        ? { ...prev, [taskId]: true }
+        : clearRecordKey(prev, taskId);
+      pendingTaskByIdRef.current = next;
+      return next;
+    });
   }, []);
 
-  const patchTask = useCallback((updated: RoadmapTask) => {
-    setEpics((prev) =>
-      prev.map((e) => ({
-        ...e,
-        features: (e.features ?? []).map((f) => ({
-          ...f,
-          tasks: (f.tasks ?? []).map((t) =>
-            t.id === updated.id ? { ...t, ...updated } : t,
-          ),
-        })),
-      })),
-    );
-  }, []);
+  const enqueueTaskStatus = useCallback(
+    (taskId: string, nextStatus: TaskStatus) => {
+      const runtime = {
+        getTask: (id: string) => findTaskById(epicsRef.current, id),
+        isActive: (id: string) => Boolean(activeTaskStatusSyncByIdRef.current[id]),
+        setActive: (id: string, value: boolean) => {
+          setActiveTaskStatusSyncById((prev) => {
+            const next = value
+              ? { ...prev, [id]: true }
+              : clearRecordKey(prev, id);
+            activeTaskStatusSyncByIdRef.current = next;
+            return next;
+          });
+        },
+        getQueuedIntent: (id: string) => queuedTaskStatusIntentByIdRef.current[id],
+        setQueuedIntent: (id: string, value: TaskStatus) => {
+          setQueuedTaskStatusIntentById((prev) => {
+            const next = { ...prev, [id]: value };
+            queuedTaskStatusIntentByIdRef.current = next;
+            return next;
+          });
+        },
+        clearQueuedIntent: (id: string) => {
+          setQueuedTaskStatusIntentById((prev) => {
+            const next = clearRecordKey(prev, id);
+            queuedTaskStatusIntentByIdRef.current = next;
+            return next;
+          });
+        },
+        getRollbackTask: (id: string) => taskStatusRollbackByIdRef.current[id],
+        setRollbackTask: (id: string, task: RoadmapTask) => {
+          setTaskStatusRollbackById((prev) => {
+            const next = { ...prev, [id]: task };
+            taskStatusRollbackByIdRef.current = next;
+            return next;
+          });
+        },
+        clearRollbackTask: (id: string) => {
+          setTaskStatusRollbackById((prev) => {
+            const next = clearTaskRollbackKey(prev, id);
+            taskStatusRollbackByIdRef.current = next;
+            return next;
+          });
+        },
+        applyOptimisticStatus: (id: string, status: TaskStatus) => {
+          patchTask(id, (task) => buildStatusPatch(task, status));
+        },
+        applyServerTask: (
+          id: string,
+          serverTask: RoadmapTask,
+          options: { preserveOptimisticStatus: boolean },
+        ) => {
+          patchTask(id, (task) => {
+            const merged = { ...task, ...serverTask };
+            return options.preserveOptimisticStatus
+              ? {
+                  ...merged,
+                  status: task.status,
+                  completed_at: task.completed_at,
+                }
+              : merged;
+          });
+        },
+        rollbackTask: (id: string, rollbackTask: RoadmapTask) => {
+          patchTask(id, () => rollbackTask);
+        },
+        sendTaskStatusUpdate: async (
+          id: string,
+          _intentStatus: TaskStatus,
+          taskForRequest: RoadmapTask,
+        ) =>
+          taskService.update(id, {
+            title: taskForRequest.title,
+            status: taskForRequest.status,
+            priority: taskForRequest.priority,
+            assignee_id: taskForRequest.assignee_id ?? null,
+            due_date: taskForRequest.due_date ?? null,
+            completed_at: taskForRequest.completed_at,
+          }),
+      };
 
-  const removeTask = useCallback((taskId: string) => {
-    setEpics((prev) =>
-      prev.map((e) => ({
-        ...e,
-        features: (e.features ?? []).map((f) => ({
-          ...f,
-          tasks: (f.tasks ?? []).filter((t) => t.id !== taskId),
-        })),
-      })),
-    );
-  }, []);
-
-  // ── Modal submit handlers ──────────────────────────────────────────────────
+      void enqueueTaskStatusIntent(runtime, taskId, nextStatus).catch(() => {
+        toast.error("Failed to update task status");
+      });
+    },
+    [patchTask, toast],
+  );
 
   const handleEpicSave = useCallback(
-    async (data: {
+    (data: {
       title: string;
       description: string;
       priority: EpicPriority;
@@ -1176,29 +1362,50 @@ function WorkItemsViewPage() {
       end_date?: string;
     }) => {
       if (!editingEpic) return;
-      setIsSaving(true);
-      try {
-        const updated = await epicService.update(editingEpic.id, {
+      const epicId = editingEpic.id;
+      const rollbackEpic = findEpicById(epicsRef.current, epicId);
+      if (!rollbackEpic) return;
+
+      const optimisticEpic: RoadmapEpic = {
+        ...rollbackEpic,
+        title: data.title,
+        description: data.description,
+        priority: data.priority,
+        tags: data.tags,
+        start_date: data.start_date,
+        end_date: data.end_date,
+        updated_at: new Date().toISOString(),
+      };
+
+      setEditingEpic(null);
+      setEpicPending(epicId, true);
+      patchEpic(epicId, () => optimisticEpic);
+
+      void epicService
+        .update(epicId, {
           title: data.title,
           description: data.description,
           priority: data.priority,
           tags: data.tags,
           start_date: data.start_date,
           end_date: data.end_date,
+        })
+        .then((updated) => {
+          patchEpic(epicId, (epic) => ({ ...epic, ...updated }));
+        })
+        .catch(() => {
+          patchEpic(epicId, () => rollbackEpic);
+          toast.error("Failed to update epic");
+        })
+        .finally(() => {
+          setEpicPending(epicId, false);
         });
-        patchEpic({ ...editingEpic, ...updated });
-        setEditingEpic(null);
-      } catch {
-        // keep modal open on error
-      } finally {
-        setIsSaving(false);
-      }
     },
-    [editingEpic, patchEpic],
+    [editingEpic, patchEpic, setEpicPending, toast],
   );
 
   const handleFeatureSave = useCallback(
-    async (data: {
+    (data: {
       title: string;
       description: string;
       status: FeatureStatus;
@@ -1207,102 +1414,149 @@ function WorkItemsViewPage() {
       end_date?: string;
     }) => {
       if (!editingFeature) return;
-      setIsSaving(true);
-      try {
-        const updated = await featureService.update(editingFeature.id, {
+      const featureId = editingFeature.id;
+      const rollbackFeature = findFeatureById(epicsRef.current, featureId);
+      if (!rollbackFeature) return;
+
+      const optimisticFeature: RoadmapFeature = {
+        ...rollbackFeature,
+        title: data.title,
+        description: data.description,
+        status: data.status,
+        is_deliverable: data.is_deliverable,
+        start_date: data.start_date,
+        end_date: data.end_date,
+        updated_at: new Date().toISOString(),
+      };
+
+      setEditingFeature(null);
+      setFeaturePending(featureId, true);
+      patchFeature(featureId, () => optimisticFeature);
+
+      void featureService
+        .update(featureId, {
           title: data.title,
           description: data.description,
           status: data.status,
           is_deliverable: data.is_deliverable,
           start_date: data.start_date,
           end_date: data.end_date,
+        })
+        .then((updated) => {
+          patchFeature(featureId, (feature) => ({ ...feature, ...updated }));
+        })
+        .catch(() => {
+          patchFeature(featureId, () => rollbackFeature);
+          toast.error("Failed to update feature");
+        })
+        .finally(() => {
+          setFeaturePending(featureId, false);
         });
-        patchFeature({ ...editingFeature, ...updated });
-        setEditingFeature(null);
-      } catch {
-        // keep modal open
-      } finally {
-        setIsSaving(false);
-      }
     },
-    [editingFeature, patchFeature],
+    [editingFeature, patchFeature, setFeaturePending, toast],
   );
 
   const handleTaskUpdate = useCallback(
-    async (task: RoadmapTask, options?: { closePanelOnSuccess?: boolean }) => {
-      setIsSaving(true);
-      try {
-        const updated = await taskService.update(task.id, {
-          title: task.title,
-          status: task.status,
-          priority: task.priority,
-          assignee_id: task.assignee_id ?? null,
-          due_date: task.due_date ?? null,
-          completed_at: task.completed_at,
-        });
-        patchTask({ ...task, ...updated });
-        setSelectedTask((prev) =>
-          prev?.id === task.id
-            ? options?.closePanelOnSuccess
-              ? null
-              : { ...prev, ...updated }
-            : prev,
-        );
-      } catch {
-        // silent
-      } finally {
-        setIsSaving(false);
+    (task: RoadmapTask) => {
+      const currentTask = findTaskById(epicsRef.current, task.id);
+      if (!currentTask) return;
+
+      if (isStatusOnlyTaskUpdate(currentTask, task)) {
+        enqueueTaskStatus(task.id, task.status);
+        return;
       }
+
+      if (pendingTaskByIdRef.current[task.id]) return;
+
+      const taskId = task.id;
+      const rollbackTask = { ...currentTask };
+      const optimisticTask: RoadmapTask = { ...currentTask, ...task };
+
+      setTaskPending(taskId, true);
+      patchTask(taskId, () => optimisticTask);
+
+      void taskService
+        .update(taskId, {
+          title: optimisticTask.title,
+          status: optimisticTask.status,
+          priority: optimisticTask.priority,
+          assignee_id: optimisticTask.assignee_id ?? null,
+          due_date: optimisticTask.due_date ?? null,
+          completed_at: optimisticTask.completed_at,
+        })
+        .then((updated) => {
+          patchTask(taskId, (current) => ({ ...current, ...updated }));
+          setSelectedTask((prev) =>
+            prev?.id === taskId ? { ...prev, ...updated } : prev,
+          );
+        })
+        .catch(() => {
+          patchTask(taskId, () => rollbackTask);
+          setSelectedTask((prev) => (prev?.id === taskId ? rollbackTask : prev));
+          toast.error("Failed to update task");
+        })
+        .finally(() => {
+          setTaskPending(taskId, false);
+        });
     },
-    [patchTask],
+    [enqueueTaskStatus, patchTask, setTaskPending, toast],
   );
 
   const handleTaskDelete = useCallback(
-    async (taskId: string) => {
-      setIsSaving(true);
-      try {
-        await taskService.delete(taskId);
-        removeTask(taskId);
-        setSelectedTask((prev) => (prev?.id === taskId ? null : prev));
-      } catch {
-        // silent
-      } finally {
-        setIsSaving(false);
-      }
+    (taskId: string) => {
+      if (pendingTaskByIdRef.current[taskId]) return;
+
+      const removal = removeTaskById(epicsRef.current, taskId);
+      if (!removal) return;
+
+      setTaskPending(taskId, true);
+      setSelectedTask(null);
+      epicsRef.current = removal.epics;
+      setEpics(removal.epics);
+
+      void taskService
+        .delete(taskId)
+        .catch(() => {
+          setEpics((prev) => {
+            const next = restoreTaskAtLocation(prev, removal.snapshot);
+            epicsRef.current = next;
+            return next;
+          });
+          toast.error("Failed to delete task");
+        })
+        .finally(() => {
+          setTaskPending(taskId, false);
+        });
     },
-    [removeTask],
+    [setTaskPending, toast],
   );
 
   const handleTaskToggleComplete = useCallback(
     (task: RoadmapTask) => {
       const nextStatus: TaskStatus = task.status === "done" ? "todo" : "done";
-      handleTaskUpdate({
-        ...task,
-        status: nextStatus,
-        completed_at:
-          nextStatus === "done"
-            ? (task.completed_at ?? new Date().toISOString())
-            : undefined,
-      });
+      enqueueTaskStatus(task.id, nextStatus);
     },
-    [handleTaskUpdate],
+    [enqueueTaskStatus],
   );
 
   const handleTaskStatusChange = useCallback(
     (task: RoadmapTask, status: TaskStatus) => {
-      handleTaskUpdate({
-        ...task,
-        status,
-        completed_at:
-          status === "done"
-            ? (task.completed_at ?? new Date().toISOString())
-            : undefined,
-      });
+      enqueueTaskStatus(task.id, status);
     },
-    [handleTaskUpdate],
+    [enqueueTaskStatus],
   );
 
-  // ── Expand / collapse ──────────────────────────────────────────────────────
+  const isFeaturePending = useCallback(
+    (featureId: string) => Boolean(pendingFeatureById[featureId]),
+    [pendingFeatureById],
+  );
+
+  const isTaskPending = useCallback(
+    (taskId: string) =>
+      Boolean(pendingTaskById[taskId] || activeTaskStatusSyncById[taskId]),
+    [pendingTaskById, activeTaskStatusSyncById],
+  );
+
   const toggleEpic = useCallback((id: string) => {
     setExpandedEpics((prev) => {
       const next = new Set(prev);
@@ -1826,7 +2080,9 @@ function WorkItemsViewPage() {
                 onOpenTask={setSelectedTask}
                 onToggleTaskComplete={handleTaskToggleComplete}
                 onUpdateTaskStatus={handleTaskStatusChange}
-                isSaving={isSaving}
+                isEpicPending={Boolean(pendingEpicById[epic.id])}
+                isFeaturePending={isFeaturePending}
+                isTaskPending={isTaskPending}
               />
             ))}
           </div>
@@ -1883,7 +2139,7 @@ function WorkItemsViewPage() {
         }
         onClose={() => setEditingEpic(null)}
         onSubmit={handleEpicSave}
-        isLoading={isSaving}
+        isLoading={editingEpic ? Boolean(pendingEpicById[editingEpic.id]) : false}
       />
 
       {/* ── Feature edit modal ── */}
@@ -1895,7 +2151,9 @@ function WorkItemsViewPage() {
         initialData={editingFeature ?? undefined}
         onClose={() => setEditingFeature(null)}
         onSubmit={handleFeatureSave}
-        isLoading={isSaving}
+        isLoading={
+          editingFeature ? Boolean(pendingFeatureById[editingFeature.id]) : false
+        }
       />
 
       {/* ── Task side panel ── */}
@@ -1904,13 +2162,12 @@ function WorkItemsViewPage() {
         isOpen={!!selectedTask}
         projectId={projectId}
         onClose={() => setSelectedTask(null)}
-        onUpdateTask={(task) =>
-          handleTaskUpdate(task, { closePanelOnSuccess: true })
-        }
+        onUpdateTask={handleTaskUpdate}
         onDeleteTask={handleTaskDelete}
         projectMembers={projectMembers}
-        isLoading={isSaving}
+        isLoading={selectedTask ? Boolean(pendingTaskById[selectedTask.id]) : false}
       />
     </div>
   );
 }
+
