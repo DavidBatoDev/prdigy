@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import type { ProjectMemberTimeRate } from "@/services/project-time.service";
 import { initialsFromName } from "./time-utils";
 
@@ -29,6 +29,7 @@ interface TeamRatesSectionProps {
   rates: ProjectMemberTimeRate[];
   loadingRates: boolean;
   canManageRates: boolean;
+  pendingRateById: Record<string, boolean>;
   onViewLogs: (rate: ProjectMemberTimeRate) => void;
   onOpenAddRate: () => void;
   onOpenEditRate: (rate: ProjectMemberTimeRate) => void;
@@ -38,6 +39,7 @@ export function TeamRatesSection({
   rates,
   loadingRates,
   canManageRates,
+  pendingRateById,
   onViewLogs,
   onOpenAddRate,
   onOpenEditRate,
@@ -77,6 +79,7 @@ export function TeamRatesSection({
         ) : (
           <div className="flex flex-wrap gap-4">
             {rates.map((rate) => {
+              const isPending = Boolean(pendingRateById[rate.id]);
               const memberName =
                 rate.member?.display_name || rate.member?.email || rate.member_user_id;
               const roleRaw = rate.project_member?.role || "member";
@@ -89,7 +92,9 @@ export function TeamRatesSection({
               return (
                 <div
                   key={rate.id}
-                  className="w-full sm:w-[240px] rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden min-h-[280px] flex flex-col"
+                  className={`w-full sm:w-[240px] rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden min-h-[280px] flex flex-col ${
+                    isPending ? "ring-1 ring-amber-300/60 bg-amber-50/20" : ""
+                  }`}
                 >
                   <div
                     className="h-14 bg-gradient-to-r from-orange-200 via-amber-200 to-orange-100"
@@ -119,9 +124,17 @@ export function TeamRatesSection({
                     </div>
 
                     <div className="mt-2.5 text-center">
-                      <p className="text-sm font-semibold text-gray-900 leading-tight">
-                        {memberName}
-                      </p>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <p className="text-sm font-semibold text-gray-900 leading-tight">
+                          {memberName}
+                        </p>
+                        {isPending && (
+                          <Loader2
+                            className="h-3.5 w-3.5 animate-spin text-[#b35f00]"
+                            aria-label="Rate pending"
+                          />
+                        )}
+                      </div>
                       <p className="text-[11px] text-gray-500 mt-1">
                         {roleLabel} | {positionLabel}
                       </p>
@@ -159,7 +172,8 @@ export function TeamRatesSection({
                         <button
                           type="button"
                           onClick={() => onViewLogs(rate)}
-                          className="px-2.5 py-1 text-xs font-semibold rounded-md border border-[#ff9933]/30 bg-[#ff9933]/10 text-[#b35f00] hover:bg-[#ff9933]/20"
+                          disabled={isPending}
+                          className="px-2.5 py-1 text-xs font-semibold rounded-md border border-[#ff9933]/30 bg-[#ff9933]/10 text-[#b35f00] hover:bg-[#ff9933]/20 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           View Logs
                         </button>
@@ -167,7 +181,8 @@ export function TeamRatesSection({
                           <button
                             type="button"
                             onClick={() => onOpenEditRate(rate)}
-                            className="px-2.5 py-1 text-xs font-semibold rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                            disabled={isPending}
+                            className="px-2.5 py-1 text-xs font-semibold rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Edit
                           </button>

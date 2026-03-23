@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Check, Pencil, X } from "lucide-react";
+import { Check, Loader2, Pencil, X } from "lucide-react";
 import {
   createColumnHelper,
   flexRender,
@@ -47,9 +47,9 @@ interface TeamMemberLogsGridProps {
   timerNowMs: number;
   canEditTeam: boolean;
   canApprove: boolean;
-  isBulkReviewing?: boolean;
   selectedLogIds: Set<string>;
-  reviewActionLoadingById: Record<string, boolean>;
+  rowPendingById: Record<string, boolean>;
+  reviewSyncById: Record<string, boolean>;
   onToggleSelectLog: (logId: string, checked: boolean) => void;
   onToggleSelectAll: (checked: boolean, eligibleLogIds: string[]) => void;
   onEditLog: (log: TaskTimeLog) => void;
@@ -72,9 +72,9 @@ export function TeamMemberLogsGrid({
   timerNowMs,
   canEditTeam,
   canApprove,
-  isBulkReviewing = false,
   selectedLogIds,
-  reviewActionLoadingById,
+  rowPendingById,
+  reviewSyncById,
   onToggleSelectLog,
   onToggleSelectAll,
   onEditLog,
@@ -242,7 +242,7 @@ export function TeamMemberLogsGrid({
               ref={(el) => {
                 if (el) el.indeterminate = someEligibleSelected;
               }}
-              disabled={eligibleRowIds.length === 0 || isBulkReviewing}
+              disabled={eligibleRowIds.length === 0}
               onChange={(event) =>
                 onToggleSelectAll(event.currentTarget.checked, eligibleRowIds)
               }
@@ -258,7 +258,7 @@ export function TeamMemberLogsGrid({
               type="checkbox"
               aria-label="Select log row"
               checked={selectedLogIds.has(row.id)}
-              disabled={!isEligible || isBulkReviewing}
+              disabled={!isEligible || rowPendingById[row.id]}
               onChange={(event) => onToggleSelectLog(row.id, event.currentTarget.checked)}
               className="h-3.5 w-3.5 rounded border-gray-300"
             />
@@ -343,6 +343,12 @@ export function TeamMemberLogsGrid({
               >
                 {info.getValue()}
               </span>
+              {(rowPendingById[row.id] || reviewSyncById[row.id]) && (
+                <Loader2
+                  className="h-3.5 w-3.5 animate-spin text-[#b35f00]"
+                  aria-label="Review syncing"
+                />
+              )}
             </div>
           );
         },
@@ -367,7 +373,7 @@ export function TeamMemberLogsGrid({
                         row.status === "approved" ? "pending" : "approved",
                       )
                     }
-                    disabled={isRunning || reviewActionLoadingById[row.id] || isBulkReviewing}
+                    disabled={isRunning || rowPendingById[row.id]}
                     title={isRunning ? "Cannot review a running log" : "Approve"}
                     aria-label="Approve"
                     className={
@@ -386,7 +392,7 @@ export function TeamMemberLogsGrid({
                         row.status === "rejected" ? "pending" : "rejected",
                       )
                     }
-                    disabled={isRunning || reviewActionLoadingById[row.id] || isBulkReviewing}
+                    disabled={isRunning || rowPendingById[row.id]}
                     title={isRunning ? "Cannot review a running log" : "Disapprove"}
                     aria-label="Disapprove"
                     className={
@@ -403,9 +409,10 @@ export function TeamMemberLogsGrid({
                 <button
                   type="button"
                   onClick={() => onEditLog(row.log)}
+                  disabled={rowPendingById[row.id]}
                   title="Edit Log"
                   aria-label="Edit Log"
-                  className="inline-flex items-center justify-center h-7 w-8 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 cursor-pointer"
+                  className="inline-flex items-center justify-center h-7 w-8 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Pencil className="h-3.5 w-3.5" />
                 </button>
@@ -425,8 +432,8 @@ export function TeamMemberLogsGrid({
       onToggleSelectLog,
       allEligibleSelected,
       eligibleRowIds,
-      isBulkReviewing,
-      reviewActionLoadingById,
+      rowPendingById,
+      reviewSyncById,
       selectedLogIds,
       someEligibleSelected,
       targetRate?.currency,
@@ -473,7 +480,14 @@ export function TeamMemberLogsGrid({
         </thead>
         <tbody>
           {table.getRowModel().rows.map((row) => (
-            <tr key={row.id} className="border-t border-gray-200">
+            <tr
+              key={row.id}
+              className={`border-t border-gray-200 ${
+                !row.original.is_placeholder && rowPendingById[row.original.id]
+                  ? "bg-amber-50/40"
+                  : ""
+              }`}
+            >
               {row.getVisibleCells().map((cell) => (
                 <td key={cell.id} className="px-2 py-1.5 align-middle">
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}

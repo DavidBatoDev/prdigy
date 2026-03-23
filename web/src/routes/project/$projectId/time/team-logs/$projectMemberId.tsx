@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   projectTimeService,
   type TaskTimeLog,
@@ -23,6 +23,15 @@ import {
   MY_LOGS_PAGE,
   useTimeRouteData,
 } from "@/components/project/time/useTimeRouteData";
+import { useToast } from "@/hooks/useToast";
+import {
+  clearLogRollbackKey,
+  clearRecordKey,
+  enqueueReviewIntent,
+  findLogById,
+  patchLogById,
+  patchLogsByIds,
+} from "@/components/project/time/timeOptimistic";
 
 export const Route = createFileRoute(
   "/project/$projectId/time/team-logs/$projectMemberId",
@@ -34,6 +43,7 @@ function TimeTeamMemberLogsPage() {
   const { projectId, projectMemberId } = Route.useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   const {
     actorKey,
@@ -59,9 +69,19 @@ function TimeTeamMemberLogsPage() {
 
   const [error, setError] = useState<string | null>(null);
   const [timerNowMs, setTimerNowMs] = useState(Date.now());
-  const [reviewActionLoadingById, setReviewActionLoadingById] = useState<
+  const [pendingLogById, setPendingLogById] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [queuedReviewIntentByLogId, setQueuedReviewIntentByLogId] = useState<
+    Record<string, "approved" | "rejected" | "pending">
+  >({});
+  const [activeReviewSyncByLogId, setActiveReviewSyncByLogId] = useState<
     Record<string, boolean>
   >({});
+  const [reviewRollbackByLogId, setReviewRollbackByLogId] = useState<
+    Partial<Record<string, TaskTimeLog>>
+  >({});
+  const [isBulkReviewing, setIsBulkReviewing] = useState(false);
   const [selectedLogIds, setSelectedLogIds] = useState<Set<string>>(new Set());
   const [bulkDecision, setBulkDecision] = useState<
     "approved" | "rejected" | "pending"
@@ -70,6 +90,11 @@ function TimeTeamMemberLogsPage() {
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
   const [editStartedAt, setEditStartedAt] = useState("");
   const [editEndedAt, setEditEndedAt] = useState("");
+
+  const pendingLogByIdRef = useRef(pendingLogById);
+  const queuedReviewIntentByLogIdRef = useRef(queuedReviewIntentByLogId);
+  const activeReviewSyncByLogIdRef = useRef(activeReviewSyncByLogId);
+  const reviewRollbackByLogIdRef = useRef(reviewRollbackByLogId);
 
   const targetMember = useMemo(
     () => teamMembers.find((member) => member.id === projectMemberId) ?? null,
@@ -107,15 +132,17 @@ function TimeTeamMemberLogsPage() {
   const logsScope: "team" | "approvals" =
     canApproveLogs ? "approvals" : canEditTeamLogs || canManageRates ? "team" : "approvals";
 
+  const teamLogsQueryKey = projectTimeKeys.teamLogs(
+    projectId,
+    actorKey,
+    targetMemberUserId ?? "unknown-member",
+    MY_LOGS_PAGE,
+    MY_LOGS_LIMIT,
+    logsScope,
+  );
+
   const teamLogsQuery = useQuery({
-    queryKey: projectTimeKeys.teamLogs(
-      projectId,
-      actorKey,
-      targetMemberUserId ?? "unknown-member",
-      MY_LOGS_PAGE,
-      MY_LOGS_LIMIT,
-      logsScope,
-    ),
+    queryKey: teamLogsQueryKey,
     queryFn: async () => {
       const endpointOrder: Array<"approvals" | "team"> = [];
       if (canApproveLogs) endpointOrder.push("approvals");
@@ -158,61 +185,32 @@ function TimeTeamMemberLogsPage() {
   const invalidateTeamLogs = () => {
     if (!targetMemberUserId) return Promise.resolve();
     return queryClient.invalidateQueries({
-      queryKey: projectTimeKeys.teamLogs(
-        projectId,
-        actorKey,
-        targetMemberUserId,
-        MY_LOGS_PAGE,
-        MY_LOGS_LIMIT,
-        logsScope,
-      ),
+      queryKey: teamLogsQueryKey,
     });
   };
 
-  const updateLogMutation = useMutation({
-    mutationFn: ({
-      logId,
-      startedAt,
-      endedAt,
-    }: {
-      logId: string;
-      startedAt: string;
-      endedAt?: string;
-    }) =>
-      projectTimeService.update(logId, {
-        started_at: startedAt,
-        ...(endedAt ? { ended_at: endedAt } : {}),
-      }),
-    onSuccess: async () => {
-      await invalidateTeamLogs();
-    },
-  });
+  const getCachedLogs = useCallback(
+    () => queryClient.getQueryData<TaskTimeLog[]>(teamLogsQueryKey) ?? [],
+    [queryClient, teamLogsQueryKey],
+  );
 
-  const reviewLogMutation = useMutation({
-    mutationFn: ({
-      logId,
-      decision,
-    }: {
-      logId: string;
-      decision: "approved" | "rejected" | "pending";
-    }) => projectTimeService.review(logId, decision),
-    onSuccess: async () => {
-      await invalidateTeamLogs();
+  const setCachedLogs = useCallback(
+    (updater: (logsList: TaskTimeLog[]) => TaskTimeLog[]) => {
+      queryClient.setQueryData<TaskTimeLog[]>(teamLogsQueryKey, (current) => {
+        const safeCurrent = current ?? [];
+        return updater(safeCurrent);
+      });
     },
-  });
+    [queryClient, teamLogsQueryKey],
+  );
 
-  const reviewBulkMutation = useMutation({
-    mutationFn: ({
-      logIds,
-      decision,
-    }: {
-      logIds: string[];
-      decision: "approved" | "rejected" | "pending";
-    }) => projectTimeService.reviewBulk(logIds, decision),
-    onSuccess: async () => {
-      await invalidateTeamLogs();
-    },
-  });
+  const setLogPending = useCallback((logId: string, pending: boolean) => {
+    setPendingLogById((prev) => {
+      const next = pending ? { ...prev, [logId]: true } : clearRecordKey(prev, logId);
+      pendingLogByIdRef.current = next;
+      return next;
+    });
+  }, []);
 
   const hasActiveLog = useMemo(() => logs.some((log) => !log.ended_at), [logs]);
 
@@ -235,6 +233,22 @@ function TimeTeamMemberLogsPage() {
       return next;
     });
   }, [logs]);
+
+  useEffect(() => {
+    pendingLogByIdRef.current = pendingLogById;
+  }, [pendingLogById]);
+
+  useEffect(() => {
+    queuedReviewIntentByLogIdRef.current = queuedReviewIntentByLogId;
+  }, [queuedReviewIntentByLogId]);
+
+  useEffect(() => {
+    activeReviewSyncByLogIdRef.current = activeReviewSyncByLogId;
+  }, [activeReviewSyncByLogId]);
+
+  useEffect(() => {
+    reviewRollbackByLogIdRef.current = reviewRollbackByLogId;
+  }, [reviewRollbackByLogId]);
 
   const totalHoursWorked = useMemo(() => {
     return logs.reduce((sum, log) => {
@@ -315,8 +329,105 @@ function TimeTeamMemberLogsPage() {
     setEditEndedAt("");
   };
 
+  const enqueueReviewChange = useCallback(
+    (logId: string, decision: "approved" | "rejected" | "pending") => {
+      const runtime = {
+        getLog: (id: string) => findLogById(getCachedLogs(), id),
+        isActive: (id: string) => Boolean(activeReviewSyncByLogIdRef.current[id]),
+        setActive: (id: string, value: boolean) => {
+          setActiveReviewSyncByLogId((prev) => {
+            const next = value
+              ? { ...prev, [id]: true }
+              : clearRecordKey(prev, id);
+            activeReviewSyncByLogIdRef.current = next;
+            return next;
+          });
+        },
+        getQueuedIntent: (id: string) => queuedReviewIntentByLogIdRef.current[id],
+        setQueuedIntent: (
+          id: string,
+          nextDecision: "approved" | "rejected" | "pending",
+        ) => {
+          setQueuedReviewIntentByLogId((prev) => {
+            const next = { ...prev, [id]: nextDecision };
+            queuedReviewIntentByLogIdRef.current = next;
+            return next;
+          });
+        },
+        clearQueuedIntent: (id: string) => {
+          setQueuedReviewIntentByLogId((prev) => {
+            const next = clearRecordKey(prev, id);
+            queuedReviewIntentByLogIdRef.current = next;
+            return next;
+          });
+        },
+        getRollbackLog: (id: string) => reviewRollbackByLogIdRef.current[id],
+        setRollbackLog: (id: string, log: TaskTimeLog) => {
+          setReviewRollbackByLogId((prev) => {
+            const next = { ...prev, [id]: log };
+            reviewRollbackByLogIdRef.current = next;
+            return next;
+          });
+        },
+        clearRollbackLog: (id: string) => {
+          setReviewRollbackByLogId((prev) => {
+            const next = clearLogRollbackKey(prev, id);
+            reviewRollbackByLogIdRef.current = next;
+            return next;
+          });
+        },
+        applyOptimisticReview: (
+          id: string,
+          nextDecision: "approved" | "rejected" | "pending",
+        ) => {
+          setCachedLogs((list) =>
+            patchLogById(list, id, (log) => ({
+              ...log,
+              status: nextDecision,
+              updated_at: new Date().toISOString(),
+            })),
+          );
+        },
+        applyServerLog: (
+          id: string,
+          serverLog: TaskTimeLog,
+          options: { preserveOptimisticStatus: boolean },
+        ) => {
+          setCachedLogs((list) =>
+            patchLogById(list, id, (log) => {
+              const merged = { ...log, ...serverLog };
+              if (!options.preserveOptimisticStatus) return merged;
+              return {
+                ...merged,
+                status: log.status,
+              };
+            }),
+          );
+        },
+        rollbackLog: (id: string, rollbackLog: TaskTimeLog) => {
+          setCachedLogs((list) => patchLogById(list, id, () => rollbackLog));
+        },
+        sendReviewUpdate: async (
+          id: string,
+          nextDecision: "approved" | "rejected" | "pending",
+        ) => projectTimeService.review(id, nextDecision),
+      };
+
+      void enqueueReviewIntent(runtime, logId, decision)
+        .catch((e) => {
+          setError(getErrorMessage(e, "Failed to review time log."));
+          toast.error("Failed to review time log.");
+        })
+        .finally(() => {
+          void invalidateTeamLogs();
+        });
+    },
+    [getCachedLogs, invalidateTeamLogs, setCachedLogs, toast],
+  );
+
   const saveEditedLog = async () => {
     if (!editingLogId) return;
+    const logId = editingLogId;
     const started_at = fromLocalDateTimeInput(editStartedAt);
     const ended_at = fromLocalDateTimeInput(editEndedAt);
     if (!started_at) {
@@ -324,16 +435,34 @@ function TimeTeamMemberLogsPage() {
       return;
     }
 
+    const rollbackLog = findLogById(getCachedLogs(), logId);
+    if (!rollbackLog) return;
+
+    closeEditLogModal();
+
     try {
       setError(null);
-      await updateLogMutation.mutateAsync({
-        logId: editingLogId,
-        startedAt: started_at,
-        ...(ended_at ? { endedAt: ended_at } : {}),
+      setLogPending(logId, true);
+      setCachedLogs((list) =>
+        patchLogById(list, logId, (log) => ({
+          ...log,
+          started_at,
+          ended_at: ended_at ?? null,
+          updated_at: new Date().toISOString(),
+        })),
+      );
+      const updated = await projectTimeService.update(logId, {
+        started_at,
+        ...(ended_at ? { ended_at } : {}),
       });
-      closeEditLogModal();
+      setCachedLogs((list) => patchLogById(list, logId, () => updated));
     } catch (e) {
       setError(getErrorMessage(e, "Failed to update time log."));
+      toast.error("Failed to update time log.");
+      setCachedLogs((list) => patchLogById(list, logId, () => rollbackLog));
+    } finally {
+      setLogPending(logId, false);
+      void invalidateTeamLogs();
     }
   };
 
@@ -341,15 +470,9 @@ function TimeTeamMemberLogsPage() {
     logId: string,
     decision: "approved" | "rejected" | "pending",
   ) => {
-    try {
-      setReviewActionLoadingById((prev) => ({ ...prev, [logId]: true }));
-      setError(null);
-      await reviewLogMutation.mutateAsync({ logId, decision });
-    } catch (e) {
-      setError(getErrorMessage(e, "Failed to review time log."));
-    } finally {
-      setReviewActionLoadingById((prev) => ({ ...prev, [logId]: false }));
-    }
+    if (pendingLogByIdRef.current[logId]) return;
+    setError(null);
+    enqueueReviewChange(logId, decision);
   };
 
   const toggleSelectLog = (logId: string, checked: boolean) => {
@@ -375,12 +498,75 @@ function TimeTeamMemberLogsPage() {
   const applyBulkDecisionToSelected = async () => {
     const ids = Array.from(selectedLogIds);
     if (ids.length === 0) return;
+
+    const rollbackById = new Map<string, TaskTimeLog>();
+    const currentLogs = getCachedLogs();
+    for (const id of ids) {
+      const log = findLogById(currentLogs, id);
+      if (log) rollbackById.set(id, log);
+    }
+    if (rollbackById.size === 0) return;
+
+    setIsBulkReviewing(true);
+
     try {
       setError(null);
-      await reviewBulkMutation.mutateAsync({ logIds: ids, decision: bulkDecision });
-      setSelectedLogIds(new Set());
+      setPendingLogById((prev) => {
+        const next = { ...prev };
+        for (const id of ids) next[id] = true;
+        pendingLogByIdRef.current = next;
+        return next;
+      });
+      setCachedLogs((list) =>
+        patchLogsByIds(list, ids, (log) => ({
+          ...log,
+          status: bulkDecision,
+          updated_at: new Date().toISOString(),
+        })),
+      );
+
+      const updatedLogs = await projectTimeService.reviewBulk(ids, bulkDecision);
+      const updatedById = new Map(updatedLogs.map((log) => [log.id, log]));
+
+      setCachedLogs((list) =>
+        list.map((log) => {
+          const updated = updatedById.get(log.id);
+          return updated ? { ...log, ...updated } : log;
+        }),
+      );
+
+      const failedIds = ids.filter((id) => !updatedById.has(id));
+      if (failedIds.length > 0) {
+        setCachedLogs((list) =>
+          list.map((log) => {
+            const rollback = rollbackById.get(log.id);
+            return rollback ? rollback : log;
+          }),
+        );
+        setSelectedLogIds(new Set(failedIds));
+        setError("Some selected logs could not be updated.");
+        toast.error("Some selected logs could not be updated.");
+      } else {
+        setSelectedLogIds(new Set());
+      }
     } catch (e) {
       setError(getErrorMessage(e, "Failed to update selected logs."));
+      toast.error("Failed to update selected logs.");
+      setCachedLogs((list) =>
+        list.map((log) => {
+          const rollback = rollbackById.get(log.id);
+          return rollback ? rollback : log;
+        }),
+      );
+    } finally {
+      setPendingLogById((prev) => {
+        const next = { ...prev };
+        for (const id of ids) delete next[id];
+        pendingLogByIdRef.current = next;
+        return next;
+      });
+      setIsBulkReviewing(false);
+      void invalidateTeamLogs();
     }
   };
 
@@ -441,7 +627,7 @@ function TimeTeamMemberLogsPage() {
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-10 gap-4 items-start">
           <div className="xl:col-span-7 min-w-0">
-            {canApproveLogs && (
+            {canApproveLogs && selectedLogIds.size > 0 && (
               <div className="mb-2 flex items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2">
                 <p className="text-xs text-gray-600">
                   Selected logs: <span className="font-semibold">{selectedLogIds.size}</span>
@@ -454,7 +640,7 @@ function TimeTeamMemberLogsPage() {
                         event.currentTarget.value as "approved" | "rejected" | "pending",
                       )
                     }
-                    disabled={reviewBulkMutation.isPending}
+                    disabled={isBulkReviewing}
                     className="h-8 rounded-md border border-gray-300 bg-white px-2 text-xs text-gray-700 disabled:opacity-50"
                   >
                     <option value="approved">Set All Approved</option>
@@ -464,7 +650,7 @@ function TimeTeamMemberLogsPage() {
                   <button
                     type="button"
                     onClick={() => void applyBulkDecisionToSelected()}
-                    disabled={selectedLogIds.size === 0 || reviewBulkMutation.isPending}
+                    disabled={selectedLogIds.size === 0 || isBulkReviewing}
                     className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md border border-[#ff9933]/30 bg-[#ff9933]/10 text-[#b35f00] hover:bg-[#ff9933]/20 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Apply
@@ -479,9 +665,9 @@ function TimeTeamMemberLogsPage() {
               timerNowMs={timerNowMs}
               canEditTeam={canEditTeamLogs}
               canApprove={canApproveLogs}
-              isBulkReviewing={reviewBulkMutation.isPending}
               selectedLogIds={selectedLogIds}
-              reviewActionLoadingById={reviewActionLoadingById}
+              rowPendingById={pendingLogById}
+              reviewSyncById={activeReviewSyncByLogId}
               onToggleSelectLog={toggleSelectLog}
               onToggleSelectAll={toggleSelectAll}
               onEditLog={beginEditLog}
@@ -556,7 +742,7 @@ function TimeTeamMemberLogsPage() {
         isOpen={editingLogId !== null && canEditTeamLogs}
         startedAt={editStartedAt}
         endedAt={editEndedAt}
-        saving={updateLogMutation.isPending}
+        saving={editingLogId ? Boolean(pendingLogById[editingLogId]) : false}
         onClose={closeEditLogModal}
         onSave={saveEditedLog}
         onChangeStartedAt={setEditStartedAt}

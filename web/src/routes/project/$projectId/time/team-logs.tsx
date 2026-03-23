@@ -4,8 +4,8 @@ import {
   useChildMatches,
   useNavigate,
 } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ProjectMember } from "@/services/project.service";
 import {
   projectTimeService,
@@ -27,6 +27,17 @@ import {
   MY_LOGS_PAGE,
   useTimeRouteData,
 } from "@/components/project/time/useTimeRouteData";
+import { useToast } from "@/hooks/useToast";
+import {
+  clearRecordKey,
+  createTempId,
+  findRateById,
+  patchRateById,
+  prependRate,
+  removeRateById,
+  replaceRateByTempId,
+  restoreRateAtIndex,
+} from "@/components/project/time/timeOptimistic";
 
 export const Route = createFileRoute("/project/$projectId/time/team-logs")({
   component: TimeTeamLogsPage,
@@ -45,6 +56,7 @@ function TimeTeamLogsIndexPage() {
   const { projectId } = Route.useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   const {
     actorKey,
@@ -85,6 +97,12 @@ function TimeTeamLogsIndexPage() {
   const [editingRateCurrency, setEditingRateCurrency] = useState("USD");
   const [editingRateStartDate, setEditingRateStartDate] = useState("");
   const [editingRateEndDate, setEditingRateEndDate] = useState("");
+  const [pendingRateById, setPendingRateById] = useState<Record<string, boolean>>(
+    {},
+  );
+  const pendingRateByIdRef = useRef(pendingRateById);
+
+  const ratesQueryKey = projectTimeKeys.rates(projectId, actorKey);
 
   const invalidateMyLogs = () =>
     queryClient.invalidateQueries({
@@ -111,56 +129,28 @@ function TimeTeamLogsIndexPage() {
       queryKey: projectTimeKeys.teamMembers(projectId, actorKey),
     });
 
-  const createRateMutation = useMutation({
-    mutationFn: (payload: {
-      project_member_id: string;
-      hourly_rate: number;
-      currency: string;
-      custom_id: string;
-      start_date: string;
-      end_date?: string;
-    }) => projectTimeService.createProjectMemberRate(projectId, payload),
-    onSuccess: async () => {
-      await Promise.all([
-        invalidateRates(),
-        invalidateOwnRate(),
-        invalidateMyLogs(),
-        invalidateTeamMembers(),
-      ]);
-    },
-  });
+  const getCachedRates = useCallback(
+    () => queryClient.getQueryData<ProjectMemberTimeRate[]>(ratesQueryKey) ?? [],
+    [queryClient, ratesQueryKey],
+  );
 
-  const updateRateMutation = useMutation({
-    mutationFn: ({
-      rateId,
-      payload,
-    }: {
-      rateId: string;
-      payload: {
-        hourly_rate: number;
-        currency: string;
-        custom_id: string;
-        start_date: string;
-        end_date?: string;
-      };
-    }) => projectTimeService.updateProjectMemberRate(projectId, rateId, payload),
-    onSuccess: async () => {
-      await Promise.all([invalidateRates(), invalidateOwnRate(), invalidateMyLogs()]);
+  const setCachedRates = useCallback(
+    (updater: (ratesList: ProjectMemberTimeRate[]) => ProjectMemberTimeRate[]) => {
+      queryClient.setQueryData<ProjectMemberTimeRate[]>(ratesQueryKey, (current) => {
+        const safeCurrent = current ?? [];
+        return updater(safeCurrent);
+      });
     },
-  });
+    [queryClient, ratesQueryKey],
+  );
 
-  const deleteRateMutation = useMutation({
-    mutationFn: (rateId: string) =>
-      projectTimeService.deleteProjectMemberRate(projectId, rateId),
-    onSuccess: async () => {
-      await Promise.all([
-        invalidateRates(),
-        invalidateOwnRate(),
-        invalidateMyLogs(),
-        invalidateTeamMembers(),
-      ]);
-    },
-  });
+  const setRatePending = useCallback((rateId: string, pending: boolean) => {
+    setPendingRateById((prev) => {
+      const next = pending ? { ...prev, [rateId]: true } : clearRecordKey(prev, rateId);
+      pendingRateByIdRef.current = next;
+      return next;
+    });
+  }, []);
 
   const membersWithoutRate = useMemo(() => {
     const userIdsWithRate = new Set(rates.map((rate) => rate.member_user_id));
@@ -219,25 +209,77 @@ function TimeTeamLogsIndexPage() {
       return;
     }
 
+    const member = teamMembers.find((item) => item.id === newRateMemberId);
+    if (!member || !member.user_id) {
+      setError("Selected member is invalid.");
+      return;
+    }
+
+    const tempRateId = createTempId("tmp-rate");
+    const currency = newRateCurrency.trim().toUpperCase() || "USD";
+    const customId = newRateCustomId.trim();
+    const endDate = newRateEndDate || undefined;
+    const nowIso = new Date().toISOString();
+    const tempRate: ProjectMemberTimeRate = {
+      id: tempRateId,
+      project_id: projectId,
+      project_member_id: newRateMemberId,
+      member_user_id: member.user_id,
+      hourly_rate: hourly,
+      currency,
+      custom_id: customId || null,
+      start_date: newRateStartDate,
+      end_date: endDate ?? null,
+      created_at: nowIso,
+      updated_at: nowIso,
+      member: member.user
+        ? {
+            id: member.user.id,
+            display_name: member.user.display_name,
+            email: member.user.email,
+            avatar_url: member.user.avatar_url,
+          }
+        : undefined,
+      project_member: {
+        id: member.id,
+        role: member.role,
+        position: member.position ?? undefined,
+      },
+    };
+
+    setIsAddRateModalOpen(false);
+    setNewRateMemberId("");
+    setNewRateCustomId("");
+    setNewRateValue("");
+    setNewRateCurrency("USD");
+    setNewRateStartDate("");
+    setNewRateEndDate("");
+
     try {
       setError(null);
-      await createRateMutation.mutateAsync({
+      setRatePending(tempRateId, true);
+      setCachedRates((list) => prependRate(list, tempRate));
+      const created = await projectTimeService.createProjectMemberRate(projectId, {
         project_member_id: newRateMemberId,
         hourly_rate: hourly,
-        currency: newRateCurrency.trim().toUpperCase() || "USD",
-        custom_id: newRateCustomId.trim(),
+        currency,
+        custom_id: customId,
         start_date: newRateStartDate,
-        ...(newRateEndDate ? { end_date: newRateEndDate } : {}),
+        ...(endDate ? { end_date: endDate } : {}),
       });
-      setIsAddRateModalOpen(false);
-      setNewRateMemberId("");
-      setNewRateCustomId("");
-      setNewRateValue("");
-      setNewRateCurrency("USD");
-      setNewRateStartDate("");
-      setNewRateEndDate("");
+      setCachedRates((list) => replaceRateByTempId(list, tempRateId, created));
     } catch (e) {
       setError(getErrorMessage(e, "Failed to create rate."));
+      toast.error("Failed to create rate.");
+      setCachedRates((list) => list.filter((rate) => rate.id !== tempRateId));
+    } finally {
+      setRatePending(tempRateId, false);
+      await Promise.all([
+        invalidateRates(),
+        invalidateOwnRate(),
+        invalidateMyLogs(),
+        invalidateTeamMembers(),
+      ]);
     }
   };
 
@@ -252,32 +294,74 @@ function TimeTeamLogsIndexPage() {
       return;
     }
 
+    if (pendingRateByIdRef.current[rateId]) return;
+    const rollbackRate = findRateById(getCachedRates(), rateId);
+    if (!rollbackRate) return;
+
+    const currency = editingRateCurrency.trim().toUpperCase() || "USD";
+    const customId = editingRateCustomId.trim();
+    const endDate = editingRateEndDate || undefined;
+    const optimisticRate: ProjectMemberTimeRate = {
+      ...rollbackRate,
+      hourly_rate: hourly,
+      currency,
+      custom_id: customId || null,
+      start_date: editingRateStartDate,
+      end_date: endDate ?? null,
+      updated_at: new Date().toISOString(),
+    };
+
+    closeEditRateModal();
+
     try {
       setError(null);
-      await updateRateMutation.mutateAsync({
-        rateId,
-        payload: {
-          hourly_rate: hourly,
-          currency: editingRateCurrency.trim().toUpperCase() || "USD",
-          custom_id: editingRateCustomId.trim(),
-          start_date: editingRateStartDate,
-          ...(editingRateEndDate ? { end_date: editingRateEndDate } : {}),
-        },
+      setRatePending(rateId, true);
+      setCachedRates((list) => patchRateById(list, rateId, () => optimisticRate));
+      const updated = await projectTimeService.updateProjectMemberRate(projectId, rateId, {
+        hourly_rate: hourly,
+        currency,
+        custom_id: customId,
+        start_date: editingRateStartDate,
+        ...(endDate ? { end_date: endDate } : {}),
       });
-      closeEditRateModal();
+      setCachedRates((list) => patchRateById(list, rateId, () => updated));
     } catch (e) {
       setError(getErrorMessage(e, "Failed to update rate."));
+      toast.error("Failed to update rate.");
+      setCachedRates((list) => patchRateById(list, rateId, () => rollbackRate));
+    } finally {
+      setRatePending(rateId, false);
+      await Promise.all([invalidateRates(), invalidateOwnRate(), invalidateMyLogs()]);
     }
   };
 
   const deleteEditedRate = async (rateId: string) => {
     if (deleteRateVerificationText.trim().toUpperCase() !== "DELETE") return;
+    if (pendingRateByIdRef.current[rateId]) return;
+
+    const removal = removeRateById(getCachedRates(), rateId);
+    if (!removal) return;
+
+    closeEditRateModal();
     try {
       setError(null);
-      await deleteRateMutation.mutateAsync(rateId);
-      closeEditRateModal();
+      setRatePending(rateId, true);
+      setCachedRates(() => removal.rates);
+      await projectTimeService.deleteProjectMemberRate(projectId, rateId);
     } catch (e) {
       setError(getErrorMessage(e, "Failed to delete rate."));
+      toast.error("Failed to delete rate.");
+      setCachedRates((list) =>
+        restoreRateAtIndex(list, removal.removedRate, removal.removedIndex),
+      );
+    } finally {
+      setRatePending(rateId, false);
+      await Promise.all([
+        invalidateRates(),
+        invalidateOwnRate(),
+        invalidateMyLogs(),
+        invalidateTeamMembers(),
+      ]);
     }
   };
 
@@ -301,8 +385,8 @@ function TimeTeamLogsIndexPage() {
     });
   };
 
-  const savingRate = createRateMutation.isPending || updateRateMutation.isPending;
-  const deletingRate = deleteRateMutation.isPending;
+  const savingRate = false;
+  const deletingRate = editingRateId ? Boolean(pendingRateById[editingRateId]) : false;
 
   return (
     <TimeRouteFrame
@@ -338,6 +422,7 @@ function TimeTeamLogsIndexPage() {
             rates={rates}
             loadingRates={loadingRates}
             canManageRates={canManageRates}
+            pendingRateById={pendingRateById}
             onViewLogs={onViewLogs}
             onOpenAddRate={() => setIsAddRateModalOpen(true)}
             onOpenEditRate={openEditRateModal}

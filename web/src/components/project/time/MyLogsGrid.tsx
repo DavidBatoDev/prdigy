@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Pencil, Plus, Square, Trash2 } from "lucide-react";
+import { Loader2, Pencil, Plus, Square, Trash2 } from "lucide-react";
 import {
   createColumnHelper,
   flexRender,
@@ -49,8 +49,8 @@ interface MyLogsGridProps {
   loadingLogs: boolean;
   loadingTasks: boolean;
   timerNowMs: number;
-  taskSavingById: Record<string, boolean>;
-  rowActionLoadingById: Record<string, boolean>;
+  taskSyncById: Record<string, boolean>;
+  rowPendingById: Record<string, boolean>;
   onTaskChange: (log: TaskTimeLog, taskId: string) => void | Promise<void>;
   onStopLog: (logId: string) => void | Promise<void>;
   onDeleteLog: (logId: string) => void | Promise<void>;
@@ -65,8 +65,8 @@ export function MyLogsGrid({
   loadingLogs,
   loadingTasks,
   timerNowMs,
-  taskSavingById,
-  rowActionLoadingById,
+  taskSyncById,
+  rowPendingById,
   onTaskChange,
   onStopLog,
   onDeleteLog,
@@ -226,15 +226,23 @@ export function MyLogsGrid({
           const row = info.row.original;
           if (row.is_placeholder) return null;
           return (
-            <TaskTreePicker
-              tasks={tasks}
-              value={row.task_id}
-              onChange={(taskId) => void onTaskChange(row.log, taskId)}
-              disabled={taskSavingById[row.id] || loadingTasks || tasks.length === 0}
-              triggerClassName="w-full rounded-md border border-gray-300 bg-white px-2 py-0.5 text-[11px] leading-tight text-left"
-              selectedLabelMode="task"
-              panelClassName="max-h-72 overflow-auto rounded-md border border-gray-200 bg-white p-1 shadow-lg"
-            />
+            <div className="flex items-center gap-1.5">
+              <TaskTreePicker
+                tasks={tasks}
+                value={row.task_id}
+                onChange={(taskId) => void onTaskChange(row.log, taskId)}
+                disabled={loadingTasks || tasks.length === 0}
+                triggerClassName="w-full rounded-md border border-gray-300 bg-white px-2 py-0.5 text-[11px] leading-tight text-left"
+                selectedLabelMode="task"
+                panelClassName="max-h-72 overflow-auto rounded-md border border-gray-200 bg-white p-1 shadow-lg"
+              />
+              {taskSyncById[row.id] && (
+                <Loader2
+                  className="h-3.5 w-3.5 shrink-0 animate-spin text-[#b35f00]"
+                  aria-label="Task update syncing"
+                />
+              )}
+            </div>
           );
         },
       }),
@@ -307,7 +315,7 @@ export function MyLogsGrid({
                 <button
                   type="button"
                   onClick={() => void onStopLog(row.id)}
-                  disabled={rowActionLoadingById[row.id]}
+                  disabled={rowPendingById[row.id]}
                   title="Stop Timer"
                   aria-label="Stop Timer"
                   className="inline-flex items-center justify-center h-7 w-8 rounded-md border border-rose-200 bg-rose-50 text-rose-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
@@ -318,22 +326,29 @@ export function MyLogsGrid({
               <button
                 type="button"
                 onClick={() => onEditLog(row.log)}
+                disabled={rowPendingById[row.id]}
                 title="Edit Log"
                 aria-label="Edit Log"
-                className="inline-flex items-center justify-center h-7 w-8 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 cursor-pointer"
+                className="inline-flex items-center justify-center h-7 w-8 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Pencil className="h-3.5 w-3.5" />
               </button>
               <button
                 type="button"
                 onClick={() => void onDeleteLog(row.id)}
-                disabled={rowActionLoadingById[row.id]}
+                disabled={rowPendingById[row.id]}
                 title="Delete Log"
                 aria-label="Delete Log"
                 className="inline-flex items-center justify-center h-7 w-8 rounded-md border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
+              {rowPendingById[row.id] && (
+                <Loader2
+                  className="h-3.5 w-3.5 shrink-0 animate-spin text-gray-500"
+                  aria-label="Row pending"
+                />
+              )}
             </div>
           );
         },
@@ -348,8 +363,8 @@ export function MyLogsGrid({
       onStopLog,
       onTaskChange,
       ownRate?.currency,
-      rowActionLoadingById,
-      taskSavingById,
+      rowPendingById,
+      taskSyncById,
       tasks,
     ],
   );
@@ -391,7 +406,14 @@ export function MyLogsGrid({
         </thead>
         <tbody>
           {table.getRowModel().rows.map((row) => (
-            <tr key={row.id} className="border-t border-gray-200">
+            <tr
+              key={row.id}
+              className={`border-t border-gray-200 ${
+                !row.original.is_placeholder && rowPendingById[row.original.id]
+                  ? "bg-amber-50/40"
+                  : ""
+              }`}
+            >
               {row.getVisibleCells().map((cell) => (
                 <td key={cell.id} className="px-2 py-1.5 align-middle">
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}

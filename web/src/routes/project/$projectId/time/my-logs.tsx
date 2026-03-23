@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import {
   projectTimeService,
@@ -23,6 +23,19 @@ import {
   MY_LOGS_PAGE,
   useTimeRouteData,
 } from "@/components/project/time/useTimeRouteData";
+import { useToast } from "@/hooks/useToast";
+import {
+  clearLogRollbackKey,
+  clearRecordKey,
+  createTempId,
+  enqueueLogTaskIntent,
+  findLogById,
+  patchLogById,
+  prependLog,
+  removeLogById,
+  replaceLogByTempId,
+  restoreLogAtIndex,
+} from "@/components/project/time/timeOptimistic";
 
 export const Route = createFileRoute("/project/$projectId/time/my-logs")({
   component: TimeMyLogsPage,
@@ -31,6 +44,7 @@ export const Route = createFileRoute("/project/$projectId/time/my-logs")({
 function TimeMyLogsPage() {
   const { projectId } = Route.useParams();
   const queryClient = useQueryClient();
+  const toast = useToast();
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   const {
@@ -55,12 +69,18 @@ function TimeMyLogsPage() {
 
   const [error, setError] = useState<string | null>(null);
   const [timerNowMs, setTimerNowMs] = useState(Date.now());
-  const [rowActionLoadingById, setRowActionLoadingById] = useState<
-    Record<string, boolean>
-  >({});
-  const [taskSavingById, setTaskSavingById] = useState<Record<string, boolean>>(
+  const [pendingLogById, setPendingLogById] = useState<Record<string, boolean>>(
     {},
   );
+  const [queuedLogTaskIntentById, setQueuedLogTaskIntentById] = useState<
+    Record<string, string>
+  >({});
+  const [activeLogTaskSyncById, setActiveLogTaskSyncById] = useState<
+    Record<string, boolean>
+  >({});
+  const [logTaskRollbackById, setLogTaskRollbackById] = useState<
+    Partial<Record<string, TaskTimeLog>>
+  >({});
 
   const [isAddLogModalOpen, setIsAddLogModalOpen] = useState(false);
   const [newLogTaskId, setNewLogTaskId] = useState("");
@@ -71,11 +91,23 @@ function TimeMyLogsPage() {
   const [canScrollUp, setCanScrollUp] = useState(false);
   const [canScrollDown, setCanScrollDown] = useState(false);
 
+  const pendingLogByIdRef = useRef(pendingLogById);
+  const queuedLogTaskIntentByIdRef = useRef(queuedLogTaskIntentById);
+  const activeLogTaskSyncByIdRef = useRef(activeLogTaskSyncById);
+  const logTaskRollbackByIdRef = useRef(logTaskRollbackById);
+
   const taskTitleById = useMemo(() => {
     const map = new Map<string, string>();
     for (const task of projectTasks) map.set(task.id, task.title);
     return map;
   }, [projectTasks]);
+
+  const myLogsQueryKey = projectTimeKeys.myLogs(
+    projectId,
+    actorKey,
+    MY_LOGS_PAGE,
+    MY_LOGS_LIMIT,
+  );
 
   const invalidateMyLogs = () =>
     queryClient.invalidateQueries({
@@ -97,95 +129,28 @@ function TimeMyLogsPage() {
       queryKey: projectTimeKeys.tasks(projectId, actorKey),
     });
 
-  const updateTaskMutation = useMutation({
-    mutationFn: ({ logId, taskId }: { logId: string; taskId: string }) =>
-      projectTimeService.update(logId, { task_id: taskId }),
-    onMutate: async ({ logId, taskId }) => {
-      const queryKey = projectTimeKeys.myLogs(
-        projectId,
-        actorKey,
-        MY_LOGS_PAGE,
-        MY_LOGS_LIMIT,
-      );
-      await queryClient.cancelQueries({ queryKey });
-      const previousLogs = queryClient.getQueryData<TaskTimeLog[]>(queryKey);
+  const getCachedLogs = useCallback(
+    () => queryClient.getQueryData<TaskTimeLog[]>(myLogsQueryKey) ?? [],
+    [myLogsQueryKey, queryClient],
+  );
 
-      queryClient.setQueryData<TaskTimeLog[]>(queryKey, (current) => {
-        if (!current) return current;
-        return current.map((entry) =>
-          entry.id === logId
-            ? {
-                ...entry,
-                task_id: taskId,
-                task: {
-                  id: taskId,
-                  title: taskTitleById.get(taskId) ?? entry.task?.title ?? "Task",
-                },
-              }
-            : entry,
-        );
+  const setCachedLogs = useCallback(
+    (updater: (logs: TaskTimeLog[]) => TaskTimeLog[]) => {
+      queryClient.setQueryData<TaskTimeLog[]>(myLogsQueryKey, (current) => {
+        const safeCurrent = current ?? [];
+        return updater(safeCurrent);
       });
+    },
+    [myLogsQueryKey, queryClient],
+  );
 
-      return { previousLogs, queryKey };
-    },
-    onError: (_error, _variables, context) => {
-      if (context?.previousLogs && context.queryKey) {
-        queryClient.setQueryData(context.queryKey, context.previousLogs);
-      }
-    },
-    onSuccess: (updated) => {
-      queryClient.setQueryData<TaskTimeLog[]>(
-        projectTimeKeys.myLogs(projectId, actorKey, MY_LOGS_PAGE, MY_LOGS_LIMIT),
-        (current) => {
-          if (!current) return [updated];
-          return current.map((entry) => (entry.id === updated.id ? updated : entry));
-        },
-      );
-    },
-    onSettled: () => {
-      void invalidateMyLogs();
-    },
-  });
-
-  const startLogMutation = useMutation({
-    mutationFn: (taskId: string) => projectTimeService.start(projectId, taskId),
-    onSuccess: async () => {
-      await Promise.all([invalidateMyLogs(), invalidateOwnRate()]);
-    },
-  });
-
-  const stopLogMutation = useMutation({
-    mutationFn: (logId: string) => projectTimeService.stop(logId),
-    onSuccess: async () => {
-      await invalidateMyLogs();
-    },
-  });
-
-  const updateLogMutation = useMutation({
-    mutationFn: ({
-      logId,
-      startedAt,
-      endedAt,
-    }: {
-      logId: string;
-      startedAt: string;
-      endedAt?: string;
-    }) =>
-      projectTimeService.update(logId, {
-        started_at: startedAt,
-        ...(endedAt ? { ended_at: endedAt } : {}),
-      }),
-    onSuccess: async () => {
-      await invalidateMyLogs();
-    },
-  });
-
-  const deleteLogMutation = useMutation({
-    mutationFn: (logId: string) => projectTimeService.delete(logId),
-    onSuccess: async () => {
-      await invalidateMyLogs();
-    },
-  });
+  const setLogPending = useCallback((logId: string, pending: boolean) => {
+    setPendingLogById((prev) => {
+      const next = pending ? { ...prev, [logId]: true } : clearRecordKey(prev, logId);
+      pendingLogByIdRef.current = next;
+      return next;
+    });
+  }, []);
 
   const hasActiveLog = useMemo(() => {
     return myLogs.some((log) => !log.ended_at);
@@ -264,6 +229,22 @@ function TimeMyLogsPage() {
     return () => window.clearInterval(interval);
   }, [hasActiveLog]);
 
+  useEffect(() => {
+    pendingLogByIdRef.current = pendingLogById;
+  }, [pendingLogById]);
+
+  useEffect(() => {
+    queuedLogTaskIntentByIdRef.current = queuedLogTaskIntentById;
+  }, [queuedLogTaskIntentById]);
+
+  useEffect(() => {
+    activeLogTaskSyncByIdRef.current = activeLogTaskSyncById;
+  }, [activeLogTaskSyncById]);
+
+  useEffect(() => {
+    logTaskRollbackByIdRef.current = logTaskRollbackById;
+  }, [logTaskRollbackById]);
+
   const updateScrollButtons = useCallback(() => {
     const el = scrollContainerRef.current;
     if (!el) {
@@ -317,8 +298,102 @@ function TimeMyLogsPage() {
     setEditEndedAt("");
   };
 
+  const enqueueTaskChange = useCallback(
+    (logId: string, nextTaskId: string) => {
+      const runtime = {
+        getLog: (id: string) => findLogById(getCachedLogs(), id),
+        isActive: (id: string) => Boolean(activeLogTaskSyncByIdRef.current[id]),
+        setActive: (id: string, value: boolean) => {
+          setActiveLogTaskSyncById((prev) => {
+            const next = value
+              ? { ...prev, [id]: true }
+              : clearRecordKey(prev, id);
+            activeLogTaskSyncByIdRef.current = next;
+            return next;
+          });
+        },
+        getQueuedIntent: (id: string) => queuedLogTaskIntentByIdRef.current[id],
+        setQueuedIntent: (id: string, taskId: string) => {
+          setQueuedLogTaskIntentById((prev) => {
+            const next = { ...prev, [id]: taskId };
+            queuedLogTaskIntentByIdRef.current = next;
+            return next;
+          });
+        },
+        clearQueuedIntent: (id: string) => {
+          setQueuedLogTaskIntentById((prev) => {
+            const next = clearRecordKey(prev, id);
+            queuedLogTaskIntentByIdRef.current = next;
+            return next;
+          });
+        },
+        getRollbackLog: (id: string) => logTaskRollbackByIdRef.current[id],
+        setRollbackLog: (id: string, log: TaskTimeLog) => {
+          setLogTaskRollbackById((prev) => {
+            const next = { ...prev, [id]: log };
+            logTaskRollbackByIdRef.current = next;
+            return next;
+          });
+        },
+        clearRollbackLog: (id: string) => {
+          setLogTaskRollbackById((prev) => {
+            const next = clearLogRollbackKey(prev, id);
+            logTaskRollbackByIdRef.current = next;
+            return next;
+          });
+        },
+        applyOptimisticTask: (id: string, taskId: string) => {
+          setCachedLogs((logs) =>
+            patchLogById(logs, id, (log) => ({
+              ...log,
+              task_id: taskId,
+              task: {
+                id: taskId,
+                title: taskTitleById.get(taskId) ?? log.task?.title ?? "Task",
+              },
+              updated_at: new Date().toISOString(),
+            })),
+          );
+        },
+        applyServerLog: (
+          id: string,
+          serverLog: TaskTimeLog,
+          options: { preserveOptimisticTask: boolean },
+        ) => {
+          setCachedLogs((logs) =>
+            patchLogById(logs, id, (log) => {
+              const merged = { ...log, ...serverLog };
+              if (!options.preserveOptimisticTask) return merged;
+              return {
+                ...merged,
+                task_id: log.task_id,
+                task: log.task,
+              };
+            }),
+          );
+        },
+        rollbackLog: (id: string, rollbackLog: TaskTimeLog) => {
+          setCachedLogs((logs) => patchLogById(logs, id, () => rollbackLog));
+        },
+        sendTaskUpdate: async (id: string, taskId: string) =>
+          projectTimeService.update(id, { task_id: taskId }),
+      };
+
+      void enqueueLogTaskIntent(runtime, logId, nextTaskId)
+        .catch((e) => {
+          setError(getErrorMessage(e, "Failed to update task."));
+          toast.error("Failed to update task.");
+        })
+        .finally(() => {
+          void invalidateMyLogs();
+        });
+    },
+    [getCachedLogs, invalidateMyLogs, setCachedLogs, taskTitleById, toast],
+  );
+
   const saveEditedLog = async () => {
     if (!editingLogId) return;
+    const logId = editingLogId;
     const started_at = fromLocalDateTimeInput(editStartedAt);
     const ended_at = fromLocalDateTimeInput(editEndedAt);
     if (!started_at) {
@@ -326,58 +401,104 @@ function TimeMyLogsPage() {
       return;
     }
 
+    const rollbackLog = findLogById(getCachedLogs(), logId);
+    if (!rollbackLog) return;
+
+    closeEditLogModal();
+    setError(null);
+    setLogPending(logId, true);
+    setCachedLogs((logs) =>
+      patchLogById(logs, logId, (log) => ({
+        ...log,
+        started_at,
+        ended_at: ended_at ?? null,
+        updated_at: new Date().toISOString(),
+      })),
+    );
+
     try {
-      setError(null);
-      await updateLogMutation.mutateAsync({
-        logId: editingLogId,
-        startedAt: started_at,
-        ...(ended_at ? { endedAt: ended_at } : {}),
+      const updated = await projectTimeService.update(logId, {
+        started_at,
+        ...(ended_at ? { ended_at } : {}),
       });
-      closeEditLogModal();
+      setCachedLogs((logs) => patchLogById(logs, logId, () => updated));
     } catch (e) {
+      setCachedLogs((logs) => patchLogById(logs, logId, () => rollbackLog));
       setError(getErrorMessage(e, "Failed to update time log."));
+      toast.error("Failed to update time log.");
+    } finally {
+      setLogPending(logId, false);
+      void invalidateMyLogs();
     }
   };
 
   const stopLog = async (logId: string) => {
+    if (pendingLogByIdRef.current[logId]) return;
+    const rollbackLog = findLogById(getCachedLogs(), logId);
+    if (!rollbackLog) return;
+
+    const nowIso = new Date().toISOString();
+    const startedMs = new Date(rollbackLog.started_at).getTime();
+    const nowMs = new Date(nowIso).getTime();
+    const durationSeconds =
+      Number.isFinite(startedMs) && Number.isFinite(nowMs) && nowMs > startedMs
+        ? Math.floor((nowMs - startedMs) / 1000)
+        : rollbackLog.duration_seconds;
+
+    setError(null);
+    setLogPending(logId, true);
+    setCachedLogs((logs) =>
+      patchLogById(logs, logId, (log) => ({
+        ...log,
+        ended_at: nowIso,
+        duration_seconds: durationSeconds ?? null,
+        updated_at: nowIso,
+      })),
+    );
+
     try {
-      setRowActionLoadingById((prev) => ({ ...prev, [logId]: true }));
-      setError(null);
-      await stopLogMutation.mutateAsync(logId);
+      const stopped = await projectTimeService.stop(logId);
+      setCachedLogs((logs) => patchLogById(logs, logId, () => stopped));
     } catch (e) {
+      setCachedLogs((logs) => patchLogById(logs, logId, () => rollbackLog));
       setError(getErrorMessage(e, "Failed to stop timer."));
+      toast.error("Failed to stop timer.");
     } finally {
-      setRowActionLoadingById((prev) => ({ ...prev, [logId]: false }));
+      setLogPending(logId, false);
+      void invalidateMyLogs();
     }
   };
 
   const deleteLog = async (logId: string) => {
     const confirmed = window.confirm("Delete this time log?");
     if (!confirmed) return;
+    if (pendingLogByIdRef.current[logId]) return;
+
+    const removal = removeLogById(getCachedLogs(), logId);
+    if (!removal) return;
+
+    setError(null);
+    setLogPending(logId, true);
+    setCachedLogs(() => removal.logs);
 
     try {
-      setRowActionLoadingById((prev) => ({ ...prev, [logId]: true }));
-      setError(null);
-      await deleteLogMutation.mutateAsync(logId);
+      await projectTimeService.delete(logId);
     } catch (e) {
+      setCachedLogs((logs) =>
+        restoreLogAtIndex(logs, removal.removedLog, removal.removedIndex),
+      );
       setError(getErrorMessage(e, "Failed to delete time log."));
+      toast.error("Failed to delete time log.");
     } finally {
-      setRowActionLoadingById((prev) => ({ ...prev, [logId]: false }));
+      setLogPending(logId, false);
+      void invalidateMyLogs();
     }
   };
 
   const handleTaskChange = async (log: TaskTimeLog, nextTaskId: string) => {
     if (!nextTaskId || nextTaskId === log.task_id) return;
-
-    try {
-      setTaskSavingById((prev) => ({ ...prev, [log.id]: true }));
-      setError(null);
-      await updateTaskMutation.mutateAsync({ logId: log.id, taskId: nextTaskId });
-    } catch (e) {
-      setError(getErrorMessage(e, "Failed to update task."));
-    } finally {
-      setTaskSavingById((prev) => ({ ...prev, [log.id]: false }));
-    }
+    setError(null);
+    enqueueTaskChange(log.id, nextTaskId);
   };
 
   const createLogFromModal = async () => {
@@ -386,19 +507,53 @@ function TimeMyLogsPage() {
       return;
     }
 
+    const taskId = newLogTaskId;
+    const tempId = createTempId("tmp-log");
+    const nowIso = new Date().toISOString();
+    const tempLog: TaskTimeLog = {
+      id: tempId,
+      project_id: projectId,
+      task_id: taskId,
+      member_user_id: actorKey,
+      started_at: nowIso,
+      ended_at: null,
+      duration_seconds: null,
+      status: "pending",
+      reviewed_by: null,
+      reviewed_at: null,
+      review_note: null,
+      source: "timer",
+      created_at: nowIso,
+      updated_at: nowIso,
+      task: {
+        id: taskId,
+        title: taskTitleById.get(taskId) ?? "Task",
+      },
+    };
+
+    setIsAddLogModalOpen(false);
+    setNewLogTaskId("");
+    setError(null);
+    setLogPending(tempId, true);
+    setCachedLogs((logs) => prependLog(logs, tempLog));
+
     try {
-      setError(null);
-      await startLogMutation.mutateAsync(newLogTaskId);
-      setIsAddLogModalOpen(false);
-      setNewLogTaskId("");
-      void invalidateTasks();
+      const created = await projectTimeService.start(projectId, taskId);
+      setCachedLogs((logs) => replaceLogByTempId(logs, tempId, created));
     } catch (e) {
+      setCachedLogs((logs) => logs.filter((log) => log.id !== tempId));
       setError(getErrorMessage(e, "Failed to add log."));
+      toast.error("Failed to add log.");
+    } finally {
+      setLogPending(tempId, false);
+      await Promise.all([invalidateMyLogs(), invalidateOwnRate(), invalidateTasks()]);
     }
   };
 
-  const savingAddLog = startLogMutation.isPending;
-  const savingLogEdit = updateLogMutation.isPending;
+  const rowPendingById = useMemo(() => pendingLogById, [pendingLogById]);
+  const taskSyncById = useMemo(() => activeLogTaskSyncById, [activeLogTaskSyncById]);
+  const savingAddLog = false;
+  const savingLogEdit = editingLogId ? Boolean(pendingLogById[editingLogId]) : false;
 
   return (
     <div ref={scrollContainerRef} className="h-full w-full overflow-y-auto">
@@ -450,8 +605,8 @@ function TimeMyLogsPage() {
                     loadingLogs={loadingMyLogs}
                     loadingTasks={loadingProjectTasks}
                     timerNowMs={timerNowMs}
-                    taskSavingById={taskSavingById}
-                    rowActionLoadingById={rowActionLoadingById}
+                    taskSyncById={taskSyncById}
+                    rowPendingById={rowPendingById}
                     onTaskChange={handleTaskChange}
                     onStopLog={stopLog}
                     onDeleteLog={deleteLog}
