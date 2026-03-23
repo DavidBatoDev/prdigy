@@ -3,6 +3,7 @@ import {
   ProjectResourceFolder,
   ProjectResourceLink,
 } from '../../../common/entities';
+import type { WorkspacePersona } from '../../../common/utils/persona-context';
 import {
   AddProjectMemberDto,
   CreateProjectDto,
@@ -35,8 +36,12 @@ export interface ProjectsRepository {
     active_persona: string;
     is_consultant_verified: boolean;
   } | null>;
-  findByUser(userId: string): Promise<Project[]>;
-  findDashboardByUser(userId: string): Promise<Project[]>;
+  getActivePersona(userId: string): Promise<WorkspacePersona | null>;
+  findByUser(userId: string, persona: WorkspacePersona): Promise<Project[]>;
+  findDashboardByUser(
+    userId: string,
+    persona: WorkspacePersona,
+  ): Promise<Project[]>;
   findById(id: string): Promise<
     | (Project & {
         client?: unknown;
@@ -54,7 +59,11 @@ export interface ProjectsRepository {
     newOwnerId: string,
   ): Promise<Project>;
   assignConsultant(projectId: string, consultantId: string): Promise<Project>;
-  isOwner(projectId: string, userId: string): Promise<boolean>;
+  isOwner(
+    projectId: string,
+    userId: string,
+    persona?: WorkspacePersona,
+  ): Promise<boolean>;
   addMember(projectId: string, dto: AddProjectMemberDto): Promise<unknown>;
   getProfileDisplayName(userId: string): Promise<string | null>;
   inviteByEmail(

@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { getActivePersonaForRequest } from "@/lib/persona-request";
 
 export interface CreateProjectData {
   creation_mode?: "client" | "consultant";
@@ -143,6 +144,33 @@ export interface ProjectInvite {
 }
 
 class ProjectService {
+  private async buildAuthHeaders(
+    contentType: "json" | "none" = "none",
+  ): Promise<Record<string, string>> {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) {
+      throw new Error("Authentication required");
+    }
+
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${session.access_token}`,
+    };
+
+    if (contentType === "json") {
+      headers["Content-Type"] = "application/json";
+    }
+
+    const activePersona = getActivePersonaForRequest();
+    if (activePersona) {
+      headers["X-Active-Persona"] = activePersona;
+    }
+
+    return headers;
+  }
+
   private normalizeResourcesPayload(raw: unknown): ProjectResourcesPayload {
     const candidate = (
       raw &&
@@ -179,22 +207,11 @@ class ProjectService {
    * Create a new project
    */
   async create(data: CreateProjectData): Promise<Project> {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session) {
-      throw new Error("Authentication required");
-    }
-
     const response = await fetch(
       `${import.meta.env.VITE_API_URL}/api/projects`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
+        headers: await this.buildAuthHeaders("json"),
         body: JSON.stringify(data),
       },
     );
@@ -212,21 +229,11 @@ class ProjectService {
    * Get a project by ID
    */
   async get(projectId: string): Promise<Project> {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session) {
-      throw new Error("Authentication required");
-    }
-
     const response = await fetch(
       `${import.meta.env.VITE_API_URL}/api/projects/${projectId}`,
       {
         method: "GET",
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
+        headers: await this.buildAuthHeaders(),
       },
     );
 
@@ -246,22 +253,11 @@ class ProjectService {
     projectId: string,
     data: Partial<CreateProjectData>,
   ): Promise<Project> {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session) {
-      throw new Error("Authentication required");
-    }
-
     const response = await fetch(
       `${import.meta.env.VITE_API_URL}/api/projects/${projectId}`,
       {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
+        headers: await this.buildAuthHeaders("json"),
         body: JSON.stringify(data),
       },
     );
@@ -279,21 +275,11 @@ class ProjectService {
    * List all projects for the current user
    */
   async list(): Promise<Project[]> {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session) {
-      throw new Error("Authentication required");
-    }
-
     const response = await fetch(
       `${import.meta.env.VITE_API_URL}/api/projects`,
       {
         method: "GET",
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
+        headers: await this.buildAuthHeaders(),
       },
     );
 
@@ -306,22 +292,12 @@ class ProjectService {
     return result.data;
   }
 
-  async listDashboardProjects(): Promise<Project[]> {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session) {
-      throw new Error("Authentication required");
-    }
-
+  async listDashboardProjects(_persona?: string): Promise<Project[]> {
     const response = await fetch(
       `${import.meta.env.VITE_API_URL}/api/projects/dashboard`,
       {
         method: "GET",
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
+        headers: await this.buildAuthHeaders(),
       },
     );
 

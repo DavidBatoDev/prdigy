@@ -37,6 +37,13 @@ function ProjectLayout() {
   const linkedRoadmapId = linkedRoadmapQuery.data?.id ?? null;
   const isLoading =
     !isRoadmapOnly && (projectQuery.isPending || linkedRoadmapQuery.isPending);
+  const projectErrorMessage =
+    !isRoadmapOnly && projectQuery.error instanceof Error
+      ? projectQuery.error.message
+      : "";
+  const isPersonaMismatch =
+    projectErrorMessage.toLowerCase().includes("persona-role mismatch") ||
+    projectErrorMessage.toLowerCase().includes("forbidden");
 
   // Auto-open project sidebar when navigating to project pages (non-roadmap)
   useEffect(() => {
@@ -47,6 +54,29 @@ function ProjectLayout() {
     return (
       <div className="min-h-screen bg-[#f6f7f8] flex items-center justify-center">
         <Loader2 className="w-10 h-10 animate-spin text-[#ff9933]" />
+      </div>
+    );
+  }
+
+  if (!isRoadmapOnly && !project && isPersonaMismatch) {
+    return (
+      <div className="min-h-screen bg-[#f6f7f8] flex items-center justify-center px-6 pt-14">
+        <div className="max-w-xl w-full bg-white border border-slate-200 rounded-2xl shadow-sm p-8 text-center">
+          <h2 className="text-2xl font-semibold text-[#333438]">
+            Workspace not available in this persona
+          </h2>
+          <p className="mt-2 text-sm text-[#61636c]">
+            This project is not accessible with your current active persona. Switch persona or return to the dashboard.
+          </p>
+          <div className="mt-6">
+            <Link
+              to="/dashboard"
+              className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl bg-[#ff9933] text-white text-sm font-semibold hover:bg-[#e68829] transition-colors"
+            >
+              Back to Dashboard
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }

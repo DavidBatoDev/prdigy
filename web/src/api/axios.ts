@@ -3,6 +3,7 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from "axios";
 import { getAccessToken } from "../lib/supabase";
+import { getActivePersonaForRequest } from "../lib/persona-request";
 
 // Get API base URL from environment variable
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -31,6 +32,11 @@ apiClient.interceptors.request.use(
         if (guestUserId && config.headers) {
           config.headers["X-Guest-User-Id"] = guestUserId;
         }
+      }
+
+      const activePersona = getActivePersonaForRequest();
+      if (activePersona && config.headers) {
+        config.headers["X-Active-Persona"] = activePersona;
       }
     } catch (error) {
       console.error("Error adding auth headers:", error);

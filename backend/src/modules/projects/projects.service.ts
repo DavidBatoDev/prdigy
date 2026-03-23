@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 export const PROJECTS_REPOSITORY = Symbol('PROJECTS_REPOSITORY');
@@ -39,9 +40,15 @@ import type {
   ProjectResourceFolderWithLinks,
   ProjectResourcesPayload,
 } from './repositories/projects.repository.interface';
+import {
+  normalizeWorkspacePersona,
+  type WorkspacePersona,
+} from '../../common/utils/persona-context';
 
 @Injectable()
 export class ProjectsService {
+  private readonly logger = new Logger(ProjectsService.name);
+
   constructor(
     @Inject(PROJECTS_REPOSITORY)
     private readonly projectsRepo: ProjectsRepository,
@@ -80,6 +87,39 @@ export class ProjectsService {
     const project = await this.projectsRepo.findById(projectId);
     if (!project) throw new NotFoundException('Project not found');
     return project as Project;
+  }
+
+  private async resolveActivePersona(
+    userId: string,
+    requestedPersona?: string | null,
+  ): Promise<WorkspacePersona> {
+    const fromRequest = normalizeWorkspacePersona(requestedPersona);
+    if (fromRequest) return fromRequest;
+
+    const fromProfile = await this.projectsRepo.getActivePersona(userId);
+    if (fromProfile) {
+      this.logger.warn(
+        `Missing X-Active-Persona; fallback to profile active_persona for user ${userId}.`,
+      );
+      return fromProfile;
+    }
+
+    throw new ForbiddenException('Unable to resolve active persona.');
+  }
+
+  async assertPersonaProjectAccess(
+    projectId: string,
+    userId: string,
+    requestedPersona?: string | null,
+  ): Promise<WorkspacePersona> {
+    const persona = await this.resolveActivePersona(userId, requestedPersona);
+    const hasAccess = await this.projectsRepo.isOwner(projectId, userId, persona);
+
+    if (!hasAccess) {
+      throw new ForbiddenException('persona-role mismatch');
+    }
+
+    return persona;
   }
 
   private async hydrateDefaultPermissionsIfEmpty(
@@ -208,7 +248,9 @@ export class ProjectsService {
       | 'time.approve'
       | 'time.manage_rates'
       | 'time.view',
+    requestedPersona?: string | null,
   ): Promise<void> {
+    await this.assertPersonaProjectAccess(projectId, userId, requestedPersona);
     const project = await this.getProjectOrThrow(projectId);
 
     // Always resolve/hydrate member permissions first when a member row exists.
@@ -248,7 +290,9 @@ export class ProjectsService {
       | 'time.manage_rates'
       | 'time.view'
     >,
+    requestedPersona?: string | null,
   ): Promise<void> {
+    await this.assertPersonaProjectAccess(projectId, userId, requestedPersona);
     const project = await this.getProjectOrThrow(projectId);
 
     // Always resolve/hydrate member permissions first when a member row exists.
@@ -276,15 +320,28 @@ export class ProjectsService {
     }
   }
 
-  async listUserProjects(userId: string): Promise<Project[]> {
-    return this.projectsRepo.findByUser(userId);
+  async listUserProjects(
+    userId: string,
+    requestedPersona?: string | null,
+  ): Promise<Project[]> {
+    const persona = await this.resolveActivePersona(userId, requestedPersona);
+    return this.projectsRepo.findByUser(userId, persona);
   }
 
-  async listDashboardProjects(userId: string): Promise<Project[]> {
-    return this.projectsRepo.findDashboardByUser(userId);
+  async listDashboardProjects(
+    userId: string,
+    requestedPersona?: string | null,
+  ): Promise<Project[]> {
+    const persona = await this.resolveActivePersona(userId, requestedPersona);
+    return this.projectsRepo.findDashboardByUser(userId, persona);
   }
 
-  async getProject(id: string) {
+  async getProject(
+    id: string,
+    userId: string,
+    requestedPersona?: string | null,
+  ) {
+    await this.assertPersonaProjectAccess(id, userId, requestedPersona);
     const project = await this.projectsRepo.findById(id);
     if (!project) throw new NotFoundException('Project not found');
     return project;
@@ -522,7 +579,9 @@ export class ProjectsService {
   async listProjectResources(
     projectId: string,
     callerId: string,
+    requestedPersona?: string | null,
   ): Promise<ProjectResourcesPayload> {
+    await this.assertPersonaProjectAccess(projectId, callerId, requestedPersona);
     await this.assertCanAccessProjectResources(projectId, callerId);
     return this.projectsRepo.listProjectResources(projectId);
   }
@@ -675,7 +734,9 @@ export class ProjectsService {
   async getMyPermissions(
     projectId: string,
     userId: string,
+    requestedPersona?: string | null,
   ): Promise<ProjectPermissions> {
+    await this.assertPersonaProjectAccess(projectId, userId, requestedPersona);
     const project = await this.getProjectOrThrow(projectId);
 
     const member = await this.projectsRepo.getMemberByProjectAndUserId(

@@ -4,6 +4,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_ADMIN } from '../../../config/supabase.module';
 import { IRoadmapsRepository } from './roadmaps.repository.interface';
 import { CreateRoadmapDto, UpdateRoadmapDto } from '../dto/roadmaps.dto';
+import type { WorkspacePersona } from '../../../common/utils/persona-context';
 
 @Injectable()
 export class RoadmapsRepositorySupabase implements IRoadmapsRepository {
@@ -23,45 +24,111 @@ export class RoadmapsRepositorySupabase implements IRoadmapsRepository {
   private async canAccessProject(
     projectId: string,
     userId: string,
+    persona?: WorkspacePersona,
   ): Promise<boolean> {
+    if (persona === 'client') {
+      const { data, error } = await this.db
+        .from('projects')
+        .select('id')
+        .eq('id', projectId)
+        .eq('client_id', userId)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return Boolean(data);
+    }
+
+    if (persona === 'consultant') {
+      const { data, error } = await this.db
+        .from('projects')
+        .select('id')
+        .eq('id', projectId)
+        .eq('consultant_id', userId)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return Boolean(data);
+    }
+
+    if (persona === 'freelancer') {
+      const { data, error } = await this.db
+        .from('project_members')
+        .select('id')
+        .eq('project_id', projectId)
+        .eq('user_id', userId)
+        .eq('role', 'member')
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return Boolean(data);
+    }
+
     const { data: project, error: projectError } = await this.db
       .from('projects')
       .select('id')
       .eq('id', projectId)
       .or(`client_id.eq.${userId},consultant_id.eq.${userId}`)
       .maybeSingle();
-
     if (projectError) throw new Error(projectError.message);
-    if (project) return true;
-
-    const { data, error } = await this.db
-      .from('project_members')
-      .select('id')
-      .eq('project_id', projectId)
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (error) throw new Error(error.message);
-    return !!data;
+    return Boolean(project);
   }
 
   private async canAccessRoadmap(
     roadmap: { owner_id?: string; project_id?: string | null },
     userId: string,
+    persona?: WorkspacePersona,
   ): Promise<boolean> {
-    if (roadmap.owner_id === userId) return true;
+    if (roadmap.project_id) {
+      return this.canAccessProject(roadmap.project_id, userId, persona);
+    }
 
-    if (!roadmap.project_id) return false;
-
-    return this.canAccessProject(roadmap.project_id, userId);
+    return roadmap.owner_id === userId;
   }
 
-  async findAll(userId: string): Promise<any[]> {
+  private async findAccessibleProjectIds(
+    userId: string,
+    persona: WorkspacePersona,
+  ): Promise<string[]> {
+    if (persona === 'client') {
+      const { data, error } = await this.db
+        .from('projects')
+        .select('id')
+        .eq('client_id', userId);
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((row) => String(row.id));
+    }
+
+    if (persona === 'consultant') {
+      const { data, error } = await this.db
+        .from('projects')
+        .select('id')
+        .eq('consultant_id', userId);
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((row) => String(row.id));
+    }
+
     const { data, error } = await this.db
+      .from('project_members')
+      .select('project_id')
+      .eq('user_id', userId)
+      .eq('role', 'member');
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((row) => String(row.project_id));
+  }
+
+  async findAll(userId: string, persona?: WorkspacePersona): Promise<any[]> {
+    const query = this.db
       .from('roadmaps')
       .select('*, project:projects(id, title)')
-      .eq('owner_id', userId)
       .order('created_at', { ascending: false });
+
+    let data;
+    let error;
+    if (persona) {
+      const projectIds = await this.findAccessibleProjectIds(userId, persona);
+      if (projectIds.length === 0) return [];
+      ({ data, error } = await query.in('project_id', projectIds));
+    } else {
+      ({ data, error } = await query.eq('owner_id', userId));
+    }
+
     if (error) throw new Error(error.message);
     return data ?? [];
   }
@@ -69,6 +136,7 @@ export class RoadmapsRepositorySupabase implements IRoadmapsRepository {
   async findByProjectId(
     projectId: string,
     userId?: string,
+    persona?: WorkspacePersona,
   ): Promise<any | null> {
     const { data, error } = await this.db
       .from('roadmaps')
@@ -82,14 +150,18 @@ export class RoadmapsRepositorySupabase implements IRoadmapsRepository {
     if (!data) return null;
 
     if (userId) {
-      const hasAccess = await this.canAccessRoadmap(data, userId);
+      const hasAccess = await this.canAccessRoadmap(data, userId, persona);
       if (!hasAccess) return null;
     }
 
     return data;
   }
 
-  async findById(id: string, userId?: string): Promise<any | null> {
+  async findById(
+    id: string,
+    userId?: string,
+    persona?: WorkspacePersona,
+  ): Promise<any | null> {
     const query = this.db
       .from('roadmaps')
       .select('*, project:projects(id, title)')
@@ -101,14 +173,18 @@ export class RoadmapsRepositorySupabase implements IRoadmapsRepository {
     if (!data) return null;
 
     if (userId) {
-      const hasAccess = await this.canAccessRoadmap(data, userId);
+      const hasAccess = await this.canAccessRoadmap(data, userId, persona);
       if (!hasAccess) return null;
     }
 
     return data;
   }
 
-  async findFull(id: string, userId?: string): Promise<any | null> {
+  async findFull(
+    id: string,
+    userId?: string,
+    persona?: WorkspacePersona,
+  ): Promise<any | null> {
     const query = this.db
       .from('roadmaps')
       .select(
@@ -127,7 +203,7 @@ export class RoadmapsRepositorySupabase implements IRoadmapsRepository {
     if (!data) return null;
 
     if (userId) {
-      const hasAccess = await this.canAccessRoadmap(data, userId);
+      const hasAccess = await this.canAccessRoadmap(data, userId, persona);
       if (!hasAccess) return null;
     }
 
@@ -144,15 +220,33 @@ export class RoadmapsRepositorySupabase implements IRoadmapsRepository {
     return data ?? [];
   }
 
-  async findPreviews(userId: string): Promise<any[]> {
-    // Step 1: fetch roadmaps
-    const { data: roadmaps, error: roadmapsError } = await this.db
+  async findPreviews(
+    userId: string,
+    persona?: WorkspacePersona,
+  ): Promise<any[]> {
+    const baseQuery = this.db
       .from('roadmaps')
       .select(
         'id, name, description, status, project_id, preview_url, created_at, updated_at, project:projects(id, title)',
       )
-      .eq('owner_id', userId)
       .order('updated_at', { ascending: false });
+
+    let roadmaps;
+    let roadmapsError;
+    if (persona) {
+      const projectIds = await this.findAccessibleProjectIds(userId, persona);
+      if (projectIds.length === 0) return [];
+      ({ data: roadmaps, error: roadmapsError } = await baseQuery.in(
+        'project_id',
+        projectIds,
+      ));
+    } else {
+      ({ data: roadmaps, error: roadmapsError } = await baseQuery.eq(
+        'owner_id',
+        userId,
+      ));
+    }
+
     if (roadmapsError) throw new Error(roadmapsError.message);
     if (!roadmaps || roadmaps.length === 0) return [];
 

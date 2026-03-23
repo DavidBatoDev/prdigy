@@ -1,12 +1,25 @@
 import { CreateRoadmapDto, UpdateRoadmapDto } from '../dto/roadmaps.dto';
+import type { WorkspacePersona } from '../../../common/utils/persona-context';
 
 export interface IRoadmapsRepository {
-  findAll(userId: string): Promise<any[]>;
-  findByProjectId(projectId: string, userId?: string): Promise<any | null>;
-  findById(id: string, userId?: string): Promise<any | null>;
-  findFull(id: string, userId?: string): Promise<any | null>;
+  findAll(userId: string, persona?: WorkspacePersona): Promise<any[]>;
+  findByProjectId(
+    projectId: string,
+    userId?: string,
+    persona?: WorkspacePersona,
+  ): Promise<any | null>;
+  findById(
+    id: string,
+    userId?: string,
+    persona?: WorkspacePersona,
+  ): Promise<any | null>;
+  findFull(
+    id: string,
+    userId?: string,
+    persona?: WorkspacePersona,
+  ): Promise<any | null>;
   findByUser(userId: string): Promise<any[]>;
-  findPreviews(userId: string): Promise<any[]>;
+  findPreviews(userId: string, persona?: WorkspacePersona): Promise<any[]>;
   findConsultantProjectless(userId: string): Promise<any[]>;
   findPublicTemplatePreviews(): Promise<any[]>;
   findPublicTemplateById(id: string): Promise<any | null>;

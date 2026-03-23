@@ -48,10 +48,15 @@ export function ProjectsGrid() {
   const { profile } = useAuthStore();
   const persona = profile?.active_persona || "client";
   const queryClient = useQueryClient();
-  const projectsQueryKey = ["dashboard", "projects", user?.id ?? "anonymous"];
+  const projectsQueryKey = [
+    "dashboard",
+    "projects",
+    user?.id ?? "anonymous",
+    persona,
+  ];
   const projectsQuery = useQuery({
     queryKey: projectsQueryKey,
-    queryFn: () => projectService.listDashboardProjects(),
+    queryFn: () => projectService.listDashboardProjects(persona),
     enabled: persona !== "freelancer" && Boolean(user?.id),
     staleTime: 0,
     refetchOnMount: true,

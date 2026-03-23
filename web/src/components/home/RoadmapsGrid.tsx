@@ -82,7 +82,7 @@ export function RoadmapsGrid() {
   const persona = profile?.active_persona || "client";
   const freelancerRoleLabel = profile?.headline?.trim() || "Freelancer Contributor";
   const roadmapsQuery = useQuery({
-    queryKey: ["dashboard", "roadmaps-preview"],
+    queryKey: ["dashboard", "roadmaps-preview", persona],
     queryFn: () => getRoadmapsPreview(),
     staleTime: 0,
     refetchOnMount: true,

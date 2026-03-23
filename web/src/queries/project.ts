@@ -22,14 +22,18 @@ export type ProjectBriefResult = {
 
 export const projectKeys = {
   all: ["project"] as const,
-  detail: (projectId: string) => ["project", "detail", projectId] as const,
-  members: (projectId: string) => ["project", "members", projectId] as const,
-  resources: (projectId: string) => ["project", "resources", projectId] as const,
-  linkedRoadmap: (projectId: string) =>
-    ["project", "linked-roadmap", projectId] as const,
-  brief: (projectId: string) => ["project", "brief", projectId] as const,
-  roadmapFull: (roadmapId: string) =>
-    ["project", "roadmap-full", roadmapId] as const,
+  detail: (projectId: string, persona = "unknown") =>
+    ["project", "detail", projectId, persona] as const,
+  members: (projectId: string, persona = "unknown") =>
+    ["project", "members", projectId, persona] as const,
+  resources: (projectId: string, persona = "unknown") =>
+    ["project", "resources", projectId, persona] as const,
+  linkedRoadmap: (projectId: string, persona = "unknown") =>
+    ["project", "linked-roadmap", projectId, persona] as const,
+  brief: (projectId: string, persona = "unknown") =>
+    ["project", "brief", projectId, persona] as const,
+  roadmapFull: (roadmapId: string, persona = "unknown") =>
+    ["project", "roadmap-full", roadmapId, persona] as const,
 };
 
 const briefSelectBase =

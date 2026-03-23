@@ -4,8 +4,10 @@ import {
   Post,
   Patch,
   Delete,
+  Headers,
   Body,
   Param,
+  Query,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -27,13 +29,24 @@ export class RoadmapsController {
   constructor(private readonly roadmapsService: RoadmapsService) {}
 
   @Get()
-  getAll(@CurrentUser() user: AuthenticatedUser) {
-    return this.roadmapsService.findAll(user.id);
+  getAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Headers('x-active-persona') headerPersona?: string,
+    @Query('role') queryPersona?: string,
+  ) {
+    return this.roadmapsService.findAll(user.id, headerPersona ?? queryPersona);
   }
 
   @Get('preview')
-  getPreviews(@CurrentUser() user: AuthenticatedUser) {
-    return this.roadmapsService.findPreviews(user.id);
+  getPreviews(
+    @CurrentUser() user: AuthenticatedUser,
+    @Headers('x-active-persona') headerPersona?: string,
+    @Query('role') queryPersona?: string,
+  ) {
+    return this.roadmapsService.findPreviews(
+      user.id,
+      headerPersona ?? queryPersona,
+    );
   }
 
   @Get('user/:userId')
@@ -54,8 +67,14 @@ export class RoadmapsController {
   getByProjectId(
     @Param('projectId') projectId: string,
     @CurrentUser() user: AuthenticatedUser,
+    @Headers('x-active-persona') headerPersona?: string,
+    @Query('role') queryPersona?: string,
   ) {
-    return this.roadmapsService.findByProjectId(projectId, user.id);
+    return this.roadmapsService.findByProjectId(
+      projectId,
+      user.id,
+      headerPersona ?? queryPersona,
+    );
   }
 
   @Get('consultant/templates/mine')
@@ -70,13 +89,31 @@ export class RoadmapsController {
   }
 
   @Get(':id')
-  getOne(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.roadmapsService.findById(id, user.id);
+  getOne(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Headers('x-active-persona') headerPersona?: string,
+    @Query('role') queryPersona?: string,
+  ) {
+    return this.roadmapsService.findById(
+      id,
+      user.id,
+      headerPersona ?? queryPersona,
+    );
   }
 
   @Get(':id/full')
-  getFull(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.roadmapsService.findFull(id, user.id);
+  getFull(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Headers('x-active-persona') headerPersona?: string,
+    @Query('role') queryPersona?: string,
+  ) {
+    return this.roadmapsService.findFull(
+      id,
+      user.id,
+      headerPersona ?? queryPersona,
+    );
   }
 
   @Post()

@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -41,13 +42,27 @@ export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
   @Get()
-  listProjects(@CurrentUser() user: AuthenticatedUser) {
-    return this.projectsService.listUserProjects(user.id);
+  listProjects(
+    @CurrentUser() user: AuthenticatedUser,
+    @Headers('x-active-persona') headerPersona?: string,
+    @Query('role') queryPersona?: string,
+  ) {
+    return this.projectsService.listUserProjects(
+      user.id,
+      headerPersona ?? queryPersona,
+    );
   }
 
   @Get('dashboard')
-  listDashboardProjects(@CurrentUser() user: AuthenticatedUser) {
-    return this.projectsService.listDashboardProjects(user.id);
+  listDashboardProjects(
+    @CurrentUser() user: AuthenticatedUser,
+    @Headers('x-active-persona') headerPersona?: string,
+    @Query('role') queryPersona?: string,
+  ) {
+    return this.projectsService.listDashboardProjects(
+      user.id,
+      headerPersona ?? queryPersona,
+    );
   }
 
   @Post()
@@ -59,8 +74,17 @@ export class ProjectsController {
   }
 
   @Get(':id')
-  getProject(@Param('id') id: string) {
-    return this.projectsService.getProject(id);
+  getProject(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Headers('x-active-persona') headerPersona?: string,
+    @Query('role') queryPersona?: string,
+  ) {
+    return this.projectsService.getProject(
+      id,
+      user.id,
+      headerPersona ?? queryPersona,
+    );
   }
 
   @Patch(':id')
@@ -99,8 +123,14 @@ export class ProjectsController {
   listResources(
     @Param('id') id: string,
     @CurrentUser() user: AuthenticatedUser,
+    @Headers('x-active-persona') headerPersona?: string,
+    @Query('role') queryPersona?: string,
   ) {
-    return this.projectsService.listProjectResources(id, user.id);
+    return this.projectsService.listProjectResources(
+      id,
+      user.id,
+      headerPersona ?? queryPersona,
+    );
   }
 
   @Post(':id/resources/folders')
@@ -247,8 +277,14 @@ export class ProjectsController {
   getMyPermissions(
     @Param('id') id: string,
     @CurrentUser() user: AuthenticatedUser,
+    @Headers('x-active-persona') headerPersona?: string,
+    @Query('role') queryPersona?: string,
   ) {
-    return this.projectsService.getMyPermissions(id, user.id);
+    return this.projectsService.getMyPermissions(
+      id,
+      user.id,
+      headerPersona ?? queryPersona,
+    );
   }
 
   @Patch(':id/members/:memberId/permissions')

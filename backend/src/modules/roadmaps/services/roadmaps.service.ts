@@ -1,6 +1,7 @@
 import {
   Injectable,
   Inject,
+  Logger,
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
@@ -13,11 +14,17 @@ import {
   UpdateRoadmapTemplateSettingsDto,
 } from '../dto/roadmaps.dto';
 import { RoadmapAuthorizationService } from './roadmap-authorization.service';
+import {
+  normalizeWorkspacePersona,
+  type WorkspacePersona,
+} from '../../../common/utils/persona-context';
 
 export const ROADMAPS_REPOSITORY = Symbol('ROADMAPS_REPOSITORY');
 
 @Injectable()
 export class RoadmapsService {
+  private readonly logger = new Logger(RoadmapsService.name);
+
   constructor(
     @Inject(ROADMAPS_REPOSITORY) private readonly repo: IRoadmapsRepository,
     @Inject(SUPABASE_ADMIN) private readonly supabase: SupabaseClient,
@@ -36,32 +43,69 @@ export class RoadmapsService {
     }
   }
 
-  async findAll(userId: string) {
-    return this.repo.findAll(userId);
+  private async resolveActivePersona(
+    userId: string,
+    requestedPersona?: string | null,
+  ): Promise<WorkspacePersona> {
+    const fromRequest = normalizeWorkspacePersona(requestedPersona);
+    if (fromRequest) return fromRequest;
+
+    const { data, error } = await this.supabase
+      .from('profiles')
+      .select('active_persona')
+      .eq('id', userId)
+      .single();
+
+    if (!error) {
+      const fromProfile = normalizeWorkspacePersona(
+        String(data?.active_persona ?? ''),
+      );
+      if (fromProfile) {
+        this.logger.warn(
+          `Missing X-Active-Persona; fallback to profile active_persona for user ${userId}.`,
+        );
+        return fromProfile;
+      }
+    }
+
+    throw new ForbiddenException('Unable to resolve active persona.');
   }
 
-  async findPreviews(userId: string) {
-    return this.repo.findPreviews(userId);
+  async findAll(userId: string, requestedPersona?: string | null) {
+    const persona = await this.resolveActivePersona(userId, requestedPersona);
+    return this.repo.findAll(userId, persona);
+  }
+
+  async findPreviews(userId: string, requestedPersona?: string | null) {
+    const persona = await this.resolveActivePersona(userId, requestedPersona);
+    return this.repo.findPreviews(userId, persona);
   }
 
   async findByUser(userId: string) {
     return this.repo.findByUser(userId);
   }
 
-  async findByProjectId(projectId: string, userId: string) {
-    const roadmap = await this.repo.findByProjectId(projectId, userId);
+  async findByProjectId(
+    projectId: string,
+    userId: string,
+    requestedPersona?: string | null,
+  ) {
+    const persona = await this.resolveActivePersona(userId, requestedPersona);
+    const roadmap = await this.repo.findByProjectId(projectId, userId, persona);
     if (!roadmap) throw new NotFoundException('Roadmap not found');
     return roadmap;
   }
 
-  async findById(id: string, userId: string) {
-    const roadmap = await this.repo.findById(id, userId);
+  async findById(id: string, userId: string, requestedPersona?: string | null) {
+    const persona = await this.resolveActivePersona(userId, requestedPersona);
+    const roadmap = await this.repo.findById(id, userId, persona);
     if (!roadmap) throw new NotFoundException('Roadmap not found');
     return roadmap;
   }
 
-  async findFull(id: string, userId: string) {
-    const roadmap = await this.repo.findFull(id, userId);
+  async findFull(id: string, userId: string, requestedPersona?: string | null) {
+    const persona = await this.resolveActivePersona(userId, requestedPersona);
+    const roadmap = await this.repo.findFull(id, userId, persona);
     if (!roadmap) throw new NotFoundException('Roadmap not found');
     return roadmap;
   }

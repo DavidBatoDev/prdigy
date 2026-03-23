@@ -14,6 +14,10 @@ export function FreelancerSystemStatusLayer() {
     return null;
   }
 
+  if (pathname.startsWith("/dashboard")) {
+    return null;
+  }
+
   const stage = getFreelancerStage(profile);
   const stageMeta = getStageMeta(stage);
   const actionLink = stage === "onboarding" ? "/freelancer/go-live" : "/dashboard";

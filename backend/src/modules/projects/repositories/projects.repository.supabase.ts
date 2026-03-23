@@ -33,6 +33,10 @@ import {
   getTemplateByKey,
   resolvePermissionTemplateKey,
 } from '../permissions/project-permissions';
+import {
+  normalizeWorkspacePersona,
+  type WorkspacePersona,
+} from '../../../common/utils/persona-context';
 import type { ProjectPermissions } from '../permissions/project-permissions';
 import type {
   ProjectResourceFolderWithLinks,
@@ -61,6 +65,17 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
       active_persona: String(data.active_persona ?? ''),
       is_consultant_verified: data.is_consultant_verified === true,
     };
+  }
+
+  async getActivePersona(userId: string): Promise<WorkspacePersona | null> {
+    const { data, error } = await this.supabase
+      .from('profiles')
+      .select('active_persona')
+      .eq('id', userId)
+      .single();
+
+    if (error || !data) return null;
+    return normalizeWorkspacePersona(String(data.active_persona ?? ''));
   }
 
   private toProjectsTablePayload(
@@ -131,53 +146,70 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
     };
   }
 
-  async findByUser(userId: string): Promise<Project[]> {
-    const { data } = await this.supabase
-      .from('project_members')
-      .select(
-        'project:projects(*, client:profiles!projects_client_id_fkey(id, display_name, avatar_url, email))',
-      )
-      .eq('user_id', userId);
+  private projectSelect = `
+    *,
+    client:profiles!projects_client_id_fkey(id, display_name, avatar_url, email),
+    consultant:profiles!projects_consultant_id_fkey(id, display_name, avatar_url, email)
+  `;
 
-    return (data || [])
-      .map((r: Record<string, unknown>) => r.project)
+  private async findByClientPersona(userId: string): Promise<Project[]> {
+    const { data, error } = await this.supabase
+      .from('projects')
+      .select(this.projectSelect)
+      .eq('client_id', userId);
+    if (error) throw new Error(error.message);
+    return ((data || []) as unknown[]) as Project[];
+  }
+
+  private async findByConsultantPersona(userId: string): Promise<Project[]> {
+    const { data, error } = await this.supabase
+      .from('projects')
+      .select(this.projectSelect)
+      .eq('consultant_id', userId);
+    if (error) throw new Error(error.message);
+    return ((data || []) as unknown[]) as Project[];
+  }
+
+  private async findByFreelancerPersona(userId: string): Promise<Project[]> {
+    const { data, error } = await this.supabase
+      .from('project_members')
+      .select(`role, project:projects(${this.projectSelect})`)
+      .eq('user_id', userId)
+      .eq('role', ProjectMemberRole.MEMBER);
+
+    if (error) throw new Error(error.message);
+
+    const rows = ((data || []) as unknown[]) as Record<string, unknown>[];
+    return rows
+      .map((row) => row.project)
       .filter(Boolean) as Project[];
   }
 
-  async findDashboardByUser(userId: string): Promise<Project[]> {
-    const [ownedResult, memberResult] = await Promise.all([
-      this.supabase
-        .from('projects')
-        .select(
-          '*, client:profiles!projects_client_id_fkey(id, display_name, avatar_url, email), consultant:profiles!projects_consultant_id_fkey(id, display_name, avatar_url, email)',
-        )
-        .or(`client_id.eq.${userId},consultant_id.eq.${userId}`),
-      this.supabase
-        .from('project_members')
-        .select(
-          'project:projects(*, client:profiles!projects_client_id_fkey(id, display_name, avatar_url, email), consultant:profiles!projects_consultant_id_fkey(id, display_name, avatar_url, email))',
-        )
-        .eq('user_id', userId),
-    ]);
-
-    if (ownedResult.error) {
-      throw new Error(ownedResult.error.message);
+  private async findByPersona(
+    userId: string,
+    persona: WorkspacePersona,
+  ): Promise<Project[]> {
+    if (persona === 'client') {
+      return this.findByClientPersona(userId);
     }
 
-    if (memberResult.error) {
-      throw new Error(memberResult.error.message);
+    if (persona === 'consultant') {
+      return this.findByConsultantPersona(userId);
     }
 
-    const memberProjects = (memberResult.data || [])
-      .map((row: Record<string, unknown>) => row.project)
-      .filter(Boolean) as Project[];
+    return this.findByFreelancerPersona(userId);
+  }
 
-    const deduped = new Map<string, Project>();
-    for (const project of [...(ownedResult.data || []), ...memberProjects]) {
-      deduped.set(project.id, project);
-    }
+  async findByUser(userId: string, persona: WorkspacePersona): Promise<Project[]> {
+    return this.findByPersona(userId, persona);
+  }
 
-    return Array.from(deduped.values()).sort(
+  async findDashboardByUser(
+    userId: string,
+    persona: WorkspacePersona,
+  ): Promise<Project[]> {
+    const projects = await this.findByPersona(userId, persona);
+    return projects.sort(
       (a, b) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
@@ -433,7 +465,42 @@ export class SupabaseProjectsRepository implements ProjectsRepository {
     return data as Project;
   }
 
-  async isOwner(projectId: string, userId: string): Promise<boolean> {
+  async isOwner(
+    projectId: string,
+    userId: string,
+    persona?: WorkspacePersona,
+  ): Promise<boolean> {
+    if (persona === 'client') {
+      const { data } = await this.supabase
+        .from('projects')
+        .select('id')
+        .eq('id', projectId)
+        .eq('client_id', userId)
+        .maybeSingle();
+      return Boolean(data);
+    }
+
+    if (persona === 'consultant') {
+      const { data } = await this.supabase
+        .from('projects')
+        .select('id')
+        .eq('id', projectId)
+        .eq('consultant_id', userId)
+        .maybeSingle();
+      return Boolean(data);
+    }
+
+    if (persona === 'freelancer') {
+      const { data } = await this.supabase
+        .from('project_members')
+        .select('id')
+        .eq('project_id', projectId)
+        .eq('user_id', userId)
+        .eq('role', ProjectMemberRole.MEMBER)
+        .maybeSingle();
+      return Boolean(data);
+    }
+
     const { data } = await this.supabase
       .from('projects')
       .select('id')

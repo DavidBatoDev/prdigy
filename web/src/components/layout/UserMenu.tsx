@@ -78,6 +78,10 @@ export default function UserMenu() {
           queryKey: profileKeys.byUser(profile.id),
         });
       }
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await queryClient.removeQueries({ queryKey: ["project"] });
+      await queryClient.removeQueries({ queryKey: ["roadmap"] });
+      await queryClient.removeQueries({ queryKey: ["project-time"] });
 
       // Close dropdown
       setIsOpen(false);
