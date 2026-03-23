@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { Loader2, Pencil, Plus, Square, Trash2 } from "lucide-react";
 import {
   createColumnHelper,
@@ -20,14 +20,48 @@ type MyLogGridRow = {
   placeholder_index?: number;
   date: string;
   task_id: string;
-  task_title: string;
   time_in: string;
-  time_out: string;
-  hours_worked: number;
-  fees: number | null;
   is_running: boolean;
   log: TaskTimeLog;
 };
+
+interface TaskPickerCellProps {
+  tasks: ProjectTaskOption[];
+  value: string;
+  log: TaskTimeLog;
+  loadingTasks: boolean;
+  taskSyncing: boolean;
+  onTaskChange: (log: TaskTimeLog, taskId: string) => void | Promise<void>;
+}
+
+const TaskPickerCell = memo(function TaskPickerCell({
+  tasks,
+  value,
+  log,
+  loadingTasks,
+  taskSyncing,
+  onTaskChange,
+}: TaskPickerCellProps) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <TaskTreePicker
+        tasks={tasks}
+        value={value}
+        onChange={(taskId) => void onTaskChange(log, taskId)}
+        disabled={loadingTasks || tasks.length === 0}
+        triggerClassName="w-full rounded-md border border-gray-300 bg-white px-2 py-0.5 text-[11px] leading-tight text-left"
+        selectedLabelMode="task"
+        panelClassName="max-h-72 overflow-auto rounded-md border border-gray-200 bg-white p-1 shadow-lg"
+      />
+      {taskSyncing && (
+        <Loader2
+          className="h-3.5 w-3.5 shrink-0 animate-spin text-[#b35f00]"
+          aria-label="Task update syncing"
+        />
+      )}
+    </div>
+  );
+});
 
 function MyLogsGridSkeleton() {
   return (
@@ -48,7 +82,6 @@ interface MyLogsGridProps {
   ownRate: ProjectMemberTimeRate | null;
   loadingLogs: boolean;
   loadingTasks: boolean;
-  timerNowMs: number;
   taskSyncById: Record<string, boolean>;
   rowPendingById: Record<string, boolean>;
   onTaskChange: (log: TaskTimeLog, taskId: string) => void | Promise<void>;
@@ -64,7 +97,6 @@ export function MyLogsGrid({
   ownRate,
   loadingLogs,
   loadingTasks,
-  timerNowMs,
   taskSyncById,
   rowPendingById,
   onTaskChange,
@@ -73,6 +105,19 @@ export function MyLogsGrid({
   onEditLog,
   onOpenAddLog,
 }: MyLogsGridProps) {
+  const [liveNowMs, setLiveNowMs] = useState(Date.now());
+
+  const hasActiveLog = useMemo(
+    () => logs.some((log) => !log.ended_at),
+    [logs],
+  );
+
+  useEffect(() => {
+    if (!hasActiveLog) return;
+    const interval = window.setInterval(() => setLiveNowMs(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, [hasActiveLog]);
+
   const fullDateFormatter = useMemo(
     () =>
       new Intl.DateTimeFormat(undefined, {
@@ -93,15 +138,6 @@ export function MyLogsGrid({
       }),
     [],
   );
-  const shortDateFormatter = useMemo(
-    () =>
-      new Intl.DateTimeFormat(undefined, {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      }),
-    [],
-  );
   const shortDateTimeFormatter = useMemo(
     () =>
       new Intl.DateTimeFormat(undefined, {
@@ -115,67 +151,23 @@ export function MyLogsGrid({
     [],
   );
 
-  const taskTitleById = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const task of tasks) map.set(task.id, task.title);
-    return map;
-  }, [tasks]);
-
   const rows = useMemo<MyLogGridRow[]>(() => {
-    const hourlyRate = ownRate ? Number(ownRate.hourly_rate) : null;
     const sortedLogs = [...logs].sort((a, b) => {
       const aMs = new Date(a.started_at).getTime();
       const bMs = new Date(b.started_at).getTime();
       return aMs - bMs;
     });
     const populatedRows = sortedLogs.map((log) => {
-      const liveSeconds = liveDurationSecondsFromLog(log, timerNowMs);
-      const hoursWorked = Number((liveSeconds / 3600).toFixed(2));
-      const fees =
-        hourlyRate !== null && Number.isFinite(hourlyRate)
-          ? Number((hoursWorked * hourlyRate).toFixed(2))
-          : null;
       const startedDate = new Date(log.started_at);
-      const endedDate = log.ended_at ? new Date(log.ended_at) : null;
-      const nowDate = new Date(timerNowMs);
       const hasValidStart = !Number.isNaN(startedDate.getTime());
-      const hasValidEnd = Boolean(endedDate && !Number.isNaN(endedDate.getTime()));
-      const hasValidNow = !Number.isNaN(nowDate.getTime());
-      const endedDateValue: Date | undefined = hasValidEnd
-        ? (endedDate as Date)
-        : undefined;
-      const isMultiDay =
-        hasValidStart &&
-        hasValidEnd &&
-        startedDate.toDateString() !== endedDateValue?.toDateString();
 
       return {
         id: log.id,
-        date: !hasValidStart
-          ? "-"
-          : isMultiDay
-            ? `${shortDateFormatter.format(startedDate)} - ${shortDateFormatter.format(
-                endedDateValue,
-              )}`
-            : fullDateFormatter.format(startedDate),
+        date: !hasValidStart ? "-" : fullDateFormatter.format(startedDate),
         task_id: log.task_id,
-        task_title: log.task?.title ?? taskTitleById.get(log.task_id) ?? "Task",
         time_in: !hasValidStart
           ? "-"
-          : isMultiDay
-            ? shortDateTimeFormatter.format(startedDate)
-            : timeFormatter.format(startedDate),
-        time_out: hasValidEnd
-          ? isMultiDay
-            ? shortDateTimeFormatter.format(endedDateValue)
-            : timeFormatter.format(endedDateValue)
-          : !hasValidNow
-            ? "-"
-            : hasValidStart && startedDate.toDateString() !== nowDate.toDateString()
-              ? shortDateTimeFormatter.format(nowDate)
-              : timeFormatter.format(nowDate),
-        hours_worked: hoursWorked,
-        fees,
+          : timeFormatter.format(startedDate),
         is_running: !log.ended_at,
         log,
       };
@@ -190,11 +182,7 @@ export function MyLogsGrid({
         placeholder_index: idx,
         date: "",
         task_id: "",
-        task_title: "",
         time_in: "",
-        time_out: "",
-        hours_worked: 0,
-        fees: null,
         is_running: false,
         log: null as unknown as TaskTimeLog,
       }),
@@ -203,13 +191,56 @@ export function MyLogsGrid({
   }, [
     fullDateFormatter,
     logs,
-    ownRate,
-    shortDateFormatter,
     shortDateTimeFormatter,
-    taskTitleById,
     timeFormatter,
-    timerNowMs,
   ]);
+
+  const formatTimeOut = useMemo(
+    () => (log: TaskTimeLog) => {
+      const endedDate = log.ended_at ? new Date(log.ended_at) : null;
+      const nowDate = new Date(liveNowMs);
+      const startedDate = new Date(log.started_at);
+      const hasValidStart = !Number.isNaN(startedDate.getTime());
+      const hasValidEnd = Boolean(endedDate && !Number.isNaN(endedDate.getTime()));
+      const hasValidNow = !Number.isNaN(nowDate.getTime());
+      const endedDateValue: Date | undefined = hasValidEnd
+        ? (endedDate as Date)
+        : undefined;
+      const isMultiDay =
+        hasValidStart &&
+        hasValidEnd &&
+        startedDate.toDateString() !== endedDateValue?.toDateString();
+
+      if (hasValidEnd) {
+        return isMultiDay
+          ? shortDateTimeFormatter.format(endedDateValue)
+          : timeFormatter.format(endedDateValue);
+      }
+      if (!hasValidNow) return "-";
+      if (hasValidStart && startedDate.toDateString() !== nowDate.toDateString()) {
+        return shortDateTimeFormatter.format(nowDate);
+      }
+      return timeFormatter.format(nowDate);
+    },
+    [liveNowMs, shortDateTimeFormatter, timeFormatter],
+  );
+
+  const getHoursWorked = useMemo(
+    () => (log: TaskTimeLog) =>
+      Number((liveDurationSecondsFromLog(log, liveNowMs) / 3600).toFixed(2)),
+    [liveNowMs],
+  );
+
+  const getFees = useMemo(
+    () => (log: TaskTimeLog) => {
+      const hourlyRate = ownRate ? Number(ownRate.hourly_rate) : null;
+      const hoursWorked = getHoursWorked(log);
+      if (hourlyRate === null || !Number.isFinite(hourlyRate)) return null;
+      return Number((hoursWorked * hourlyRate).toFixed(2));
+    },
+    [getHoursWorked, ownRate],
+  );
+
   const columnHelper = createColumnHelper<MyLogGridRow>();
   const columns = useMemo(
     () => [
@@ -226,23 +257,14 @@ export function MyLogsGrid({
           const row = info.row.original;
           if (row.is_placeholder) return null;
           return (
-            <div className="flex items-center gap-1.5">
-              <TaskTreePicker
-                tasks={tasks}
-                value={row.task_id}
-                onChange={(taskId) => void onTaskChange(row.log, taskId)}
-                disabled={loadingTasks || tasks.length === 0}
-                triggerClassName="w-full rounded-md border border-gray-300 bg-white px-2 py-0.5 text-[11px] leading-tight text-left"
-                selectedLabelMode="task"
-                panelClassName="max-h-72 overflow-auto rounded-md border border-gray-200 bg-white p-1 shadow-lg"
-              />
-              {taskSyncById[row.id] && (
-                <Loader2
-                  className="h-3.5 w-3.5 shrink-0 animate-spin text-[#b35f00]"
-                  aria-label="Task update syncing"
-                />
-              )}
-            </div>
+            <TaskPickerCell
+              tasks={tasks}
+              value={row.task_id}
+              log={row.log}
+              loadingTasks={loadingTasks}
+              taskSyncing={Boolean(taskSyncById[row.id])}
+              onTaskChange={onTaskChange}
+            />
           );
         },
       }),
@@ -254,15 +276,15 @@ export function MyLogsGrid({
             <span className="tabular-nums">{info.getValue()}</span>
           ),
       }),
-      columnHelper.accessor("time_out", {
+      columnHelper.display({
         id: "time_out",
         header: "Time-Out",
         cell: (info) =>
           info.row.original.is_placeholder ? null : (
-            <span className="tabular-nums">{info.getValue()}</span>
+            <span className="tabular-nums">{formatTimeOut(info.row.original.log)}</span>
           ),
       }),
-      columnHelper.accessor("hours_worked", {
+      columnHelper.display({
         id: "hours_worked",
         header: "Hours",
         cell: (info) => {
@@ -270,22 +292,21 @@ export function MyLogsGrid({
           if (row.is_placeholder) return null;
           return (
             <span className="text-xs font-semibold text-gray-700">
-              {row.hours_worked.toFixed(2)}
+              {getHoursWorked(row.log).toFixed(2)}
             </span>
           );
         },
       }),
-      columnHelper.accessor("fees", {
+      columnHelper.display({
         id: "fees",
         header: "Fees",
         cell: (info) => {
           const row = info.row.original;
           if (row.is_placeholder) return null;
+          const fees = getFees(row.log);
           return (
             <span className="text-xs font-semibold text-emerald-700">
-              {row.fees === null
-                ? "-"
-                : `${row.fees.toFixed(2)} ${ownRate?.currency || "USD"}`}
+              {fees === null ? "-" : `${fees.toFixed(2)} ${ownRate?.currency || "USD"}`}
             </span>
           );
         },
@@ -357,6 +378,9 @@ export function MyLogsGrid({
     [
       columnHelper,
       loadingTasks,
+      formatTimeOut,
+      getFees,
+      getHoursWorked,
       onDeleteLog,
       onEditLog,
       onOpenAddLog,

@@ -11,7 +11,6 @@ import { AddLogModal, EditLogModal } from "@/components/project/time/TimeModals"
 import { TimeRouteFrame } from "@/components/project/time/TimeRouteFrame";
 import {
   fromLocalDateTimeInput,
-  liveDurationSecondsFromLog,
   toLocalDateTimeInput,
 } from "@/components/project/time/time-utils";
 import {
@@ -68,7 +67,6 @@ function TimeMyLogsPage() {
   });
 
   const [error, setError] = useState<string | null>(null);
-  const [timerNowMs, setTimerNowMs] = useState(Date.now());
   const [pendingLogById, setPendingLogById] = useState<Record<string, boolean>>(
     {},
   );
@@ -152,16 +150,12 @@ function TimeMyLogsPage() {
     });
   }, []);
 
-  const hasActiveLog = useMemo(() => {
-    return myLogs.some((log) => !log.ended_at);
-  }, [myLogs]);
-
   const totalHoursWorked = useMemo(() => {
     return myLogs.reduce((sum, log) => {
-      const seconds = liveDurationSecondsFromLog(log, timerNowMs);
+      const seconds = log.duration_seconds ?? 0;
       return sum + seconds / 3600;
     }, 0);
-  }, [myLogs, timerNowMs]);
+  }, [myLogs]);
 
   const totalWorkAmount = useMemo(() => {
     if (!ownRate) return 0;
@@ -182,11 +176,11 @@ function TimeMyLogsPage() {
 
     return myLogs.reduce((sum, log) => {
       if (log.status !== "approved") return sum;
-      const seconds = liveDurationSecondsFromLog(log, timerNowMs);
+      const seconds = log.duration_seconds ?? 0;
       const hours = seconds / 3600;
       return sum + hours * hourlyRate;
     }, 0);
-  }, [myLogs, ownRate, timerNowMs]);
+  }, [myLogs, ownRate]);
 
   const rejectedAmount = useMemo(() => {
     if (!ownRate) return 0;
@@ -195,11 +189,11 @@ function TimeMyLogsPage() {
 
     return myLogs.reduce((sum, log) => {
       if (log.status !== "rejected") return sum;
-      const seconds = liveDurationSecondsFromLog(log, timerNowMs);
+      const seconds = log.duration_seconds ?? 0;
       const hours = seconds / 3600;
       return sum + hours * hourlyRate;
     }, 0);
-  }, [myLogs, ownRate, timerNowMs]);
+  }, [myLogs, ownRate]);
 
   const formattedApprovedAmount = useMemo(() => {
     const currency = ownRate?.currency || "USD";
@@ -222,12 +216,6 @@ function TimeMyLogsPage() {
       year: "numeric",
     });
   };
-
-  useEffect(() => {
-    if (!hasActiveLog) return;
-    const interval = window.setInterval(() => setTimerNowMs(Date.now()), 1000);
-    return () => window.clearInterval(interval);
-  }, [hasActiveLog]);
 
   useEffect(() => {
     pendingLogByIdRef.current = pendingLogById;
@@ -495,11 +483,14 @@ function TimeMyLogsPage() {
     }
   };
 
-  const handleTaskChange = async (log: TaskTimeLog, nextTaskId: string) => {
-    if (!nextTaskId || nextTaskId === log.task_id) return;
-    setError(null);
-    enqueueTaskChange(log.id, nextTaskId);
-  };
+  const handleTaskChange = useCallback(
+    async (log: TaskTimeLog, nextTaskId: string) => {
+      if (!nextTaskId || nextTaskId === log.task_id) return;
+      setError(null);
+      enqueueTaskChange(log.id, nextTaskId);
+    },
+    [enqueueTaskChange],
+  );
 
   const createLogFromModal = async () => {
     if (!newLogTaskId) {
@@ -604,7 +595,6 @@ function TimeMyLogsPage() {
                     ownRate={ownRate}
                     loadingLogs={loadingMyLogs}
                     loadingTasks={loadingProjectTasks}
-                    timerNowMs={timerNowMs}
                     taskSyncById={taskSyncById}
                     rowPendingById={rowPendingById}
                     onTaskChange={handleTaskChange}
